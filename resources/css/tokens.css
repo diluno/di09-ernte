@@ -1,0 +1,55 @@
+:root,
+:root[data-theme="paper"] {
+  --paper: #f5f1ea;
+  --paper-2: #efe9dc;
+  --ink: #1a1a1a;
+  --ink-2: #3d3d3d;
+  --ink-3: #6b6b6b;
+  --ink-4: #9a9a9a;
+  --bg-3: #efe9dc;
+  --border: #e8e1d4;
+  --border-strong: #c9c0ad;
+  --forest: #2d4a3a;
+  --rust: #c97b3c;
+  --red: #b54834;
+  --gold: #b8941f;
+  --accent: var(--forest);
+}
+
+:root[data-theme="dark"] {
+  --paper: #1a1a1a;
+  --paper-2: #232323;
+  --ink: #f5f1ea;
+  --ink-2: #c9c0ad;
+  --ink-3: #9a9a9a;
+  --ink-4: #6b6b6b;
+  --bg-3: #232323;
+  --border: #2d2d2d;
+  --border-strong: #3d3d3d;
+  --forest: #6b8c7a;
+  --rust: #e09a5f;
+  --red: #d36651;
+  --gold: #d4af4a;
+  --accent: var(--forest);
+}
+
+:root[data-density="comfortable"] {
+  --row-h: 36px;
+  --pad-y: 10px;
+  --pad-x: 14px;
+}
+
+:root[data-density="compact"] {
+  --row-h: 28px;
+  --pad-y: 6px;
+  --pad-x: 10px;
+}
+
+:root {
+  --fs-xs: 11px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 24px;
+  --fs-xl: 36px;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
