@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TimerController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -20,7 +21,11 @@ Route::middleware('auth')->group(function () {
     Route::patch ('/tasks/{task}',   [TaskController::class, 'update'])->name('tasks.update');
     Route::delete('/tasks/{task}',   [TaskController::class, 'destroy'])->name('tasks.destroy');
 
-    Route::get('/timer',    fn () => Inertia::render('Timer/Today'))->name('timer.show');
+    Route::get ('/timer',          [TimerController::class, 'show'])->name('timer.show');
+    Route::post('/timer/start',    [TimerController::class, 'start'])->name('timer.start');
+    Route::post('/timer/stop',     [TimerController::class, 'stop'])->name('timer.stop');
+    Route::post('/timer/switch',   [TimerController::class, 'switch'])->name('timer.switch');
+    Route::post('/timer/discard',  [TimerController::class, 'discard'])->name('timer.discard');
     Route::get('/clients',  fn () => Inertia::render('Clients/Index'))->name('clients.index');
     Route::get('/invoices', fn () => Inertia::render('Invoices/Index'))->name('invoices.index');
     Route::get('/reports',  fn () => Inertia::render('Reports/Placeholder'))->name('reports.show');
