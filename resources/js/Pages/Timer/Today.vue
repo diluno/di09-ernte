@@ -1,6 +1,6 @@
 <script setup>
-import { computed } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TimerHero from '@/Components/TimerHero.vue';
 import EntryRow from '@/Components/EntryRow.vue';
@@ -27,6 +27,36 @@ function startProject(projectId) {
 }
 
 const totalShare = (sec) => props.totals.total_seconds ? (sec / props.totals.total_seconds) * 100 : 0;
+
+const showManual = ref(false);
+
+function isoLocal(d) {
+  // 'YYYY-MM-DDTHH:MM' suitable for <input type="datetime-local">
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+const nowDate = new Date();
+const oneHourAgo = new Date(nowDate.getTime() - 60 * 60 * 1000);
+
+const manualForm = useForm({
+  project_id: '',
+  description: '',
+  started_at: isoLocal(oneHourAgo),
+  ended_at: isoLocal(nowDate),
+  billable: true,
+});
+
+function submitManual() {
+  manualForm.transform((data) => ({
+    ...data,
+    started_at: new Date(data.started_at).toISOString(),
+    ended_at: new Date(data.ended_at).toISOString(),
+  })).post('/entries', {
+    onSuccess: () => { showManual.value = false; manualForm.reset(); },
+    preserveScroll: true,
+  });
+}
 </script>
 
 <template>
@@ -39,8 +69,25 @@ const totalShare = (sec) => props.totals.total_seconds ? (sec / props.totals.tot
       </h1>
     </div>
     <div style="display: flex; gap: 8px">
-      <button class="btn" disabled title="Manual entry — wired in EntryController">+ Manual entry</button>
+      <button class="btn" @click="showManual = !showManual">{{ showManual ? '× cancel' : '+ Manual entry' }}</button>
     </div>
+  </div>
+
+  <form v-if="showManual" @submit.prevent="submitManual" style="border: 1px solid var(--border-strong); padding: 16px; margin: 12px 0; display: grid; grid-template-columns: 200px 1fr 160px 160px auto auto; gap: 10px; align-items: center">
+    <select v-model="manualForm.project_id" required class="select">
+      <option value="" disabled>project…</option>
+      <option v-for="p in quick_start" :key="p.id" :value="p.id">{{ p.name }} ({{ p.code }})</option>
+    </select>
+    <input v-model="manualForm.description" placeholder="what did you do?" class="input" />
+    <input type="datetime-local" v-model="manualForm.started_at" required class="input" />
+    <input type="datetime-local" v-model="manualForm.ended_at" required class="input" />
+    <label style="display: flex; align-items: center; gap: 4px; font-size: var(--fs-sm)">
+      <input type="checkbox" v-model="manualForm.billable" /> billable
+    </label>
+    <button type="submit" class="btn primary" :disabled="manualForm.processing">save</button>
+  </form>
+  <div v-if="showManual && Object.keys(manualForm.errors).length" style="color: var(--red); font-size: var(--fs-sm); margin-bottom: 8px">
+    {{ Object.values(manualForm.errors).join(' · ') }}
   </div>
 
   <div class="timer-stage">

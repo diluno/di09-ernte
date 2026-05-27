@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\EntryController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
@@ -26,6 +27,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/timer/stop',     [TimerController::class, 'stop'])->name('timer.stop');
     Route::post('/timer/switch',   [TimerController::class, 'switch'])->name('timer.switch');
     Route::post('/timer/discard',  [TimerController::class, 'discard'])->name('timer.discard');
+
+    Route::post  ('/entries',          [EntryController::class, 'store'])->name('entries.store');
+    Route::patch ('/entries/{entry}',  [EntryController::class, 'update'])->name('entries.update');
+    Route::delete('/entries/{entry}',  [EntryController::class, 'destroy'])->name('entries.destroy');
+
     Route::get('/clients',  fn () => Inertia::render('Clients/Index'))->name('clients.index');
     Route::get('/invoices', fn () => Inertia::render('Invoices/Index'))->name('invoices.index');
     Route::get('/reports',  fn () => Inertia::render('Reports/Placeholder'))->name('reports.show');
