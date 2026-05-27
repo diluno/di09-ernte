@@ -1,0 +1,133 @@
+<script setup>
+import { computed, onMounted, ref } from 'vue';
+import { Link } from '@inertiajs/vue3';
+import AppLayout from '@/Layouts/AppLayout.vue';
+import BurnDown from '@/Components/BurnDown.vue';
+import Heatmap from '@/Components/Heatmap.vue';
+import EntryRow from '@/Components/EntryRow.vue';
+import TaskRow from '@/Components/TaskRow.vue';
+import { pushRecent } from '@/composables/useRecent.js';
+
+defineOptions({ layout: AppLayout });
+
+const props = defineProps({
+  project: { type: Object, required: true },
+  tasks:   { type: Array,  required: true },
+  recent_entries: { type: Array, required: true },
+  heatmap: { type: Array, required: true },
+  counts:  { type: Object, required: true },
+});
+
+const tab = ref('overview');
+
+onMounted(() => {
+  pushRecent({ url: `/projects/${props.project.code}`, label: props.project.name });
+});
+
+function fmtHours(h) { return `${h.toFixed(1)}h`; }
+function fmtMoneyShort(v) { return '€' + Math.round(v).toLocaleString('en-US'); }
+
+const remaining = computed(() => Math.max(0, props.project.budget_hours - props.project.spent_hours));
+</script>
+
+<template>
+  <div class="page-head">
+    <div>
+      <div class="crumb">
+        <Link href="/projects">~ / projects</Link>
+        <span class="ascii-dot">/</span>
+        <span>{{ project.code }}</span>
+      </div>
+      <h1 class="page-title">
+        <span class="proj-glyph" :class="project.glyph" style="width: 28px; height: 28px; font-size: 14px">{{ project.code[0] }}</span>
+        {{ project.name }}
+        <span class="meta">{{ project.client.name }}<span class="ascii-dot">·</span>€{{ project.rate }}/h</span>
+      </h1>
+    </div>
+    <div style="display: flex; gap: 8px">
+      <button class="btn ghost" disabled title="Use the timer page or ⌘+space (Phase 2b shortcut)">⏵ Start timer</button>
+      <button class="btn" disabled title="Phase 2b">Export</button>
+      <button class="btn primary" disabled title="Phase 2b">+ Invoice</button>
+    </div>
+  </div>
+
+  <div class="filter-row">
+    <button
+      v-for="t in [
+        { id: 'overview', label: 'Overview' },
+        { id: 'entries',  label: 'Entries',  count: counts.entries },
+        { id: 'tasks',    label: 'Tasks',    count: counts.tasks },
+        { id: 'team',     label: 'Team',     count: 1 },
+        { id: 'settings', label: 'Settings' },
+      ]" :key="t.id"
+      class="chip"
+      :aria-pressed="tab === t.id"
+      :disabled="t.id !== 'overview'"
+      @click="tab = t.id"
+    >
+      {{ t.label }}
+      <span v-if="t.count !== undefined" class="dim" style="margin-left: 4px">{{ t.count }}</span>
+    </button>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-main">
+      <h3 class="section-title">Budget burn-down</h3>
+      <BurnDown :spent="project.spent_hours" :budget="Math.max(project.budget_hours, 1)" />
+
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin: 20px 0 28px">
+        <div>
+          <div style="font-size: var(--fs-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3)">Hours spent</div>
+          <div style="font-size: var(--fs-xl); font-weight: 600; margin-top: 4px" :style="{ color: project.band === 'over' ? 'var(--red)' : 'var(--ink)' }">
+            {{ fmtHours(project.spent_hours) }}
+          </div>
+          <div style="font-size: var(--fs-xs); color: var(--ink-3); margin-top: 2px">of {{ fmtHours(project.budget_hours) }}</div>
+        </div>
+        <div>
+          <div style="font-size: var(--fs-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3)">Fees</div>
+          <div style="font-size: var(--fs-xl); font-weight: 600; margin-top: 4px">{{ fmtMoneyShort(project.spent_amount) }}</div>
+          <div style="font-size: var(--fs-xs); color: var(--ink-3); margin-top: 2px">of {{ fmtMoneyShort(project.budget_amount) }}</div>
+        </div>
+        <div>
+          <div style="font-size: var(--fs-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3)">Remaining</div>
+          <div style="font-size: var(--fs-xl); font-weight: 600; margin-top: 4px">{{ fmtHours(remaining) }}</div>
+          <div style="font-size: var(--fs-xs); color: var(--ink-3); margin-top: 2px">{{ project.band === 'over' ? 'exceeded' : 'available' }}</div>
+        </div>
+        <div>
+          <div style="font-size: var(--fs-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3)">Budget used</div>
+          <div style="font-size: var(--fs-xl); font-weight: 600; margin-top: 4px">{{ project.pct_hours }}%</div>
+        </div>
+      </div>
+
+      <h3 class="section-title">Tasks</h3>
+      <div class="task-list">
+        <TaskRow v-for="t in tasks" :key="t.id" :task="t" :project-id="project.id" />
+        <button class="btn ghost" style="margin-top: 12px; align-self: flex-start" disabled title="Wire to TaskController in next iteration">+ Add task</button>
+      </div>
+
+      <h3 class="section-title" style="margin-top: 28px">Recent entries</h3>
+      <div>
+        <EntryRow v-for="(e, i) in recent_entries" :key="e.id" :entry="e" :color-index="i" />
+        <div v-if="recent_entries.length === 0" class="muted" style="padding: 12px">No entries yet</div>
+      </div>
+    </div>
+
+    <aside class="detail-side">
+      <h3 class="section-title">Details</h3>
+      <dl class="kv">
+        <dt>Client</dt><dd>{{ project.client.name }}</dd>
+        <dt>Code</dt><dd><span class="mono-tag">{{ project.code }}</span></dd>
+        <dt>Status</dt><dd><span class="badge dot" :class="project.status">{{ project.status }}</span></dd>
+        <dt>Started</dt><dd>{{ project.started_on ?? '—' }}</dd>
+        <dt>Due</dt><dd>{{ project.deadline_on ?? '—' }}</dd>
+        <dt>Billing</dt><dd>{{ project.billable ? `Hourly · €${project.rate}/h` : 'non-billable' }}</dd>
+      </dl>
+
+      <h3 class="section-title" style="margin-top: 24px">Description</h3>
+      <p style="font-size: var(--fs-sm); color: var(--ink-2); line-height: 1.6; margin: 0">{{ project.description ?? '—' }}</p>
+
+      <h3 class="section-title" style="margin-top: 24px">Activity heatmap</h3>
+      <Heatmap :cells="heatmap" />
+    </aside>
+  </div>
+</template>

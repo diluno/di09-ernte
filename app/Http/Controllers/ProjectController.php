@@ -38,8 +38,7 @@ class ProjectController extends Controller
 
     public function show(Project $project): Response
     {
-        // Implemented in Task 6.
-        abort(501, 'Project show not yet implemented');
+        return Inertia::render('Projects/Show', \App\Support\ProjectDetail::payload($project));
     }
 
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse
