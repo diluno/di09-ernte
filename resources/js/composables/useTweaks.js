@@ -1,9 +1,8 @@
 import { ref, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 
-let timeout = null;
-
 export function useTweaks() {
+  let timeout = null;
   const page = usePage();
   const current = page.props.auth?.user?.settings ?? {};
   const settings = ref({

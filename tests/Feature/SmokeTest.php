@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
@@ -11,18 +12,19 @@ test('redirect from / to /projects', function () {
 });
 
 dataset('pages', [
-    ['/projects', 'Projects'],
-    ['/timer',    'Today'],
-    ['/clients',  'Clients'],
-    ['/invoices', 'Invoices'],
-    ['/reports',  'Reports'],
+    ['/projects', 'Projects',  'Projects/Index'],
+    ['/timer',    'Today',     'Timer/Today'],
+    ['/clients',  'Clients',   'Clients/Index'],
+    ['/invoices', 'Invoices',  'Invoices/Index'],
+    ['/reports',  'Reports',   'Reports/Placeholder'],
 ]);
 
-test('authenticated user can load $route', function (string $route, string $title) {
+test('authenticated user can load $route', function (string $route, string $title, string $component) {
     $this->actingAs($this->user)
         ->get($route)
         ->assertOk()
-        ->assertSee($title);
+        ->assertSee($title)
+        ->assertInertia(fn (Assert $page) => $page->component($component));
 })->with('pages');
 
 test('unauthenticated user is redirected to login', function () {
