@@ -5,10 +5,10 @@ import Topbar from '@/Components/Topbar.vue';
 import Sidebar from '@/Components/Sidebar.vue';
 import Statusbar from '@/Components/Statusbar.vue';
 
+const DEFAULT_SETTINGS = Object.freeze({ theme: 'paper', density: 'comfortable', accent: '#2d4a3a' });
+
 const page = usePage();
-const settings = computed(() => page.props.auth?.user?.settings ?? {
-  theme: 'paper', density: 'comfortable', accent: '#2d4a3a',
-});
+const settings = computed(() => page.props.auth?.user?.settings ?? DEFAULT_SETTINGS);
 
 function applyTokens() {
   const r = document.documentElement;

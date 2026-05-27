@@ -30,8 +30,6 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        $appBootedAt = defined('LARAVEL_START') ? LARAVEL_START : microtime(true);
-
         return [
             ...parent::share($request),
             'auth' => [
@@ -44,7 +42,7 @@ class HandleInertiaRequests extends Middleware
             'system' => fn () => [
                 'db_driver'      => DB::connection()->getDriverName(),
                 'db_version'     => $this->dbVersion(),
-                'uptime_seconds' => (int) (microtime(true) - $appBootedAt),
+                'uptime_seconds' => $this->uptimeSeconds(),
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
@@ -60,5 +58,19 @@ class HandleInertiaRequests extends Middleware
         } catch (\Throwable) {
             return 'unknown';
         }
+    }
+
+    private function uptimeSeconds(): int
+    {
+        // Linux/Docker: /proc/uptime first column = seconds since boot
+        if (is_readable('/proc/uptime')) {
+            return (int) (float) explode(' ', (string) file_get_contents('/proc/uptime'))[0];
+        }
+        // Fallback: remember first observation in cache, return seconds since then
+        $bootedAt = \Illuminate\Support\Facades\Cache::rememberForever(
+            'system:booted_at',
+            fn () => time(),
+        );
+        return max(0, time() - $bootedAt);
     }
 }
