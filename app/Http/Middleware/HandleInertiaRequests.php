@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -29,11 +30,35 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $appBootedAt = defined('LARAVEL_START') ? LARAVEL_START : microtime(true);
+
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => fn () => $request->user()?->only('id', 'name', 'email', 'settings'),
+            ],
+            'app' => [
+                'version' => config('app.version', '0.1.0'),
+                'port'    => env('APP_PORT', '7878'),
+            ],
+            'system' => fn () => [
+                'db_driver'      => DB::connection()->getDriverName(),
+                'db_version'     => $this->dbVersion(),
+                'uptime_seconds' => (int) (microtime(true) - $appBootedAt),
+            ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error'   => fn () => $request->session()->get('error'),
             ],
         ];
+    }
+
+    private function dbVersion(): string
+    {
+        try {
+            return DB::selectOne('SELECT VERSION() AS v')->v ?? 'unknown';
+        } catch (\Throwable) {
+            return 'unknown';
+        }
     }
 }
