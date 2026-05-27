@@ -20,6 +20,36 @@ class InvoiceBuilder
     ) {}
 
     /**
+     * Compute subtotal, VAT, and total from arrays of line amounts and exempt flags.
+     *
+     * Exempt lines are included in the subtotal but excluded from the VAT base.
+     *
+     * @param  int[]   $lineAmounts  Amount in rappen for each line.
+     * @param  bool[]  $vatExempts   Parallel exempt flag for each line.
+     * @param  float   $vatRate      VAT rate as a percentage (e.g. 8.10).
+     * @return array{subtotal_rappen: int, vat_rappen: int, total_rappen: int}
+     */
+    public static function computeTotals(array $lineAmounts, array $vatExempts, float $vatRate): array
+    {
+        $taxable = 0;
+        $exempt = 0;
+        foreach ($lineAmounts as $i => $amt) {
+            if (!empty($vatExempts[$i])) {
+                $exempt += $amt;
+            } else {
+                $taxable += $amt;
+            }
+        }
+        $subtotal = $taxable + $exempt;
+        $vat = (int) round($taxable * $vatRate / 100);
+        return [
+            'subtotal_rappen' => $subtotal,
+            'vat_rappen'      => $vat,
+            'total_rappen'    => $subtotal + $vat,
+        ];
+    }
+
+    /**
      * Build a draft invoice from selected time entries.
      */
     public function buildDraftFromEntries(
@@ -64,34 +94,36 @@ class InvoiceBuilder
             // Now that we have an id, fill the QR reference.
             $invoice->qr_reference = $this->qr->generate($invoice->id);
 
-            // Build lines from groups.
-            $subtotal = 0;
+            // Build lines from groups, collecting amounts and exempt flags for totals.
+            $lineAmounts = [];
+            $vatExempts  = [];
             $sort = 0;
             foreach ($groups as $description => $bucket) {
                 /** @var Collection<int, TimeEntry> $bucket */
                 $hours = round($bucket->sum(fn (TimeEntry $e) => $e->duration_seconds / 3600), 2);
                 $rate = (int) ($bucket->first()->project->rate_rappen ?? 0);
                 $amount = (int) round($hours * $rate);
+                $exempt = false; // time entries do not carry vat_exempt yet
 
                 InvoiceLine::create([
-                    'invoice_id' => $invoice->id,
+                    'invoice_id'  => $invoice->id,
                     'description' => $description,
-                    'hours' => $hours,
+                    'hours'       => $hours,
                     'rate_rappen' => $rate,
                     'amount_rappen' => $amount,
-                    'vat_exempt' => false,
-                    'sort_order' => $sort++,
+                    'vat_exempt'  => $exempt,
+                    'sort_order'  => $sort++,
                 ]);
 
-                $subtotal += $amount;
+                $lineAmounts[] = $amount;
+                $vatExempts[]  = $exempt;
             }
 
-            $vat = (int) round($subtotal * ((float) $invoice->vat_rate) / 100);
-            $total = $subtotal + $vat;
+            $totals = self::computeTotals($lineAmounts, $vatExempts, (float) $invoice->vat_rate);
 
-            $invoice->subtotal_rappen = $subtotal;
-            $invoice->vat_rappen = $vat;
-            $invoice->total_rappen = $total;
+            $invoice->subtotal_rappen = $totals['subtotal_rappen'];
+            $invoice->vat_rappen      = $totals['vat_rappen'];
+            $invoice->total_rappen    = $totals['total_rappen'];
             $invoice->save();
 
             // Attach entries.
