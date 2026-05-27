@@ -4,6 +4,7 @@ import { usePage } from '@inertiajs/vue3';
 import Topbar from '@/Components/Topbar.vue';
 import Sidebar from '@/Components/Sidebar.vue';
 import Statusbar from '@/Components/Statusbar.vue';
+import TweaksPanel from '@/Components/TweaksPanel.vue';
 
 const DEFAULT_SETTINGS = Object.freeze({ theme: 'paper', density: 'comfortable', accent: '#2d4a3a' });
 
@@ -28,5 +29,6 @@ watch(settings, applyTokens, { immediate: true, deep: true });
       <slot />
     </main>
     <Statusbar />
+    <TweaksPanel />
   </div>
 </template>
