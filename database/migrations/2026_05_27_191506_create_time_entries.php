@@ -31,24 +31,13 @@ return new class extends Migration
         });
 
         // Generated column + unique enforces the "one running entry per user" invariant.
-        // Both MariaDB and SQLite treat NULLs as distinct in composite UNIQUE indexes,
-        // so multiple finished rows (is_running = NULL) coexist freely.
-        $driver = DB::getDriverName();
-
-        if ($driver === 'sqlite') {
-            DB::statement(
-                "ALTER TABLE time_entries ADD COLUMN is_running INTEGER GENERATED ALWAYS AS " .
-                "(CASE WHEN ended_at IS NULL THEN 1 ELSE NULL END) STORED"
-            );
-            DB::statement("CREATE UNIQUE INDEX user_running ON time_entries (user_id, is_running)");
-        } else {
-            // MariaDB / MySQL
-            DB::statement(
-                "ALTER TABLE time_entries ADD COLUMN is_running TINYINT GENERATED ALWAYS AS " .
-                "(CASE WHEN ended_at IS NULL THEN 1 ELSE NULL END) STORED"
-            );
-            DB::statement("ALTER TABLE time_entries ADD UNIQUE KEY user_running (user_id, is_running)");
-        }
+        // NULLs are distinct in MariaDB composite UNIQUE indexes, so multiple finished
+        // rows (is_running = NULL) coexist freely.
+        DB::statement(
+            "ALTER TABLE time_entries ADD COLUMN is_running TINYINT GENERATED ALWAYS AS " .
+            "(CASE WHEN ended_at IS NULL THEN 1 ELSE NULL END) STORED"
+        );
+        DB::statement("ALTER TABLE time_entries ADD UNIQUE KEY user_running (user_id, is_running)");
     }
 
     /**
