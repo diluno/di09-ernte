@@ -159,3 +159,23 @@ test('PATCH /projects/{p} updates fields', function () {
 
     expect($project->fresh()->name)->toBe('Renamed');
 });
+
+test('POST /tasks adds a task that appears on the project show payload', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+
+    $this->actingAs($user)->post('/tasks', [
+        'project_id' => $project->id,
+        'name' => 'Fresh task',
+        'budget_hours' => 4,
+    ])->assertRedirect();
+
+    $this->actingAs($user)->get("/projects/{$project->code}")
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('tasks', 1, fn (Assert $t) => $t
+                ->where('name', 'Fresh task')
+                ->where('budget_hours', 4)
+                ->etc()
+            )
+        );
+});

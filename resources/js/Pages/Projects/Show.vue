@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import BurnDown from '@/Components/BurnDown.vue';
 import Heatmap from '@/Components/Heatmap.vue';
@@ -19,6 +19,20 @@ const props = defineProps({
 });
 
 const tab = ref('overview');
+
+const showAddTask = ref(false);
+const taskForm = useForm({
+  project_id: props.project.id,
+  name: '',
+  budget_hours: null,
+});
+
+function submitTask() {
+  taskForm.post('/tasks', {
+    preserveScroll: true,
+    onSuccess: () => { showAddTask.value = false; taskForm.reset(); taskForm.project_id = props.project.id; },
+  });
+}
 
 onMounted(() => {
   pushRecent({ url: `/projects/${props.project.code}`, label: props.project.name });
@@ -102,7 +116,16 @@ const remaining = computed(() => Math.max(0, props.project.budget_hours - props.
       <h3 class="section-title">Tasks</h3>
       <div class="task-list">
         <TaskRow v-for="t in tasks" :key="t.id" :task="t" :project-id="project.id" />
-        <button class="btn ghost" style="margin-top: 12px; align-self: flex-start" disabled title="Wire to TaskController in next iteration">+ Add task</button>
+        <form v-if="showAddTask" @submit.prevent="submitTask" style="display: grid; grid-template-columns: 1fr 120px auto auto; gap: 8px; align-items: center; margin-top: 12px">
+          <input v-model="taskForm.name" placeholder="task name" required class="input" />
+          <input type="number" v-model="taskForm.budget_hours" min="0" placeholder="budget h" class="input" />
+          <button type="submit" class="btn primary" :disabled="taskForm.processing">add</button>
+          <button type="button" class="btn ghost" @click="showAddTask = false">cancel</button>
+        </form>
+        <button v-else class="btn ghost" style="margin-top: 12px; align-self: flex-start" @click="showAddTask = true">+ Add task</button>
+        <div v-if="Object.keys(taskForm.errors).length" style="color: var(--red); font-size: var(--fs-sm); margin-top: 6px">
+          {{ Object.values(taskForm.errors).join(' · ') }}
+        </div>
       </div>
 
       <h3 class="section-title" style="margin-top: 28px">Recent entries</h3>
@@ -131,3 +154,11 @@ const remaining = computed(() => Math.max(0, props.project.budget_hours - props.
     </aside>
   </div>
 </template>
+
+<style scoped>
+.input {
+  border: 1px solid var(--border-strong); background: var(--paper);
+  padding: 6px 8px; font-family: inherit; color: var(--ink);
+}
+.input:focus { outline: none; border-color: var(--accent); }
+</style>
