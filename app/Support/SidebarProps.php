@@ -79,7 +79,8 @@ class SidebarProps
 
         $rows = TimeEntry::query()
             ->where('user_id', $user->id)
-            ->whereBetween('started_at', [$monday, $monday->copy()->addDays(7)])
+            ->where('started_at', '>=', $monday)
+            ->where('started_at', '<',  $monday->copy()->addDays(7))
             ->selectRaw('
                 WEEKDAY(started_at) AS dow,
                 SUM(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, UTC_TIMESTAMP()))) AS secs
