@@ -44,6 +44,12 @@ class HandleInertiaRequests extends Middleware
                 'db_version'     => $this->dbVersion(),
                 'uptime_seconds' => $this->uptimeSeconds(),
             ],
+            'running_entry' => fn () => $request->user()
+                ? \App\Support\SidebarProps::runningEntry($request->user())
+                : null,
+            'sidebar' => fn () => $request->user()
+                ? \App\Support\SidebarProps::sidebar($request->user())
+                : null,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),
