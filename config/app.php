@@ -17,6 +17,8 @@ return [
 
     'version' => env('APP_VERSION', '0.1.0'),
 
+    'port' => env('APP_PORT', '7878'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

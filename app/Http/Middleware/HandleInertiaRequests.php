@@ -37,7 +37,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'app' => [
                 'version' => config('app.version', '0.1.0'),
-                'port'    => env('APP_PORT', '7878'),
+                'port'    => config('app.port', '7878'),
             ],
             'system' => fn () => [
                 'db_driver'      => DB::connection()->getDriverName(),
