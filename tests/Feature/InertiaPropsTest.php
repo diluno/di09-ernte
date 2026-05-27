@@ -30,3 +30,27 @@ test('shared props include user settings and system info', function () {
             ->has('system.uptime_seconds')
         );
 });
+
+test('system shared prop includes db_size_bytes and backup_last_at', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get('/profile')
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('system.db_size_bytes')
+            ->has('system.backup_last_at')   // nullable, but key present
+        );
+});
+
+test('backup_last_at reflects the latest backup row', function () {
+    $user = User::factory()->create();
+    \App\Models\Backup::create([
+        'path' => '/tmp/x.tgz',
+        'size_bytes' => 1024,
+        'created_at' => now()->subHours(3),
+    ]);
+
+    $this->actingAs($user)->get('/profile')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('system.backup_last_at', fn ($v) => $v !== null)
+        );
+});

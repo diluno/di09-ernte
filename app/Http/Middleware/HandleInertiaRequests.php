@@ -42,6 +42,10 @@ class HandleInertiaRequests extends Middleware
             'system' => fn () => [
                 'db_driver'      => DB::connection()->getDriverName(),
                 'db_version'     => $this->dbVersion(),
+                'db_size_bytes'  => \Illuminate\Support\Facades\Cache::remember(
+                    'system:db_size_bytes', now()->addSeconds(60), fn () => $this->dbSizeBytes()
+                ),
+                'backup_last_at' => \App\Models\Backup::latest()?->created_at?->toIso8601String(),
                 'uptime_seconds' => $this->uptimeSeconds(),
             ],
             'running_entry' => fn () => $request->user()
@@ -63,6 +67,20 @@ class HandleInertiaRequests extends Middleware
             return DB::selectOne('SELECT VERSION() AS v')->v ?? 'unknown';
         } catch (\Throwable) {
             return 'unknown';
+        }
+    }
+
+    private function dbSizeBytes(): int
+    {
+        try {
+            $row = DB::selectOne("
+                SELECT COALESCE(SUM(data_length + index_length), 0) AS bytes
+                FROM information_schema.tables
+                WHERE table_schema = DATABASE()
+            ");
+            return (int) ($row->bytes ?? 0);
+        } catch (\Throwable) {
+            return 0;
         }
     }
 
