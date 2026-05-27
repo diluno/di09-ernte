@@ -1,0 +1,20 @@
+name: ernte
+type: laravel
+docroot: public
+php_version: "8.3"
+database:
+  type: mariadb
+  version: "11.4"
+webserver_type: nginx-fpm
+nodejs_version: "20"
+router_http_port: "80"
+router_https_port: "443"
+web_environment:
+  - APP_PORT=7878
+web_extra_daemons:
+  - name: scheduler
+    command: "php artisan schedule:work"
+    directory: /var/www/html
+  - name: queue
+    command: "php artisan queue:work --queue=default,emails --tries=3"
+    directory: /var/www/html
