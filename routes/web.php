@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ClientController;
 use App\Http\Controllers\EntryController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
@@ -32,7 +33,8 @@ Route::middleware('auth')->group(function () {
     Route::patch ('/entries/{entry}',  [EntryController::class, 'update'])->name('entries.update');
     Route::delete('/entries/{entry}',  [EntryController::class, 'destroy'])->name('entries.destroy');
 
-    Route::get('/clients',  fn () => Inertia::render('Clients/Index'))->name('clients.index');
+    Route::resource('clients', ClientController::class)->except(['show']);
+
     Route::get('/invoices', fn () => Inertia::render('Invoices/Index'))->name('invoices.index');
     Route::get('/reports',  fn () => Inertia::render('Reports/Placeholder'))->name('reports.show');
 
