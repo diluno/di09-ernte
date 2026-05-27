@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\BusinessProfile;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -25,6 +26,25 @@ class BootstrapSeeder extends Seeder
                     'density' => 'comfortable',
                     'accent' => '#2d4a3a',
                 ],
+            ]
+        );
+
+        BusinessProfile::updateOrCreate(
+            ['id' => 1],
+            [
+                'name' => env('BUSINESS_NAME', 'Your Name'),
+                'address_line_1' => env('BUSINESS_ADDRESS_LINE_1', ''),
+                'postal_code' => env('BUSINESS_POSTAL_CODE', ''),
+                'city' => env('BUSINESS_CITY', ''),
+                'country' => env('BUSINESS_COUNTRY', 'CH'),
+                'uid' => env('BUSINESS_UID', ''),
+                'vat_id' => env('BUSINESS_VAT_ID', ''),
+                'iban' => env('BUSINESS_IBAN', ''),
+                'qr_iban' => env('BUSINESS_QR_IBAN', ''),
+                'email' => env('BUSINESS_EMAIL', ''),
+                'default_currency' => env('BUSINESS_DEFAULT_CURRENCY', 'CHF'),
+                'default_vat_rate' => env('BUSINESS_DEFAULT_VAT_RATE', '8.10'),
+                'reminder_days_after_due' => (int) env('BUSINESS_REMINDER_DAYS_AFTER_DUE', 7),
             ]
         );
     }
