@@ -6,6 +6,7 @@ use App\Http\Requests\StoreEntryRequest;
 use App\Http\Requests\UpdateEntryRequest;
 use App\Models\TimeEntry;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 class EntryController extends Controller
 {
@@ -24,8 +25,9 @@ class EntryController extends Controller
         return back();
     }
 
-    public function destroy(TimeEntry $entry): RedirectResponse
+    public function destroy(Request $request, TimeEntry $entry): RedirectResponse
     {
+        abort_if($entry->user_id !== $request->user()->id, 403);
         $entry->delete();
         return back();
     }

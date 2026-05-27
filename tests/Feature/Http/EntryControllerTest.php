@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Project;
+use App\Models\Task;
 use App\Models\TimeEntry;
 use App\Models\User;
 
@@ -69,4 +70,32 @@ test('DELETE /entries/{id} removes the entry', function () {
 
     $this->delete("/entries/{$e->id}")->assertRedirect();
     expect(TimeEntry::find($e->id))->toBeNull();
+});
+
+test('PATCH/DELETE /entries/{id} owned by another user is forbidden', function () {
+    $other = User::factory()->create();
+    $e = TimeEntry::create([
+        'user_id' => $other->id, 'project_id' => $this->project->id,
+        'started_at' => now()->subHour(), 'ended_at' => now(),
+        'billable' => true, 'description' => 'theirs',
+    ]);
+
+    $this->patch("/entries/{$e->id}", ['description' => 'mine now'])->assertForbidden();
+    $this->delete("/entries/{$e->id}")->assertForbidden();
+
+    expect($e->fresh()->description)->toBe('theirs');
+    expect(TimeEntry::find($e->id))->not->toBeNull();
+});
+
+test('POST /entries rejects task_id that belongs to a different project', function () {
+    $otherProject = Project::factory()->create(['billable' => true]);
+    $foreignTask = Task::factory()->create(['project_id' => $otherProject->id]);
+
+    $this->post('/entries', [
+        'project_id' => $this->project->id,
+        'task_id'    => $foreignTask->id,
+        'started_at' => '2026-05-27T09:00:00Z',
+        'ended_at'   => '2026-05-27T10:00:00Z',
+        'billable'   => true,
+    ])->assertSessionHasErrors('task_id');
 });
