@@ -10,11 +10,12 @@ const props = defineProps({
   clients: { type: Array, required: true },
 });
 
-const filter = ref('all');
+const filter = ref('active');
 const search = ref('');
 
 const filtered = computed(() => {
   let list = props.clients;
+  if (filter.value === 'active')       list = list.filter((c) => !c.archived);
   if (filter.value === 'with_balance') list = list.filter((c) => c.outstanding > 0);
   if (filter.value === 'archived')     list = list.filter((c) => c.archived);
   if (search.value) {
@@ -46,6 +47,9 @@ function fmtMoneyShort(v) { return '€' + Math.round(v).toLocaleString('en-US')
   </div>
 
   <div class="filter-row">
+    <button class="chip" :aria-pressed="filter === 'active'" @click="filter = 'active'">
+      Active <span class="dim" style="margin-left: 4px">{{ clients.filter((c) => !c.archived).length }}</span>
+    </button>
     <button class="chip" :aria-pressed="filter === 'all'" @click="filter = 'all'">
       All <span class="dim" style="margin-left: 4px">{{ clients.length }}</span>
     </button>
