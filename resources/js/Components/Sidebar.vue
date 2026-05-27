@@ -1,18 +1,35 @@
 <script setup>
-import { Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
-
-const NAV = [
-  { id: 'projects', href: '/projects', label: 'Projects', glyph: '▤' },
-  { id: 'timer',    href: '/timer',    label: 'Timer',    glyph: '◐' },
-  { id: 'clients',  href: '/clients',  label: 'Clients',  glyph: '◇' },
-  { id: 'invoices', href: '/invoices', label: 'Invoices', glyph: '≡' },
-  { id: 'reports',  href: '/reports',  label: 'Reports',  glyph: '△' },
-];
+import { computed, onMounted, ref, watch } from 'vue';
+import { Link, usePage, router } from '@inertiajs/vue3';
+import WeekBars from '@/Components/WeekBars.vue';
 
 const page = usePage();
+const sidebar = computed(() => page.props.sidebar ?? { nav_counts: {}, pinned: [], week_hours: [0,0,0,0,0,0,0], today_hours: 0 });
+
+const NAV = computed(() => [
+  { id: 'projects', href: '/projects', label: 'Projects', glyph: '▤', count: sidebar.value.nav_counts.projects },
+  { id: 'timer',    href: '/timer',    label: 'Timer',    glyph: '◐', count: sidebar.value.today_hours ? `${sidebar.value.today_hours.toFixed(1)}h` : null },
+  { id: 'clients',  href: '/clients',  label: 'Clients',  glyph: '◇', count: sidebar.value.nav_counts.clients },
+  { id: 'invoices', href: '/invoices', label: 'Invoices', glyph: '≡', count: null },
+  { id: 'reports',  href: '/reports',  label: 'Reports',  glyph: '△', count: null },
+]);
+
 const current = computed(() => page.url);
 const isActive = (href) => current.value.startsWith(href);
+
+// Recent: last 5 visited entities, kept in localStorage. Tracked by visiting a project or client page (see Show pages).
+const recent = ref([]);
+onMounted(() => {
+  try { recent.value = JSON.parse(localStorage.getItem('ernte.recent') ?? '[]'); }
+  catch { recent.value = []; }
+});
+// Re-read when Inertia navigates (because pages push entries on visit).
+watch(current, () => {
+  try { recent.value = JSON.parse(localStorage.getItem('ernte.recent') ?? '[]'); }
+  catch {}
+});
+
+const weekTotal = computed(() => sidebar.value.week_hours.reduce((a, h) => a + h, 0).toFixed(1));
 </script>
 
 <template>
@@ -26,13 +43,38 @@ const isActive = (href) => current.value.startsWith(href);
       >
         <span class="glyph">{{ n.glyph }}</span>
         <span>{{ n.label }}</span>
+        <span v-if="n.count !== null && n.count !== undefined" class="count">{{ n.count }}</span>
       </Link>
     </nav>
 
     <div class="side-section">Pinned</div>
-    <div class="muted" style="padding: 4px 14px; font-size: var(--fs-xs)">No pinned projects yet</div>
+    <div v-if="sidebar.pinned.length === 0" class="muted" style="padding: 4px 14px; font-size: var(--fs-xs)">No projects yet</div>
+    <Link
+      v-for="(p, i) in sidebar.pinned" :key="p.id"
+      :href="`/projects/${p.code}`"
+      class="pin-row"
+    >
+      <span class="pin-dot" :class="{ solid: i < 2 }" :style="{ color: ['var(--forest)', 'var(--rust)', 'var(--ink)', 'var(--gold)'][i] }" />
+      <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ p.name }}</span>
+    </Link>
 
-    <div class="side-section">This week</div>
-    <div class="muted" style="padding: 4px 14px; font-size: var(--fs-xs)">Coming in Phase 2</div>
+    <div class="side-section">Recent</div>
+    <div v-if="recent.length === 0" class="muted" style="padding: 4px 14px; font-size: var(--fs-xs)">—</div>
+    <Link
+      v-for="r in recent" :key="r.url"
+      :href="r.url"
+      class="pin-row muted"
+      style="font-size: var(--fs-xs)"
+    >{{ r.label }}</Link>
+
+    <div style="flex: 1" />
+    <div style="padding: 12px 14px; border-top: 1px solid var(--border); margin-top: 8px">
+      <div style="font-size: var(--fs-xs); color: var(--ink-4); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px">This week</div>
+      <div style="font-size: var(--fs-lg); font-weight: 700; color: var(--ink); letter-spacing: -0.02em">
+        {{ weekTotal }}<span style="font-size: var(--fs-sm); color: var(--ink-3); font-weight: 400; margin-left: 2px">h</span>
+        <span style="color: var(--ink-4); font-weight: 400; font-size: var(--fs-sm); margin-left: 6px">/ 40h</span>
+      </div>
+      <WeekBars :hours="sidebar.week_hours" />
+    </div>
   </aside>
 </template>

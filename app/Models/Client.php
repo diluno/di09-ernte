@@ -20,6 +20,11 @@ class Client extends Model
         'archived_at' => 'datetime',
     ];
 
+    public function projects()
+    {
+        return $this->hasMany(Project::class);
+    }
+
     public function scopeActive($q) { return $q->whereNull('archived_at'); }
     public function scopeArchived($q) { return $q->whereNotNull('archived_at'); }
 }
