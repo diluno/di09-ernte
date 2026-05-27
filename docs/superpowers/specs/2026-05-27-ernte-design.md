@@ -31,7 +31,8 @@ Out of scope for v1: reports, recurring invoices, multi-user, payment integratio
 | Mail | Laravel Mail / SMTP (`.env`) | One Mailable for invoice send, one for reminder |
 | Scheduling | Laravel scheduler in `php artisan schedule:work` | Daily reminder + overdue-stamp + backup jobs |
 | Tests | PHPUnit + Pest for domain (timer math, invoice totals, QR generation, numbering) | Dusk skipped |
-| Deployment | docker-compose: `app` (PHP-FPM + nginx + supervisord) + `db` (MariaDB) | Self-hosted standard |
+| Local dev | DDEV (Docker-based, PHP/Laravel-aware) | Standard, fast iteration; handles PHP+nginx+MariaDB+Chromium image automatically |
+| Production deploy | docker-compose: `app` (PHP-FPM + nginx + supervisord) + `db` (MariaDB) | Self-hosted standard |
 
 ## 3. Data model
 
@@ -297,23 +298,77 @@ Each receives already-aggregated data via Inertia props.
 
 ## 8. Deployment
 
-### docker-compose.yml
-- `app`: PHP-FPM 8.3 + nginx + Chromium (Browsershot) + supervisord, runs `php-fpm`, `php artisan schedule:work`, and `php artisan queue:work --queue=default,emails`. Exposes `7878:80` to match the design's footer.
+### Local dev — DDEV
+
+DDEV is the primary local development environment. It boots an opinionated Docker stack (nginx + PHP-FPM + MariaDB + mailhog + adminer) keyed off a `.ddev/config.yaml` in the project root.
+
+**`.ddev/config.yaml`**
+```yaml
+name: ernte
+type: laravel
+docroot: public
+php_version: "8.3"
+database:
+  type: mariadb
+  version: "11.4"
+webserver_type: nginx-fpm
+nodejs_version: "20"
+router_http_port: "80"
+router_https_port: "443"
+# Optional: pin host port if you want localhost:7878 to match the footer copy
+additional_hostnames: []
+web_environment:
+  - APP_PORT=7878
+```
+
+**`.ddev/web-build/Dockerfile.chromium`** — adds Chromium for Browsershot to the web container:
+```Dockerfile
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium fonts-liberation libnss3 libatk-bridge2.0-0 libxkbcommon0 \
+ && rm -rf /var/lib/apt/lists/*
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV BROWSERSHOT_CHROME_PATH=/usr/bin/chromium
+```
+
+**One-time bootstrap** (after `git clone`):
+```bash
+ddev start
+ddev composer install
+ddev npm ci
+ddev artisan key:generate
+ddev artisan migrate --seed
+ddev npm run dev   # vite, hot reload
+```
+
+**Daily loop:** `ddev start` (project comes up at `https://ernte.ddev.site` by default; we can pin `additional_fqdns: [ernte.local]` or just use the auto URL — the footer copy reads from `APP_URL`, no hardcoded `localhost:7878`).
+
+Scheduler + queue worker run via DDEV `web_extra_daemons`:
+```yaml
+web_extra_daemons:
+  - name: scheduler
+    command: "php artisan schedule:work"
+    directory: /var/www/html
+  - name: queue
+    command: "php artisan queue:work --queue=default,emails --tries=3"
+    directory: /var/www/html
+```
+
+### Production self-hosting — docker-compose
+
+For deploying on your own server (separate from dev):
+
+- `app`: PHP-FPM 8.3 + nginx + Chromium + supervisord, runs `php-fpm`, `php artisan schedule:work`, and `php artisan queue:work --queue=default,emails`. Exposes `7878:80` to match the design's footer.
 - `db`: `mariadb:11`. Volume `./db-data`.
 - App volume `./storage` (uploaded logos, generated PDFs, backups).
 - Single root `.env`. `APP_URL=http://localhost:7878`.
 
 ### `bin/install`
-- Idempotent script: `composer install`, `npm ci && npm run build`, `php artisan key:generate`, `php artisan migrate`, `php artisan db:seed --class=BootstrapSeeder` (creates the user from `ERNTE_USER_*` env vars + business profile from `BUSINESS_PROFILE_*` if not yet present).
+Idempotent script callable either inside DDEV (`ddev exec bin/install`) or inside the production container:
+`composer install`, `npm ci && npm run build`, `php artisan key:generate`, `php artisan migrate`, `php artisan db:seed --class=BootstrapSeeder` (creates the user from `ERNTE_USER_*` env vars + business profile from `BUSINESS_PROFILE_*` if not yet present).
 
 ### Backups
-- `php artisan ernte:backup` → `mysqldump` to a gzipped file under `./backups/` + tarball of `./storage/app/invoices`. Writes a row to `backups (path, size, created_at)` for footer display.
-- Scheduled daily at 03:00.
-
-### Local dev (no Docker)
-- Requires PHP 8.3, Composer, Node 20, MariaDB 11, Chromium for Browsershot.
-- `composer install && npm install && cp .env.example .env && php artisan key:generate && php artisan migrate && npm run dev && php artisan serve --port=7878`.
-- README documents both.
+- `php artisan ernte:backup` → `mysqldump` to a gzipped file under `storage/app/backups/` + tarball of `storage/app/invoices`. Writes a row to `backups (path, size, created_at)` for footer display.
+- Scheduled daily at 03:00 by the scheduler daemon.
 
 ## 9. Domain rules / invariants (test these)
 
@@ -328,10 +383,12 @@ Each receives already-aggregated data via Inertia props.
 ## 10. Implementation order (build B — schema-first)
 
 Phase 0 — repo bootstrap
-1. `laravel new ernte` (no Jetstream; we'll add Breeze Inertia/Vue), git init, commit.
-2. Install Inertia + Vue + Breeze starter, configure Vite + JetBrains Mono.
-3. Port `design/ernte/project/styles.css` into `resources/css/app.css`; set up the data-theme/data-density root attributes.
-4. `AppLayout.vue` with topbar/sidebar/statusbar shells (no live data yet).
+1. `ddev config --project-type=laravel --php-version=8.3 --database=mariadb:11.4` in the project root; commit `.ddev/config.yaml`.
+2. Add `.ddev/web-build/Dockerfile.chromium` for Browsershot's Chromium binary; `ddev restart`.
+3. `ddev composer create-project laravel/laravel .` (or scaffold by hand if dir non-empty); commit.
+4. Install Breeze Inertia/Vue starter (`ddev composer require laravel/breeze --dev && ddev artisan breeze:install vue`); configure Vite + JetBrains Mono.
+5. Port `design/ernte/project/styles.css` into `resources/css/app.css`; set up the data-theme/data-density root attributes.
+6. `AppLayout.vue` with topbar/sidebar/statusbar shells (no live data yet).
 
 Phase 1 — schema + domain
 1. Migrations for all tables (`users`, `business_profile`, `clients`, `projects`, `tasks`, `time_entries`, `invoices`, `invoice_lines`, `invoice_events`, `backups`).
@@ -355,9 +412,9 @@ Phase 2 — views (one per slice)
 12. Statusbar real values + backup command.
 
 Phase 3 — package
-1. `docker-compose.yml` + Dockerfile + supervisord.conf.
-2. `bin/install`, `.env.example`, README.
-3. Smoke-test end-to-end on a fresh checkout.
+1. Production `docker-compose.yml` + Dockerfile + supervisord.conf (separate from DDEV config).
+2. `bin/install`, `.env.example`, README documenting DDEV-first dev loop and production deploy path.
+3. Smoke-test end-to-end on a fresh `git clone` → `ddev start` → app reachable in browser.
 
 ## 11. Open questions / assumptions
 
