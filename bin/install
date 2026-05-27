@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if [ ! -f .env ]; then
+  cp .env.example .env
+  echo "→ created .env from .env.example"
+fi
+
+composer install --no-interaction --prefer-dist
+npm ci
+npm run build
+
+php artisan key:generate --force --no-interaction
+php artisan migrate --force --no-interaction
+php artisan db:seed --class=BootstrapSeeder --force --no-interaction
+
+echo
+echo "✓ Ernte ready. Log in with the credentials in .env (ERNTE_USER_*)."
