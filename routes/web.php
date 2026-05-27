@@ -1,23 +1,16 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/', fn () => redirect('/projects'));
 
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/projects', fn () => Inertia::render('Projects/Index'))->name('projects.index');
+    Route::get('/timer',    fn () => Inertia::render('Timer/Today'))->name('timer.show');
+    Route::get('/clients',  fn () => Inertia::render('Clients/Index'))->name('clients.index');
+    Route::get('/invoices', fn () => Inertia::render('Invoices/Index'))->name('invoices.index');
+    Route::get('/reports',  fn () => Inertia::render('Reports/Placeholder'))->name('reports.show');
 });
 
 require __DIR__.'/auth.php';
