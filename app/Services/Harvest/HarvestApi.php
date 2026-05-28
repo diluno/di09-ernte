@@ -30,7 +30,13 @@ class HarvestApi
         do {
             $body = $this->get($path, ['page' => $page, 'per_page' => 100]);
             $rows = $rows->concat($body[$key] ?? []);
-            $page = $body['next_page'] ?? null;
+            $next = $body['next_page'] ?? null;
+
+            // Guard against a malformed response that never advances (avoid an infinite loop).
+            if ($next !== null && $next <= $page) {
+                break;
+            }
+            $page = $next;
         } while ($page !== null);
 
         return $rows;
