@@ -5,6 +5,7 @@ import RunningTimerChip from '@/Components/RunningTimerChip.vue';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
+const businessName = computed(() => (page.props.business?.name || 'ernte').toLowerCase());
 const initials = computed(() => {
   const n = user.value?.name ?? '?';
   return n.split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase();
@@ -19,7 +20,7 @@ defineEmits(['open-command']);
       <span class="wordmark-mark" />
       <span>ernte</span>
     </Link>
-    <div class="mono-tag" title="Workspace">workspace: {{ user?.name?.toLowerCase() ?? 'guest' }}@ernte</div>
+    <div class="mono-tag" title="Business">{{ businessName }}</div>
     <div class="topbar-spacer" />
     <button class="cmdk" title="Command palette" @click="$emit('open-command')">
       <span style="color: var(--ink-4)">›</span>
@@ -28,9 +29,9 @@ defineEmits(['open-command']);
     </button>
     <div class="topbar-spacer" />
     <RunningTimerChip />
-    <div class="user-chip">
+    <Link href="/settings" class="user-chip" title="Settings" aria-label="Open settings">
       <span class="avatar">{{ initials }}</span>
       <span>{{ user?.name ?? 'guest' }}</span>
-    </div>
+    </Link>
   </header>
 </template>

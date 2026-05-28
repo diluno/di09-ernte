@@ -2,7 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Backup;
+use App\Models\BusinessProfile;
+use App\Support\SidebarProps;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Middleware;
 
@@ -37,27 +41,30 @@ class HandleInertiaRequests extends Middleware
             ],
             'app' => [
                 'version' => config('app.version', '0.1.0'),
-                'host'    => parse_url(config('app.url', 'http://localhost'), PHP_URL_HOST) ?: 'localhost',
-                'port'    => config('app.port', '7878'),
+                'host' => parse_url(config('app.url', 'http://localhost'), PHP_URL_HOST) ?: 'localhost',
+                'port' => config('app.port', '7878'),
+            ],
+            'business' => fn () => [
+                'name' => BusinessProfile::query()->value('name'),
             ],
             'system' => fn () => [
-                'db_driver'      => DB::connection()->getDriverName(),
-                'db_version'     => $this->dbVersion(),
-                'db_size_bytes'  => \Illuminate\Support\Facades\Cache::remember(
+                'db_driver' => DB::connection()->getDriverName(),
+                'db_version' => $this->dbVersion(),
+                'db_size_bytes' => Cache::remember(
                     'system:db_size_bytes', now()->addSeconds(60), fn () => $this->dbSizeBytes()
                 ),
-                'backup_last_at' => \App\Models\Backup::latest()?->created_at?->toIso8601String(),
+                'backup_last_at' => Backup::latest()?->created_at?->toIso8601String(),
                 'uptime_seconds' => $this->uptimeSeconds(),
             ],
             'running_entry' => fn () => $request->user()
-                ? \App\Support\SidebarProps::runningEntry($request->user())
+                ? SidebarProps::runningEntry($request->user())
                 : null,
             'sidebar' => fn () => $request->user()
-                ? \App\Support\SidebarProps::sidebar($request->user())
+                ? SidebarProps::sidebar($request->user())
                 : null,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
-                'error'   => fn () => $request->session()->get('error'),
+                'error' => fn () => $request->session()->get('error'),
             ],
         ];
     }
@@ -74,11 +81,12 @@ class HandleInertiaRequests extends Middleware
     private function dbSizeBytes(): int
     {
         try {
-            $row = DB::selectOne("
+            $row = DB::selectOne('
                 SELECT COALESCE(SUM(data_length + index_length), 0) AS bytes
                 FROM information_schema.tables
                 WHERE table_schema = DATABASE()
-            ");
+            ');
+
             return (int) ($row->bytes ?? 0);
         } catch (\Throwable) {
             return 0;
@@ -92,10 +100,11 @@ class HandleInertiaRequests extends Middleware
             return (int) (float) explode(' ', (string) file_get_contents('/proc/uptime'))[0];
         }
         // Fallback: remember first observation in cache, return seconds since then
-        $bootedAt = \Illuminate\Support\Facades\Cache::rememberForever(
+        $bootedAt = Cache::rememberForever(
             'system:booted_at',
             fn () => time(),
         );
+
         return max(0, time() - $bootedAt);
     }
 }
