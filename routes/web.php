@@ -36,7 +36,10 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('clients', ClientController::class)->except(['show']);
 
-    Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+    Route::get ('/invoices',     [InvoiceController::class, 'index'])->name('invoices.index');
+    Route::get ('/invoices/new', [InvoiceController::class, 'create'])->name('invoices.create');
+    Route::post('/invoices',     [InvoiceController::class, 'store'])->name('invoices.store');
+
     Route::get('/reports',  fn () => Inertia::render('Reports/Placeholder'))->name('reports.show');
 
     Route::patch('/settings/tweaks', [\App\Http\Controllers\SettingsController::class, 'updateTweaks'])

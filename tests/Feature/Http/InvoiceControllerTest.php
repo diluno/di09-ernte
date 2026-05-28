@@ -55,3 +55,70 @@ test('unauthenticated /invoices redirects to login', function () {
     auth()->logout();
     $this->get('/invoices')->assertRedirect('/login');
 });
+
+test('GET /invoices/new defaults to previous month and lists billable unbilled entries', function () {
+    $prevMonth = now()->subMonthNoOverflow();
+    // 2.5h (non-round) so JSON serialisation preserves the float type (see Index test)
+    $inRange = TimeEntry::factory()->create([
+        'user_id' => $this->user->id, 'project_id' => $this->project->id, 'description' => 'In range',
+        'started_at' => $prevMonth->copy()->startOfMonth()->addDays(5)->setTime(9, 0),
+        'ended_at'   => $prevMonth->copy()->startOfMonth()->addDays(5)->setTime(11, 30),
+        'billable' => true,
+    ]);
+    // out of range (this month) — excluded by default period
+    TimeEntry::factory()->create([
+        'user_id' => $this->user->id, 'project_id' => $this->project->id, 'description' => 'This month',
+        'started_at' => now()->startOfMonth()->addDay(), 'ended_at' => now()->startOfMonth()->addDay()->addHour(),
+        'billable' => true,
+    ]);
+    // non-billable — excluded
+    TimeEntry::factory()->create([
+        'user_id' => $this->user->id, 'project_id' => $this->project->id, 'description' => 'Internal',
+        'started_at' => $prevMonth->copy()->startOfMonth()->addDays(6), 'ended_at' => $prevMonth->copy()->startOfMonth()->addDays(6)->addHour(),
+        'billable' => false,
+    ]);
+
+    $this->get("/invoices/new?client={$this->client->id}&project={$this->project->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Invoices/Create')
+            ->where('client.id', $this->client->id)
+            ->where('project.id', $this->project->id)
+            ->has('period.start')->has('period.end')
+            ->has('entries', 1, fn (Assert $e) => $e->where('description', 'In range')->etc())
+            ->has('suggested_lines', 1, fn (Assert $l) => $l->where('description', 'In range')->where('hours', 2.5)->etc()));
+});
+
+test('POST /invoices creates a draft from submitted lines and redirects to its detail', function () {
+    $entry = TimeEntry::factory()->create([
+        'user_id' => $this->user->id, 'project_id' => $this->project->id, 'description' => 'Work',
+        'started_at' => now()->subDays(20), 'ended_at' => now()->subDays(20)->addHours(2), 'billable' => true,
+    ]);
+
+    $res = $this->post('/invoices', [
+        'client_id' => $this->client->id,
+        'project_id' => $this->project->id,
+        'period_start' => now()->subMonth()->startOfMonth()->toDateString(),
+        'period_end' => now()->subMonth()->endOfMonth()->toDateString(),
+        'entry_ids' => [$entry->id],
+        'lines' => [
+            ['description' => 'Work', 'hours' => 2.0, 'rate_rappen' => 14500, 'vat_exempt' => false],
+        ],
+    ]);
+
+    $invoice = Invoice::latest('id')->first();
+    $res->assertRedirect("/invoices/{$invoice->number}");
+    expect($invoice->lines)->toHaveCount(1);
+    expect($invoice->total_rappen)->toBe(31349); // 29000 + 8.10%
+    expect($entry->fresh()->invoice_id)->toBe($invoice->id);
+});
+
+test('POST /invoices requires at least one line', function () {
+    $this->post('/invoices', [
+        'client_id' => $this->client->id,
+        'period_start' => now()->subMonth()->startOfMonth()->toDateString(),
+        'period_end' => now()->subMonth()->endOfMonth()->toDateString(),
+        'entry_ids' => [],
+        'lines' => [],
+    ])->assertSessionHasErrors('lines');
+});
