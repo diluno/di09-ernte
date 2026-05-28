@@ -208,6 +208,73 @@ test('POST /projects/{p}/unpin clears pinned_at', function () {
     expect($project->fresh()->pinned_at)->toBeNull();
 });
 
+test('GET /projects/create renders Projects/Create with the active clients list', function () {
+    $user = User::factory()->create();
+    $active = Client::factory()->create(['name' => 'Atlas Robotics']);
+    Client::factory()->create(['name' => 'Archived Co', 'archived_at' => now()]);
+
+    $this->actingAs($user)->get('/projects/create')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Projects/Create')
+            ->has('clients', 1, fn (Assert $c) => $c
+                ->where('id', $active->id)
+                ->where('name', 'Atlas Robotics')
+            )
+        );
+});
+
+test('GET /projects/{code}/edit renders Projects/Edit with project money in CHF and clients', function () {
+    $user = User::factory()->create();
+    $client = Client::factory()->create();
+    $project = Project::factory()->create([
+        'client_id' => $client->id, 'code' => 'ATLS-FLT',
+        'rate_rappen' => 14500, 'budget_amount_rappen' => 31900_00, 'budget_hours' => 220,
+    ]);
+
+    $this->actingAs($user)->get("/projects/{$project->code}/edit")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Projects/Edit')
+            ->where('project.code', 'ATLS-FLT')
+            ->where('project.rate', 145)            // CHF, not rappen
+            ->where('project.budget_amount', 31900) // CHF, not rappen
+            ->where('project.budget_hours', 220)
+            ->where('project.client_id', $client->id)
+            ->has('clients')
+        );
+});
+
+test('PATCH /projects/{id} with a changed code redirects to the new show URL and persists', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['code' => 'OLD-1']);
+
+    $this->actingAs($user)->patch("/projects/{$project->id}", ['code' => 'NEW-1'])
+        ->assertRedirect('/projects/NEW-1');
+
+    expect($project->fresh()->code)->toBe('NEW-1');
+});
+
+test('PATCH /projects/{id} saving the same code is allowed (unique ignores self) and redirects to show', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['code' => 'KEEP-1', 'name' => 'Old']);
+
+    $this->actingAs($user)->patch("/projects/{$project->id}", ['code' => 'KEEP-1', 'name' => 'New'])
+        ->assertRedirect('/projects/KEEP-1');
+
+    expect($project->fresh()->name)->toBe('New');
+});
+
+test('POST /projects/{code}/unarchive flips an archived project back to active', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['status' => 'archived']);
+
+    $this->actingAs($user)->post("/projects/{$project->code}/unarchive")
+        ->assertRedirect();
+
+    expect($project->fresh()->status)->toBe('active');
+});
+
 test('POST /tasks adds a task that appears on the project show payload', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();

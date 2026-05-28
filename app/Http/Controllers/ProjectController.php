@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
+use App\Models\Client;
 use App\Models\Project;
 use App\Support\DashboardProjections;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -30,6 +32,18 @@ class ProjectController extends Controller
         ]);
     }
 
+    private function activeClients(): Collection
+    {
+        return Client::active()->orderBy('name')->get(['id', 'name']);
+    }
+
+    public function create(): Response
+    {
+        return Inertia::render('Projects/Create', [
+            'clients' => $this->activeClients(),
+        ]);
+    }
+
     public function store(StoreProjectRequest $request): RedirectResponse
     {
         $project = Project::create($request->validated());
@@ -41,15 +55,43 @@ class ProjectController extends Controller
         return Inertia::render('Projects/Show', \App\Support\ProjectDetail::payload($project));
     }
 
+    public function edit(Project $project): Response
+    {
+        return Inertia::render('Projects/Edit', [
+            'project' => [
+                'id' => $project->id,
+                'client_id' => $project->client_id,
+                'name' => $project->name,
+                'code' => $project->code,
+                'glyph' => $project->glyph,
+                'description' => $project->description,
+                'billable' => (bool) $project->billable,
+                'budget_hours' => (int) $project->budget_hours,
+                'budget_amount' => (int) round($project->budget_amount_rappen / 100),
+                'rate' => (int) round($project->rate_rappen / 100),
+                'started_on' => $project->started_on?->toDateString(),
+                'deadline_on' => $project->deadline_on?->toDateString(),
+                'status' => $project->status,
+            ],
+            'clients' => $this->activeClients(),
+        ]);
+    }
+
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse
     {
         $project->update($request->validated());
-        return back();
+        return redirect("/projects/{$project->code}");
     }
 
     public function archive(Project $project): RedirectResponse
     {
         $project->update(['status' => 'archived', 'pinned_at' => null]);
+        return back();
+    }
+
+    public function unarchive(Project $project): RedirectResponse
+    {
+        $project->update(['status' => 'active']);
         return back();
     }
 

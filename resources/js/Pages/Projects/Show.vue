@@ -76,6 +76,7 @@ const remaining = computed(() => Math.max(0, props.project.budget_hours - props.
       >{{ project.is_pinned ? '★ Pinned' : '☆ Pin' }}</button>
       <button class="btn ghost" disabled title="Use the timer page or ⌘+space (Phase 2b shortcut)">⏵ Start timer</button>
       <button class="btn" disabled title="Phase 2b">Export</button>
+      <Link :href="`/projects/${project.code}/edit`" class="btn">Edit</Link>
       <Link :href="`/invoices/new?client=${project.client.id}&project=${project.id}`" class="btn primary">+ Invoice</Link>
     </div>
   </div>
