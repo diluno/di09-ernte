@@ -32,22 +32,7 @@ class InvoiceBuilder
      */
     public static function computeTotals(array $lineAmounts, array $vatExempts, float $vatRate): array
     {
-        $taxable = 0;
-        $exempt = 0;
-        foreach ($lineAmounts as $i => $amt) {
-            if (!empty($vatExempts[$i])) {
-                $exempt += $amt;
-            } else {
-                $taxable += $amt;
-            }
-        }
-        $subtotal = $taxable + $exempt;
-        $vat = (int) round($taxable * $vatRate / 100);
-        return [
-            'subtotal_rappen' => $subtotal,
-            'vat_rappen'      => $vat,
-            'total_rappen'    => $subtotal + $vat,
-        ];
+        return \App\Support\LineTotals::compute($lineAmounts, $vatExempts, $vatRate);
     }
 
     /**
