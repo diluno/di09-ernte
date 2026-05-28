@@ -61,7 +61,7 @@ const remaining = computed(() => Math.max(0, props.project.budget_hours - props.
     <div style="display: flex; gap: 8px">
       <button class="btn ghost" disabled title="Use the timer page or ⌘+space (Phase 2b shortcut)">⏵ Start timer</button>
       <button class="btn" disabled title="Phase 2b">Export</button>
-      <button class="btn primary" disabled title="Phase 2b">+ Invoice</button>
+      <Link :href="`/invoices/new?client=${project.client.id}&project=${project.id}`" class="btn primary">+ Invoice</Link>
     </div>
   </div>
 

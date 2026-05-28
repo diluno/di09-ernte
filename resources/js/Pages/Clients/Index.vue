@@ -76,6 +76,7 @@ function fmtMoneyShort(v) { return '€' + Math.round(v).toLocaleString('en-US')
           <th class="num" style="width: 110px">Hours YTD</th>
           <th class="num" style="width: 130px">Outstanding</th>
           <th class="pad-r" style="width: 150px">Activity</th>
+          <th class="pad-r" style="width: 90px"></th>
         </tr>
       </thead>
       <tbody>
@@ -104,6 +105,9 @@ function fmtMoneyShort(v) { return '€' + Math.round(v).toLocaleString('en-US')
           </td>
           <td class="pad-r">
             <Sparkline :data="[2,3,1,4,5,2,3,4,5,6,5,4,3,5]" :w="110" :h="20" color="var(--ink-3)" />
+          </td>
+          <td class="pad-r">
+            <Link :href="`/invoices/new?client=${c.id}`" class="btn ghost" style="padding: 2px 8px" @click.stop>+ Invoice</Link>
           </td>
         </tr>
       </tbody>
