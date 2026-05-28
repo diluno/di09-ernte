@@ -605,6 +605,15 @@ a { color: inherit; text-decoration: none; }
 }
 .table tbody tr { cursor: pointer; }
 .table tbody tr:hover td { background: var(--bg-hover); color: var(--ink); }
+
+/* Highlight open documents (unpaid invoices / awaiting estimates); overdue/expired flagged red. */
+.table tbody tr.is-open td { background: color-mix(in oklch, var(--gold) 8%, var(--paper)); }
+.table tbody tr.is-open:hover td { background: color-mix(in oklch, var(--gold) 16%, var(--paper)); }
+.table tbody tr.is-open td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
+.table tbody tr.is-overdue td { background: color-mix(in oklch, var(--red) 9%, var(--paper)); }
+.table tbody tr.is-overdue:hover td { background: color-mix(in oklch, var(--red) 17%, var(--paper)); }
+.table tbody tr.is-overdue td:first-child { box-shadow: inset 3px 0 0 var(--red); }
+
 .table tbody td.strong { color: var(--ink); font-weight: 600; }
 .table tbody td.num { text-align: right; }
 .table thead th.num { text-align: right; }

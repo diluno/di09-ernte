@@ -105,7 +105,9 @@ const TABS = computed(() => [
         </tr>
       </thead>
       <tbody>
-        <tr v-for="est in estimates" :key="est.id" @click="router.visit(`/estimates/${est.number}`)">
+        <tr v-for="est in estimates" :key="est.id"
+            :class="{ 'is-overdue': est.expired, 'is-open': est.status === 'sent' && !est.expired }"
+            @click="router.visit(`/estimates/${est.number}`)">
           <td class="pad-l strong">
             <div class="doc-id">
               <span class="mono-tag" style="padding: 2px 6px; color: var(--ink); border-color: var(--border-strong)">#{{ est.number }}</span>
