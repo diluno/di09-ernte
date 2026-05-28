@@ -12,7 +12,7 @@ class StoreInvoiceRequest extends FormRequest
     {
         return [
             'client_id' => 'required|exists:clients,id',
-            'project_id' => 'nullable|exists:projects,id',
+            'project_id' => ['nullable', \Illuminate\Validation\Rule::exists('projects', 'id')->where(fn ($q) => $q->where('client_id', $this->input('client_id')))],
             'period_start' => 'required|date',
             'period_end' => 'required|date|after_or_equal:period_start',
             'entry_ids' => 'array',

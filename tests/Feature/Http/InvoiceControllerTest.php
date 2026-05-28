@@ -122,3 +122,43 @@ test('POST /invoices requires at least one line', function () {
         'lines' => [],
     ])->assertSessionHasErrors('lines');
 });
+
+test('GET /invoices/new excludes running (in-progress) timers', function () {
+    $prevMonth = now()->subMonthNoOverflow();
+    // finished entry in range — should appear
+    TimeEntry::factory()->create([
+        'user_id' => $this->user->id, 'project_id' => $this->project->id, 'description' => 'Finished',
+        'started_at' => $prevMonth->copy()->startOfMonth()->addDays(5)->setTime(9, 0),
+        'ended_at'   => $prevMonth->copy()->startOfMonth()->addDays(5)->setTime(11, 30),
+        'billable' => true,
+    ]);
+    // running entry started in range (ended_at null) — must be excluded
+    TimeEntry::factory()->create([
+        'user_id' => $this->user->id, 'project_id' => $this->project->id, 'description' => 'Running',
+        'started_at' => $prevMonth->copy()->startOfMonth()->addDays(6)->setTime(9, 0),
+        'ended_at'   => null,
+        'billable' => true,
+    ]);
+
+    $this->get("/invoices/new?client={$this->client->id}&project={$this->project->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Invoices/Create')
+            ->has('entries', 1, fn (Assert $e) => $e->where('description', 'Finished')->etc()));
+});
+
+test('POST /invoices rejects a project belonging to a different client', function () {
+    $otherClient = Client::factory()->create(['name' => 'Other Co', 'short_code' => 'OC']);
+    $otherProject = Project::factory()->create(['client_id' => $otherClient->id, 'billable' => true, 'rate_rappen' => 10000]);
+
+    $this->post('/invoices', [
+        'client_id' => $this->client->id,
+        'project_id' => $otherProject->id,
+        'period_start' => now()->subMonth()->startOfMonth()->toDateString(),
+        'period_end' => now()->subMonth()->endOfMonth()->toDateString(),
+        'entry_ids' => [],
+        'lines' => [
+            ['description' => 'Work', 'hours' => 1.0, 'rate_rappen' => 14500, 'vat_exempt' => false],
+        ],
+    ])->assertSessionHasErrors('project_id');
+});

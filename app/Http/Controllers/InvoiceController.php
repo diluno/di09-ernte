@@ -50,9 +50,10 @@ class InvoiceController extends Controller
             : Carbon::now()->subMonthNoOverflow()->endOfMonth();
 
         $entries = TimeEntry::query()
-            ->with(['project:id,name,code,rate_rappen', 'task:id,name'])
+            ->with(['project:id,name,code,rate_rappen'])
             ->where('billable', true)
             ->whereNull('invoice_id')
+            ->finished()
             ->whereBetween('started_at', [$start, $end])
             ->when($project, fn ($q) => $q->where('project_id', $project->id),
                 fn ($q) => $q->whereIn('project_id', $client->projects()->pluck('id')))
@@ -65,7 +66,7 @@ class InvoiceController extends Controller
             'period' => ['start' => $start->toDateString(), 'end' => $end->toDateString()],
             'entries' => $entries->map(fn (TimeEntry $e) => [
                 'id' => $e->id,
-                'description' => $e->description !== '' ? $e->description : ('Task #' . $e->task_id),
+                'description' => $e->description !== '' ? $e->description : ($e->task_id ? ('Task #' . $e->task_id) : ('Entry #' . $e->id)),
                 'project' => ['id' => $e->project->id, 'name' => $e->project->name, 'code' => $e->project->code],
                 'hours' => round($e->duration_seconds / 3600, 2),
                 'started_at' => $e->started_at->toIso8601String(),

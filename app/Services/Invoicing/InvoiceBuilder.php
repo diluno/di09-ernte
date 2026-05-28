@@ -65,7 +65,7 @@ class InvoiceBuilder
 
         $groups = $eligible->groupBy(fn (TimeEntry $e) => $e->description !== ''
             ? $e->description
-            : ('Task #' . $e->task_id));
+            : ($e->task_id ? ('Task #' . $e->task_id) : ('Entry #' . $e->id)));
 
         $lines = [];
         foreach ($groups as $description => $bucket) {

@@ -216,6 +216,26 @@ test('createDraft persists submitted lines with per-line vat_exempt and recomput
     expect($invoice->events()->where('kind', 'created')->count())->toBe(1);
 });
 
+test('suggestLinesFromEntries keeps no-description no-task entries as separate lines', function () {
+    $start = now()->subDays(2);
+    $e1 = TimeEntry::factory()->create([
+        'user_id' => $this->user->id, 'project_id' => $this->project->id,
+        'description' => '', 'task_id' => null,
+        'started_at' => $start, 'ended_at' => (clone $start)->addMinutes(60), 'billable' => true,
+    ]);
+    $e2 = TimeEntry::factory()->create([
+        'user_id' => $this->user->id, 'project_id' => $this->project->id,
+        'description' => '', 'task_id' => null,
+        'started_at' => $start, 'ended_at' => (clone $start)->addMinutes(30), 'billable' => true,
+    ]);
+
+    $lines = $this->svc->suggestLinesFromEntries(TimeEntry::all(), $this->project);
+
+    expect($lines)->toHaveCount(2);
+    expect(collect($lines)->pluck('entry_ids')->flatten()->all())
+        ->toEqualCanonicalizing([$e1->id, $e2->id]);
+});
+
 test('createDraft ignores client-submitted amount_rappen (anti-tamper)', function () {
     $invoice = $this->svc->createDraft(
         client: $this->client, project: null,
