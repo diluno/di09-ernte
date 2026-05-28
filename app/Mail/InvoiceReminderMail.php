@@ -31,7 +31,7 @@ class InvoiceReminderMail extends Mailable
             ->from($from, $name)
             ->replyTo($from, $name)
             ->subject("Zahlungserinnerung Rechnung {$this->invoice->number}")
-            ->view('emails.invoices.reminder')
+            ->text('emails.invoices.reminder')
             ->with([
                 'invoice' => $this->invoice,
                 'profile' => $this->profile,

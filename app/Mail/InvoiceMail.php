@@ -33,7 +33,7 @@ class InvoiceMail extends Mailable
             ->from($from, $name)
             ->replyTo($from, $name)
             ->subject("Rechnung {$this->invoice->number} - {$name}")
-            ->view('emails.invoices.sent')
+            ->text('emails.invoices.sent')
             ->with([
                 'invoice' => $this->invoice,
                 'profile' => $this->profile,

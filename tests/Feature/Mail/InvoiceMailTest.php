@@ -27,10 +27,9 @@ test('invoice mail renders invoice details and attaches the pdf path', function 
     Storage::disk('local')->put('invoices/2026-014.pdf', '%PDF-test');
 
     $mail = new InvoiceMail($invoice, 'invoices/2026-014.pdf');
-    $html = $mail->render();
-
-    expect($html)->toContain('Mira Okafor');
-    expect($html)->toContain('2026-014');
-    expect($html)->toContain("CHF 1'234.50");
+    // Delivered as a plain-text email so the line breaks survive (HTML collapses them).
+    $mail->assertSeeInText('Mira Okafor');
+    $mail->assertSeeInText('2026-014');
+    $mail->assertSeeInText("CHF 1'234.50");
     expect($mail->pdfPath)->toBe('invoices/2026-014.pdf');
 });

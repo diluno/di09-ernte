@@ -27,10 +27,10 @@ test('estimate mail renders details and attaches the pdf path', function () {
     Storage::disk('local')->put('estimates/OF-2026-014.pdf', '%PDF-test');
 
     $mail = new EstimateMail($estimate, 'estimates/OF-2026-014.pdf');
-    $html = $mail->render();
 
-    expect($html)->toContain('Mira Okafor');
-    expect($html)->toContain('OF-2026-014');
-    expect($html)->toContain("CHF 1'234.50");
+    // Delivered as a plain-text email so the line breaks survive (HTML collapses them).
+    $mail->assertSeeInText('Mira Okafor');
+    $mail->assertSeeInText('OF-2026-014');
+    $mail->assertSeeInText("CHF 1'234.50");
     expect($mail->pdfPath)->toBe('estimates/OF-2026-014.pdf');
 });

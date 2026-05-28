@@ -33,7 +33,7 @@ class EstimateMail extends Mailable
             ->from($from, $name)
             ->replyTo($from, $name)
             ->subject("Offerte {$this->estimate->number} - {$name}")
-            ->view('emails.estimates.sent')
+            ->text('emails.estimates.sent')
             ->with([
                 'estimate' => $this->estimate,
                 'profile' => $this->profile,
