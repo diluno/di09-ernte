@@ -39,4 +39,11 @@ return [
         'chrome_path' => env('BROWSERSHOT_CHROME_PATH'),
     ],
 
+    'harvest' => [
+        'access_token' => env('HARVEST_ACCESS_TOKEN'),
+        'account_id' => env('HARVEST_ACCOUNT_ID'),
+        'base_url' => env('HARVEST_BASE_URL', 'https://api.harvestapp.com/v2'),
+        'user_agent' => env('HARVEST_USER_AGENT', 'ernte-import (https://github.com/diluno/di09-ernte)'),
+    ],
+
 ];
