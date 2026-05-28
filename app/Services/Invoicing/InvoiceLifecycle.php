@@ -9,6 +9,34 @@ use Illuminate\Support\Facades\DB;
 
 class InvoiceLifecycle
 {
+    public function __construct(private InvoicePdfRenderer $pdf) {}
+
+    /**
+     * draft -> sent: stamp issued/due dates, render + cache the PDF, write events.
+     * NOTE: email dispatch is added in Phase 2b-ii — this method intentionally does not mail.
+     */
+    public function issue(Invoice $invoice): void
+    {
+        if ($invoice->status !== 'draft') {
+            throw new \DomainException("Only a draft can be sent (status: {$invoice->status}).");
+        }
+
+        DB::transaction(function () use ($invoice) {
+            $invoice->update([
+                'status' => 'sent',
+                'issued_on' => now()->toDateString(),
+                'due_on' => now()->addDays(30)->toDateString(),
+                'sent_at' => now(),
+            ]);
+            $invoice->refresh();
+
+            $path = $this->pdf->pdf($invoice);
+
+            $this->event($invoice, 'pdf_generated', ['path' => $path]);
+            $this->event($invoice, 'sent');
+        });
+    }
+
     /** sent -> paid. */
     public function markPaid(Invoice $invoice): void
     {

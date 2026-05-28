@@ -234,3 +234,11 @@ test('POST /invoices/{id}/void voids and releases entries', function () {
     expect($inv->fresh()->status)->toBe('void');
     expect(TimeEntry::unbilled()->billable()->count())->toBe(1);
 });
+
+test('POST /invoices/{id}/send issues the draft', function () {
+    BusinessProfile::current()->update(['qr_iban' => 'CH4431999123000889012', 'address_line_1' => 'Bahnhofstrasse 1', 'postal_code' => '8001', 'city' => 'Zürich']);
+    $this->client->update(['address_line_1' => 'Friedrichstrasse 47', 'postal_code' => '8004', 'city' => 'Zürich', 'country' => 'CH']);
+    $inv = makeDraft();
+    $this->post("/invoices/{$inv->id}/send")->assertRedirect();
+    expect($inv->fresh()->status)->toBe('sent');
+})->group('browsershot');

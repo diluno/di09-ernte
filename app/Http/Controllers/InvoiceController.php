@@ -11,6 +11,7 @@ use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Services\Invoicing\InvoiceBuilder;
 use App\Services\Invoicing\InvoiceLifecycle;
+use App\Services\Invoicing\InvoicePdfRenderer;
 use App\Support\InvoiceProjections;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -147,15 +148,9 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function preview(Invoice $invoice): HttpResponse
+    public function preview(Invoice $invoice, InvoicePdfRenderer $renderer): HttpResponse
     {
-        $invoice->load(['client', 'project', 'lines' => fn ($q) => $q->orderBy('sort_order')]);
-        // Task 9 swaps this for the real `invoices.pdf` Blade once it exists.
-        return response()->view('invoices.pdf', [
-            'invoice' => $invoice,
-            'profile' => \App\Models\BusinessProfile::current(),
-            'qrBillHtml' => '', // filled by InvoicePdfRenderer in Task 9
-        ]);
+        return response($renderer->html($invoice))->header('Content-Type', 'text/html');
     }
 
     public function update(UpdateInvoiceRequest $request, Invoice $invoice): RedirectResponse
@@ -210,5 +205,27 @@ class InvoiceController extends Controller
             return back()->with('error', $e->getMessage());
         }
         return back()->with('success', "Invoice {$invoice->number} voided.");
+    }
+
+    public function send(Invoice $invoice, InvoiceLifecycle $lifecycle): RedirectResponse
+    {
+        try {
+            $lifecycle->issue($invoice);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        return back()->with('success', "Invoice {$invoice->number} issued.");
+    }
+
+    public function pdf(Invoice $invoice, InvoicePdfRenderer $renderer): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $relative = $invoice->pdf_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($invoice->pdf_path)
+            ? $invoice->pdf_path
+            : $renderer->pdf($invoice);
+
+        return response()->download(
+            \Illuminate\Support\Facades\Storage::disk('local')->path($relative),
+            "Rechnung-{$invoice->number}.pdf",
+        );
     }
 }

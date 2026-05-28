@@ -81,3 +81,25 @@ test('voiding does not free the number', function () {
     test()->lifecycle->void($invoice);
     expect($invoice->fresh()->number)->toBe($number);
 });
+
+test('issue transitions draft -> sent, stamps dates, writes pdf_generated + sent events', function () {
+    BusinessProfile::current()->update(['qr_iban' => 'CH4431999123000889012', 'address_line_1' => 'Bahnhofstrasse 1', 'postal_code' => '8001', 'city' => 'Zürich']);
+    test()->client->update(['address_line_1' => 'Friedrichstrasse 47', 'postal_code' => '8004', 'city' => 'Zürich', 'country' => 'CH']);
+    [$invoice] = draftWithEntry();
+
+    test()->lifecycle->issue($invoice);
+
+    $invoice->refresh();
+    expect($invoice->status)->toBe('sent');
+    expect($invoice->issued_on)->not->toBeNull();
+    expect($invoice->due_on?->toDateString())->toBe(now()->addDays(30)->toDateString());
+    expect($invoice->pdf_path)->not->toBeNull();
+    expect($invoice->events()->where('kind', 'sent')->count())->toBe(1);
+    expect($invoice->events()->where('kind', 'pdf_generated')->count())->toBe(1);
+})->group('browsershot');
+
+test('issue is rejected unless draft', function () {
+    [$invoice] = draftWithEntry();
+    $invoice->update(['status' => 'sent']);
+    expect(fn () => test()->lifecycle->issue($invoice))->toThrow(\DomainException::class);
+});

@@ -42,7 +42,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get  ('/invoices/{invoice:number}',          [InvoiceController::class, 'show'])->name('invoices.show');
     Route::get  ('/invoices/{invoice:number}/preview',  [InvoiceController::class, 'preview'])->name('invoices.preview');
+    Route::get  ('/invoices/{invoice:number}/pdf',      [InvoiceController::class, 'pdf'])->name('invoices.pdf');
     Route::patch('/invoices/{invoice}',                 [InvoiceController::class, 'update'])->name('invoices.update');
+    Route::post ('/invoices/{invoice}/send',            [InvoiceController::class, 'send'])->name('invoices.send');
     Route::post ('/invoices/{invoice}/paid',            [InvoiceController::class, 'markPaid'])->name('invoices.paid');
     Route::post ('/invoices/{invoice}/void',            [InvoiceController::class, 'void'])->name('invoices.void');
 
