@@ -2,11 +2,14 @@
 
 namespace Database\Seeders;
 
+use App\Models\BusinessProfile;
 use App\Models\Client;
+use App\Models\Invoice;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\TimeEntry;
 use App\Models\User;
+use App\Services\Invoicing\InvoiceBuilder;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -102,6 +105,49 @@ class DemoFixturesSeeder extends Seeder
                         'billable' => (bool) $p->billable,
                     ]);
                 }
+            }
+
+            // A business profile is required by the invoice builder.
+            BusinessProfile::firstOrCreate(['id' => 1], [
+                'name' => 'Ernte GmbH', 'address_line_1' => 'Bahnhofstrasse 1',
+                'postal_code' => '8001', 'city' => 'Zürich', 'country' => 'CH',
+                'qr_iban' => 'CH4431999123000889012',
+                'default_currency' => 'CHF', 'default_vat_rate' => 8.10, 'reminder_days_after_due' => 7,
+            ]);
+
+            if (Invoice::count() === 0) {
+                $atlas = Client::where('short_code', 'AR')->first();
+                $fleet = Project::where('code', 'ATLS-FLT')->first();
+
+                // Backdated billable entries to invoice from.
+                for ($i = 0; $i < 6; $i++) {
+                    TimeEntry::create([
+                        'user_id' => $user->id, 'project_id' => $fleet->id,
+                        'description' => ['Map mode', 'Telemetry side-panel', 'Operator permissions'][$i % 3],
+                        'started_at' => Carbon::now()->subMonthNoOverflow()->startOfMonth()->addDays($i + 1)->setTime(9, 0),
+                        'ended_at' => Carbon::now()->subMonthNoOverflow()->startOfMonth()->addDays($i + 1)->setTime(13, 0),
+                        'billable' => true,
+                    ]);
+                }
+
+                $builder = app(InvoiceBuilder::class);
+
+                // One draft.
+                $builder->buildDraftFromEntries(
+                    $atlas, $fleet, TimeEntry::where('project_id', $fleet->id)->whereNull('invoice_id')->where('billable', true)->get(),
+                    Carbon::now()->subMonthNoOverflow()->startOfMonth()->toDateString(),
+                    Carbon::now()->subMonthNoOverflow()->endOfMonth()->toDateString(),
+                );
+
+                // One issued (sent) invoice — skip PDF render in seeding to avoid Chromium dependency.
+                $sent = $builder->createDraft(
+                    $atlas, $fleet,
+                    Carbon::now()->subMonths(2)->startOfMonth()->toDateString(),
+                    Carbon::now()->subMonths(2)->endOfMonth()->toDateString(),
+                    [['description' => 'Sprint work', 'hours' => 40, 'rate_rappen' => 14500, 'vat_exempt' => false]],
+                    [],
+                );
+                $sent->update(['status' => 'sent', 'issued_on' => Carbon::now()->subDays(40)->toDateString(), 'due_on' => Carbon::now()->subDays(10)->toDateString(), 'sent_at' => Carbon::now()->subDays(40)]);
             }
         });
     }
