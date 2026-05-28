@@ -39,6 +39,26 @@ test('shared props expose the running entry with project + task labels', functio
         );
 });
 
+test('sidebar pinned lists only pinned active projects, alphabetically', function () {
+    $user = User::factory()->create();
+    $client = Client::factory()->create();
+
+    // Pinned + active, created out of alphabetical order:
+    Project::factory()->create(['client_id' => $client->id, 'status' => 'active', 'name' => 'Beacon', 'pinned_at' => now()]);
+    Project::factory()->create(['client_id' => $client->id, 'status' => 'active', 'name' => 'Atlas', 'pinned_at' => now()]);
+    // Active but NOT pinned — must be excluded:
+    Project::factory()->create(['client_id' => $client->id, 'status' => 'active', 'name' => 'Zephyr', 'pinned_at' => null]);
+    // Pinned but archived — must be excluded:
+    Project::factory()->create(['client_id' => $client->id, 'status' => 'archived', 'name' => 'Archived One', 'pinned_at' => now()]);
+
+    $this->actingAs($user)->get('/profile')
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('sidebar.pinned', 2)
+            ->where('sidebar.pinned.0.name', 'Atlas')
+            ->where('sidebar.pinned.1.name', 'Beacon')
+        );
+});
+
 test('sidebar shared prop contains nav_counts, pinned, week_hours', function () {
     $user = User::factory()->create();
     $client = Client::factory()->create();
