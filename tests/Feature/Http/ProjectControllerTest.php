@@ -160,6 +160,14 @@ test('PATCH /projects/{p} updates fields', function () {
     expect($project->fresh()->name)->toBe('Renamed');
 });
 
+test('Projects/Show payload exposes is_pinned reflecting stored state', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['pinned_at' => now()]);
+
+    $this->actingAs($user)->get("/projects/{$project->code}")
+        ->assertInertia(fn (Assert $page) => $page->where('project.is_pinned', true));
+});
+
 test('archiving a pinned project also clears its pin', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create(['status' => 'active', 'pinned_at' => now()]);
