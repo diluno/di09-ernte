@@ -85,23 +85,25 @@ const TABS = computed(() => [
   </div>
 
   <div class="table-wrap">
-    <table class="table">
+    <table class="table table--docs">
       <thead>
         <tr>
-          <th class="pad-l" style="width: 140px">Invoice</th>
-          <th style="width: 240px">Client</th>
+          <th class="pad-l">Invoice</th>
+          <th style="width: 230px">Client</th>
           <th class="num" style="width: 120px">Issued</th>
           <th class="num" style="width: 120px">Due</th>
-          <th class="num" style="width: 80px">Hours</th>
-          <th class="num" style="width: 140px">Total</th>
-          <th style="width: 120px">Status</th>
+          <th class="num" style="width: 90px">Hours</th>
+          <th class="num" style="width: 150px">Total</th>
+          <th style="width: 130px">Status</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="inv in invoices" :key="inv.id" @click="router.visit(`/invoices/${inv.number}`)">
           <td class="pad-l strong">
-            <span class="mono-tag" style="padding: 2px 6px; color: var(--ink); border-color: var(--border-strong)">#{{ inv.number }}</span>
-            <div v-if="inv.title" class="row-subtitle">{{ inv.title }}</div>
+            <div class="doc-id">
+              <span class="mono-tag" style="padding: 2px 6px; color: var(--ink); border-color: var(--border-strong)">#{{ inv.number }}</span>
+              <span v-if="inv.title" class="doc-id__title" :title="inv.title">{{ inv.title }}</span>
+            </div>
           </td>
           <td>{{ inv.client.name }}</td>
           <td class="num">{{ fmtDate(inv.issued_on) }}</td>

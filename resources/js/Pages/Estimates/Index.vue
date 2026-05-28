@@ -91,23 +91,25 @@ const TABS = computed(() => [
   </div>
 
   <div class="table-wrap">
-    <table class="table">
+    <table class="table table--docs">
       <thead>
         <tr>
-          <th class="pad-l" style="width: 160px">Estimate</th>
-          <th style="width: 240px">Client</th>
+          <th class="pad-l">Estimate</th>
+          <th style="width: 230px">Client</th>
           <th class="num" style="width: 120px">Issued</th>
           <th class="num" style="width: 120px">Valid until</th>
-          <th class="num" style="width: 80px">Hours</th>
-          <th class="num" style="width: 140px">Total</th>
-          <th style="width: 120px">Status</th>
+          <th class="num" style="width: 90px">Hours</th>
+          <th class="num" style="width: 150px">Total</th>
+          <th style="width: 130px">Status</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="est in estimates" :key="est.id" @click="router.visit(`/estimates/${est.number}`)">
           <td class="pad-l strong">
-            <span class="mono-tag" style="padding: 2px 6px; color: var(--ink); border-color: var(--border-strong)">#{{ est.number }}</span>
-            <div v-if="est.title" class="row-subtitle">{{ est.title }}</div>
+            <div class="doc-id">
+              <span class="mono-tag" style="padding: 2px 6px; color: var(--ink); border-color: var(--border-strong)">#{{ est.number }}</span>
+              <span v-if="est.title" class="doc-id__title" :title="est.title">{{ est.title }}</span>
+            </div>
           </td>
           <td>{{ est.client.name }}</td>
           <td class="num">{{ fmtDate(est.issued_on) }}</td>

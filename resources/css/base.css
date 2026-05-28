@@ -219,12 +219,23 @@ a { color: inherit; text-decoration: none; }
   font-weight: 500;
   margin-top: 6px;
 }
-.row-subtitle {
-  font-size: var(--fs-xs);
-  color: var(--ink-3);
+/* Document list cell: a #number tag followed by a single-line, ellipsised title. */
+.doc-id { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.doc-id .mono-tag { flex: 0 0 auto; }
+.doc-id__title {
+  min-width: 0;
+  font-size: var(--fs-sm);
   font-weight: 400;
-  margin-top: 3px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+/* Fixed layout so the title column absorbs the slack instead of squeezing the
+   numeric columns; numeric/date cells never wrap. */
+.table--docs { table-layout: fixed; }
+.table tbody td.num { white-space: nowrap; }
 
 /* ─────────────────────── Buttons ─────────────────────── */
 .btn {
