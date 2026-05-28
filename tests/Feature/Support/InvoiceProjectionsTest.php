@@ -19,12 +19,12 @@ test('stats sum outstanding (sent), overdue, and paid this calendar year', funct
     // sent, past due -> outstanding AND overdue
     Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent',
         'due_on' => now()->subDays(3)->toDateString(), 'total_rappen' => 200_00]);
-    // paid this year -> paid_ytd, even if issued earlier
+    // paid, but issued last year -> NOT paid_ytd (bucketed by issue date, matching Harvest)
     Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'paid',
         'issued_on' => now()->subYear()->startOfYear()->addDays(5)->toDateString(),
         'paid_at' => now()->startOfYear()->addDays(10),
         'total_rappen' => 500_00]);
-    // issued this year but paid last year -> not paid_ytd
+    // paid and issued this year -> paid_ytd, regardless of when payment landed
     Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'paid',
         'issued_on' => now()->startOfYear()->addDays(5)->toDateString(),
         'paid_at' => now()->subYear()->endOfYear()->subDays(2),
@@ -36,7 +36,7 @@ test('stats sum outstanding (sent), overdue, and paid this calendar year', funct
 
     expect($stats['outstanding'])->toBe(300.0);   // 100 + 200
     expect($stats['overdue'])->toBe(200.0);
-    expect($stats['paid_ytd'])->toBe(500.0);
+    expect($stats['paid_ytd'])->toBe(700.0);       // the invoice issued this calendar year
 });
 
 test('index rows expose number, client, total, hours, status, overdue flag', function () {

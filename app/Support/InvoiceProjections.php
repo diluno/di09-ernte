@@ -61,9 +61,11 @@ class InvoiceProjections
             ->whereDate('due_on', '<', Carbon::today())
             ->sum('total_rappen');
 
+        // Paid invoices *issued* this calendar year (matches Harvest's "Paid YTD",
+        // which buckets by issue date — not by when the payment landed).
         $paidYtd = (int) Invoice::query()
             ->where('status', 'paid')
-            ->whereYear('paid_at', Carbon::now()->year)
+            ->whereYear('issued_on', Carbon::now()->year)
             ->sum('total_rappen');
 
         // Average days from issue to payment over paid invoices (null if none).
