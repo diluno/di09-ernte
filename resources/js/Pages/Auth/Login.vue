@@ -1,16 +1,8 @@
 <script setup>
-import Checkbox from '@/Components/Checkbox.vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
-import InputError from '@/Components/InputError.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import TextInput from '@/Components/TextInput.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 
 defineProps({
-    canResetPassword: {
-        type: Boolean,
-    },
     status: {
         type: String,
     },
@@ -23,7 +15,7 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.post(route('login'), {
+    form.post('/login', {
         onFinish: () => form.reset('password'),
     });
 };
@@ -31,70 +23,104 @@ const submit = () => {
 
 <template>
     <GuestLayout>
-        <Head title="Log in" />
+        <Head title="Sign in" />
 
-        <div v-if="status" class="mb-4 text-sm font-medium text-green-600">
-            {{ status }}
-        </div>
+        <form class="auth-card" @submit.prevent="submit">
+            <div class="auth-brand">ernte</div>
 
-        <form @submit.prevent="submit">
-            <div>
-                <InputLabel for="email" value="Email" />
+            <p v-if="status" class="auth-status">{{ status }}</p>
 
-                <TextInput
+            <label class="field">
+                <span>Email</span>
+                <input
                     id="email"
                     type="email"
-                    class="mt-1 block w-full"
+                    class="input"
                     v-model="form.email"
                     required
                     autofocus
                     autocomplete="username"
                 />
+                <span v-if="form.errors.email" class="error">{{ form.errors.email }}</span>
+            </label>
 
-                <InputError class="mt-2" :message="form.errors.email" />
-            </div>
-
-            <div class="mt-4">
-                <InputLabel for="password" value="Password" />
-
-                <TextInput
+            <label class="field">
+                <span>Password</span>
+                <input
                     id="password"
                     type="password"
-                    class="mt-1 block w-full"
+                    class="input"
                     v-model="form.password"
                     required
                     autocomplete="current-password"
                 />
+                <span v-if="form.errors.password" class="error">{{ form.errors.password }}</span>
+            </label>
 
-                <InputError class="mt-2" :message="form.errors.password" />
-            </div>
+            <label class="auth-remember">
+                <input type="checkbox" v-model="form.remember" />
+                <span>remember me</span>
+            </label>
 
-            <div class="mt-4 block">
-                <label class="flex items-center">
-                    <Checkbox name="remember" v-model:checked="form.remember" />
-                    <span class="ms-2 text-sm text-gray-600"
-                        >Remember me</span
-                    >
-                </label>
-            </div>
-
-            <div class="mt-4 flex items-center justify-end">
-                <Link
-                    v-if="canResetPassword"
-                    :href="route('password.request')"
-                    class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                >
-                    Forgot your password?
-                </Link>
-
-                <PrimaryButton
-                    class="ms-4"
-                    :class="{ 'opacity-25': form.processing }"
-                    :disabled="form.processing"
-                >
-                    Log in
-                </PrimaryButton>
-            </div>
+            <button type="submit" class="btn primary auth-submit" :disabled="form.processing">
+                <span>sign in</span>
+                <span aria-hidden="true">&rarr;</span>
+            </button>
         </form>
     </GuestLayout>
 </template>
+
+<style scoped>
+.auth-card {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    max-width: 360px;
+    padding: 28px;
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-shadow: 0 12px 32px rgba(26, 26, 26, 0.08);
+}
+
+.auth-brand {
+    font-size: var(--fs-lg);
+    color: var(--ink);
+    letter-spacing: -0.5px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.auth-status {
+    margin: 0;
+    font-size: var(--fs-sm);
+    color: var(--forest);
+}
+
+.auth-remember {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--fs-sm);
+    color: var(--ink-2);
+    cursor: pointer;
+}
+
+.auth-remember input {
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.auth-submit {
+    justify-content: center;
+    width: 100%;
+    min-height: var(--row-h);
+    font-size: var(--fs-sm);
+}
+
+.auth-submit:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+</style>
