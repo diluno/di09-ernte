@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Support\DashboardProjections;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -31,7 +32,7 @@ class ProjectController extends Controller
         ]);
     }
 
-    private function activeClients(): \Illuminate\Support\Collection
+    private function activeClients(): Collection
     {
         return Client::active()->orderBy('name')->get(['id', 'name']);
     }
