@@ -1,10 +1,12 @@
 <script setup>
-import { computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import Topbar from '@/Components/Topbar.vue';
 import Sidebar from '@/Components/Sidebar.vue';
 import Statusbar from '@/Components/Statusbar.vue';
 import TweaksPanel from '@/Components/TweaksPanel.vue';
+import CommandPalette from '@/Components/CommandPalette.vue';
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts.js';
 
 const DEFAULT_SETTINGS = Object.freeze({ theme: 'paper', density: 'comfortable', accent: '#2d4a3a' });
 
@@ -19,16 +21,32 @@ function applyTokens() {
 }
 
 watch(settings, applyTokens, { immediate: true, deep: true });
+
+const paletteOpen = ref(false);
+const paletteMode = ref('all');
+
+function openCommandPalette() {
+  paletteMode.value = 'all';
+  paletteOpen.value = true;
+}
+
+function openProjectPalette() {
+  paletteMode.value = 'project';
+  paletteOpen.value = true;
+}
+
+useKeyboardShortcuts({ openCommandPalette, openProjectPalette });
 </script>
 
 <template>
   <div class="app">
-    <Topbar />
+    <Topbar @open-command="openCommandPalette" />
     <Sidebar />
     <main class="content">
       <slot />
     </main>
     <Statusbar />
     <TweaksPanel />
+    <CommandPalette :show="paletteOpen" :mode="paletteMode" @close="paletteOpen = false" />
   </div>
 </template>

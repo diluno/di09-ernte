@@ -238,13 +238,27 @@ test('POST /invoices/{id}/void voids and releases entries', function () {
 test('POST /invoices/{id}/send issues the draft', function () {
     BusinessProfile::current()->update(['qr_iban' => 'CH4431999123000889012', 'address_line_1' => 'Bahnhofstrasse 1', 'postal_code' => '8001', 'city' => 'Zürich']);
     $this->client->update(['address_line_1' => 'Friedrichstrasse 47', 'postal_code' => '8004', 'city' => 'Zürich', 'country' => 'CH']);
+    \Illuminate\Support\Facades\Mail::fake();
     $inv = makeDraft();
     $this->post("/invoices/{$inv->id}/send")
         ->assertRedirect()
         ->assertSessionMissing('error')
         ->assertSessionHasNoErrors();
     expect($inv->fresh()->status)->toBe('sent');
+    \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\InvoiceMail::class);
 })->group('browsershot');
+
+test('POST /invoices/{id}/send keeps draft when client email is missing', function () {
+    $this->client->update(['email' => null]);
+    $inv = makeDraft();
+
+    $this->post("/invoices/{$inv->id}/send")
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    expect($inv->fresh()->status)->toBe('draft');
+    expect($inv->events()->where('kind', 'sent')->count())->toBe(0);
+});
 
 test('GET /invoices/new without a client renders the client picker (not a 404)', function () {
     Client::factory()->create(['name' => 'Pickable Co']);

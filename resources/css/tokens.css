@@ -1,5 +1,7 @@
 :root,
 :root[data-theme="paper"] {
+  --bg: #f5f1ea;
+  --bg-2: #efe9dc;
   --paper: #f5f1ea;
   --paper-2: #efe9dc;
   --ink: #1a1a1a;
@@ -16,9 +18,12 @@
   --accent: var(--forest);
   --accent-on: #f5f1ea;
   --bg-hover: rgba(26, 26, 26, 0.04);
+  --bg-active: rgba(26, 26, 26, 0.08);
 }
 
 :root[data-theme="dark"] {
+  --bg: #1a1a1a;
+  --bg-2: #232323;
   --paper: #1a1a1a;
   --paper-2: #232323;
   --ink: #f5f1ea;
@@ -35,6 +40,7 @@
   --accent: var(--forest);
   --accent-on: #f5f1ea;
   --bg-hover: rgba(245, 241, 234, 0.05);
+  --bg-active: rgba(245, 241, 234, 0.09);
 }
 
 :root[data-density="comfortable"] {

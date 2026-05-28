@@ -5,6 +5,8 @@ use App\Http\Controllers\EntryController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\SearchController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TimerController;
 use Illuminate\Support\Facades\Route;
@@ -50,8 +52,11 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/reports',  fn () => Inertia::render('Reports/Placeholder'))->name('reports.show');
 
-    Route::patch('/settings/tweaks', [\App\Http\Controllers\SettingsController::class, 'updateTweaks'])
-        ->name('settings.tweaks');
+    Route::get('/settings', [SettingsController::class, 'show'])->name('settings.show');
+    Route::patch('/settings/profile', [SettingsController::class, 'updateProfile'])->name('settings.profile');
+    Route::patch('/settings/tweaks', [SettingsController::class, 'updateTweaks'])->name('settings.tweaks');
+
+    Route::get('/api/search', SearchController::class)->name('api.search');
 
     Route::get('/profile',    [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile',  [ProfileController::class, 'update'])->name('profile.update');

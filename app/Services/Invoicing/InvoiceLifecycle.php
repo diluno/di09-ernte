@@ -2,10 +2,12 @@
 
 namespace App\Services\Invoicing;
 
+use App\Mail\InvoiceMail;
 use App\Models\Invoice;
 use App\Models\InvoiceEvent;
 use App\Models\TimeEntry;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class InvoiceLifecycle
 {
@@ -17,8 +19,14 @@ class InvoiceLifecycle
      */
     public function issue(Invoice $invoice): void
     {
+        $invoice->loadMissing('client');
+
         if ($invoice->status !== 'draft') {
             throw new \DomainException("Only a draft can be sent (status: {$invoice->status}).");
+        }
+
+        if (! $invoice->client?->email) {
+            throw new \DomainException('Cannot send invoice because the client has no email address.');
         }
 
         DB::transaction(function () use ($invoice) {
@@ -32,8 +40,10 @@ class InvoiceLifecycle
 
             $path = $this->pdf->pdf($invoice);
 
+            Mail::to($invoice->client->email)->send(new InvoiceMail($invoice, $path));
+
             $this->event($invoice, 'pdf_generated', ['path' => $path]);
-            $this->event($invoice, 'sent');
+            $this->event($invoice, 'sent', ['email_to' => $invoice->client->email, 'pdf_path' => $path]);
         });
     }
 

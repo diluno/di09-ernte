@@ -9,6 +9,8 @@ const initials = computed(() => {
   const n = user.value?.name ?? '?';
   return n.split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase();
 });
+
+defineEmits(['open-command']);
 </script>
 
 <template>
@@ -19,7 +21,7 @@ const initials = computed(() => {
     </Link>
     <div class="mono-tag" title="Workspace">workspace: {{ user?.name?.toLowerCase() ?? 'guest' }}@ernte</div>
     <div class="topbar-spacer" />
-    <button class="cmdk" title="Command palette (Phase 2b)" disabled>
+    <button class="cmdk" title="Command palette" @click="$emit('open-command')">
       <span style="color: var(--ink-4)">›</span>
       <span style="flex: 1; text-align: left">Jump to project, client, invoice…</span>
       <span class="kbd">⌘K</span>

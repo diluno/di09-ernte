@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -229,8 +230,12 @@ class InvoiceController extends Controller
         } catch (\RuntimeException $e) {
             // PDF/QR render failures (e.g. an invalid QR bill) should not 500.
             return back()->with('error', "Could not issue invoice {$invoice->number}: {$e->getMessage()}");
+        } catch (\Throwable $e) {
+            Log::error('Invoice send failed.', ['invoice_id' => $invoice->id, 'exception' => $e]);
+
+            return back()->with('error', "Could not email invoice {$invoice->number}. Please check mail settings and try again.");
         }
-        return back()->with('success', "Invoice {$invoice->number} issued.");
+        return back()->with('success', "Invoice {$invoice->number} sent.");
     }
 
     public function pdf(Invoice $invoice, InvoicePdfRenderer $renderer): \Symfony\Component\HttpFoundation\BinaryFileResponse

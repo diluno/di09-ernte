@@ -8,6 +8,7 @@ use App\Models\TimeEntry;
 use App\Models\User;
 use App\Services\Invoicing\InvoiceBuilder;
 use App\Services\Invoicing\InvoiceLifecycle;
+use Illuminate\Support\Facades\Mail;
 
 beforeEach(function () {
     BusinessProfile::create(['name' => 'Ernte Test', 'country' => 'CH', 'default_currency' => 'CHF', 'default_vat_rate' => 8.10]);
@@ -86,6 +87,7 @@ test('issue transitions draft -> sent, stamps dates, writes pdf_generated + sent
     BusinessProfile::current()->update(['qr_iban' => 'CH4431999123000889012', 'address_line_1' => 'Bahnhofstrasse 1', 'postal_code' => '8001', 'city' => 'Zürich']);
     test()->client->update(['address_line_1' => 'Friedrichstrasse 47', 'postal_code' => '8004', 'city' => 'Zürich', 'country' => 'CH']);
     [$invoice] = draftWithEntry();
+    Mail::fake();
 
     test()->lifecycle->issue($invoice);
 
@@ -96,6 +98,7 @@ test('issue transitions draft -> sent, stamps dates, writes pdf_generated + sent
     expect($invoice->pdf_path)->not->toBeNull();
     expect($invoice->events()->where('kind', 'sent')->count())->toBe(1);
     expect($invoice->events()->where('kind', 'pdf_generated')->count())->toBe(1);
+    Mail::assertSent(\App\Mail\InvoiceMail::class, fn ($mail) => $mail->invoice->is($invoice) && $mail->pdfPath === $invoice->pdf_path);
 })->group('browsershot');
 
 test('issue is rejected unless draft', function () {
@@ -103,3 +106,28 @@ test('issue is rejected unless draft', function () {
     $invoice->update(['status' => 'sent']);
     expect(fn () => test()->lifecycle->issue($invoice))->toThrow(\DomainException::class);
 });
+
+test('issue is rejected when the client has no email address', function () {
+    test()->client->update(['email' => null]);
+    [$invoice] = draftWithEntry();
+
+    expect(fn () => test()->lifecycle->issue($invoice))->toThrow(\DomainException::class);
+    expect($invoice->fresh()->status)->toBe('draft');
+    expect($invoice->events()->where('kind', 'sent')->count())->toBe(0);
+});
+
+test('mail failures keep the invoice as draft and write no sent event', function () {
+    BusinessProfile::current()->update(['qr_iban' => 'CH4431999123000889012', 'address_line_1' => 'Bahnhofstrasse 1', 'postal_code' => '8001', 'city' => 'Zürich']);
+    test()->client->update(['address_line_1' => 'Friedrichstrasse 47', 'postal_code' => '8004', 'city' => 'Zürich', 'country' => 'CH']);
+    [$invoice] = draftWithEntry();
+
+    Mail::shouldReceive('to')
+        ->once()
+        ->with(test()->client->email)
+        ->andThrow(new RuntimeException('SMTP down'));
+
+    expect(fn () => test()->lifecycle->issue($invoice))->toThrow(RuntimeException::class);
+    expect($invoice->fresh()->status)->toBe('draft');
+    expect($invoice->fresh()->sent_at)->toBeNull();
+    expect($invoice->events()->where('kind', 'sent')->count())->toBe(0);
+})->group('browsershot');

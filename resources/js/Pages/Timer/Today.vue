@@ -1,6 +1,6 @@
 <script setup>
-import { computed, ref } from 'vue';
-import { router, useForm } from '@inertiajs/vue3';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TimerHero from '@/Components/TimerHero.vue';
 import EntryRow from '@/Components/EntryRow.vue';
@@ -29,6 +29,18 @@ function startProject(projectId) {
 const totalShare = (sec) => props.totals.total_seconds ? (sec / props.totals.total_seconds) * 100 : 0;
 
 const showManual = ref(false);
+const page = usePage();
+
+if (page.url.includes('manual=1')) {
+  showManual.value = true;
+}
+
+function openManualEntry() {
+  showManual.value = true;
+}
+
+onMounted(() => window.addEventListener('ernte:open-manual-entry', openManualEntry));
+onUnmounted(() => window.removeEventListener('ernte:open-manual-entry', openManualEntry));
 
 function isoLocal(d) {
   // 'YYYY-MM-DDTHH:MM' suitable for <input type="datetime-local">
@@ -144,7 +156,8 @@ function submitManual() {
       <div style="display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: var(--fs-xs); color: var(--ink-3)">
         <span>Start / stop timer</span><span class="kbd">space</span>
         <span>New entry</span><span class="kbd">n</span>
-        <span class="dim" style="grid-column: span 2; font-size: 10px">(shortcuts ship in Phase 2b)</span>
+        <span>Jump palette</span><span class="kbd">⌘K</span>
+        <span>Projects / Clients / Invoices</span><span class="kbd">g</span>
       </div>
     </aside>
   </div>

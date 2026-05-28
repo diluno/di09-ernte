@@ -10,6 +10,11 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withCommands([
+        \App\Console\Commands\BackupCommand::class,
+        \App\Console\Commands\RemindInvoicesCommand::class,
+        \App\Console\Commands\StampOverdueInvoicesCommand::class,
+    ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
