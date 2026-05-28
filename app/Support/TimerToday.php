@@ -67,6 +67,14 @@ class TimerToday
             ->get()
             ->all();
 
+        // Full active-project list for the manual-entry picker (any project is trackable,
+        // budget or not). quick_start stays the recent-4 shortcut buttons.
+        $projects = Project::active()
+            ->select('id', 'name', 'code')
+            ->orderBy('name')
+            ->get()
+            ->all();
+
         return [
             'entries' => $serialized->all(),
             'totals' => [
@@ -76,6 +84,7 @@ class TimerToday
             ],
             'by_project' => $byProject,
             'quick_start' => $quickStart,
+            'projects' => $projects,
         ];
     }
 }

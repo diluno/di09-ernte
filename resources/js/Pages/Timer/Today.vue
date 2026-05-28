@@ -14,6 +14,7 @@ const props = defineProps({
   totals:      { type: Object, required: true },
   by_project:  { type: Array,  required: true },
   quick_start: { type: Array,  required: true },
+  projects:    { type: Array,  default: () => [] },
 });
 
 function fmtHM(sec) {
@@ -92,7 +93,7 @@ function submitManual() {
   <form v-if="showManual" @submit.prevent="submitManual" style="border: 1px solid var(--border-strong); padding: 16px; margin: 12px 0; display: grid; grid-template-columns: 200px 1fr 160px 160px auto auto; gap: 10px; align-items: center">
     <select v-model="manualForm.project_id" required class="select">
       <option value="" disabled>project…</option>
-      <option v-for="p in quick_start" :key="p.id" :value="p.id">{{ p.name }} ({{ p.code }})</option>
+      <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }} ({{ p.code }})</option>
     </select>
     <input v-model="manualForm.description" placeholder="what did you do?" class="input" />
     <input type="datetime-local" v-model="manualForm.started_at" required class="input" />

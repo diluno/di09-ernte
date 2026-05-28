@@ -35,6 +35,23 @@ test('GET /timer renders Timer/Today with today payload', function () {
         );
 });
 
+test('GET /timer exposes all active projects for manual entry, including budget-less ones beyond the recent 4', function () {
+    Project::factory()->count(4)->create(); // pushes the others out of the recent-4 quick_start
+    Project::factory()->create([
+        'name' => 'Internal Ops', 'code' => 'INTOPS',
+        'budget_hours' => 0, 'budget_amount_rappen' => 0, 'rate_rappen' => 0,
+    ]);
+
+    $this->get('/timer')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Timer/Today')
+            ->has('projects', 6) // 1 (beforeEach) + 4 + the budget-less one
+            ->where('projects', fn ($projects) => collect($projects)->contains(fn ($p) => $p['code'] === 'INTOPS'))
+            ->etc()
+        );
+});
+
 test('POST /timer/start creates a running entry', function () {
     $this->post('/timer/start', [
         'project_id' => $this->project->id,
