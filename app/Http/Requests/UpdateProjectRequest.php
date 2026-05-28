@@ -17,7 +17,6 @@ class UpdateProjectRequest extends FormRequest
             'name' => 'sometimes|string|max:255',
             'code' => ['sometimes', 'string', 'max:32', Rule::unique('projects', 'code')->ignore($id)],
             'description' => 'nullable|string',
-            'glyph' => 'sometimes|in:alt-0,alt-1,alt-2,alt-3,alt-4',
             'billable' => 'sometimes|boolean',
             'retainer' => 'sometimes|boolean',
             'retainer_hours' => 'nullable|integer|min:0',

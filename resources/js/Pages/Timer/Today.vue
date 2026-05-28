@@ -5,6 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import TimerHero from '@/Components/TimerHero.vue';
 import EntryRow from '@/Components/EntryRow.vue';
 import { formatChf } from '@/formatters/money.js';
+import { glyphClass } from '@/formatters/glyph.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -150,7 +151,7 @@ function submitManual() {
           style="justify-content: flex-start; padding: 6px 8px"
           @click="startProject(p.id)"
         >
-          <span class="proj-glyph" :class="p.glyph" style="width: 12px; height: 12px; font-size: 8px">{{ p.code[0] }}</span>
+          <span class="proj-glyph" :class="glyphClass(p.id)" style="width: 12px; height: 12px; font-size: 8px">{{ p.code[0] }}</span>
           <span style="font-size: var(--fs-sm)">{{ p.name }}</span>
         </button>
       </div>

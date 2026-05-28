@@ -79,7 +79,6 @@ class DashboardProjections
                 'id' => $p->id,
                 'code' => $p->code,
                 'name' => $p->name,
-                'glyph' => $p->glyph,
                 'status' => $p->status,
                 'billable' => (bool) $p->billable,
                 'retainer' => (bool) $p->retainer,

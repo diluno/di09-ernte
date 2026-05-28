@@ -18,7 +18,6 @@ class ProjectFactory extends Factory
             'name' => ucfirst($name),
             'code' => strtoupper($this->faker->unique()->lexify('????-???')),
             'description' => $this->faker->sentence(),
-            'glyph' => 'alt-' . $this->faker->numberBetween(0, 4),
             'status' => 'active',
             'billable' => true,
             'budget_hours' => $this->faker->numberBetween(40, 200),

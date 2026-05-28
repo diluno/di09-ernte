@@ -5,6 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import Sparkline from '@/Components/Sparkline.vue';
 import BudgetBar from '@/Components/BudgetBar.vue';
 import { formatChf } from '@/formatters/money.js';
+import { glyphClass } from '@/formatters/glyph.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -120,7 +121,7 @@ function relativeTime(iso) {
         <tr v-for="p in projects" :key="p.id">
           <td class="pad-l strong">
             <Link :href="`/projects/${p.code}`" class="proj-cell" style="color: inherit">
-              <span class="proj-glyph" :class="p.glyph">{{ p.code[0] }}</span>
+              <span class="proj-glyph" :class="glyphClass(p.id)">{{ p.code[0] }}</span>
               <span>
                 {{ p.name }}
                 <span class="dim" style="margin-left: 8px; font-weight: 400">{{ p.code }}</span>

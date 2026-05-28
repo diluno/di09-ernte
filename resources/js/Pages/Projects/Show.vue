@@ -8,6 +8,7 @@ import EntryRow from '@/Components/EntryRow.vue';
 import TaskRow from '@/Components/TaskRow.vue';
 import { pushRecent } from '@/composables/useRecent.js';
 import { formatChf } from '@/formatters/money.js';
+import { glyphClass } from '@/formatters/glyph.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -63,7 +64,7 @@ const remaining = computed(() => Math.max(0, props.project.budget_hours - props.
         <span>{{ project.code }}</span>
       </div>
       <h1 class="page-title">
-        <span class="proj-glyph" :class="project.glyph" style="width: 28px; height: 28px; font-size: 14px">{{ project.code[0] }}</span>
+        <span class="proj-glyph" :class="glyphClass(project.id)" style="width: 28px; height: 28px; font-size: 14px">{{ project.code[0] }}</span>
         {{ project.name }}
         <span class="meta">{{ project.client.name }}<span class="ascii-dot">·</span>{{ fmtMoneyShort(project.rate) }}/h</span>
       </h1>
