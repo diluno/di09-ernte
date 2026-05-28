@@ -37,6 +37,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'app' => [
                 'version' => config('app.version', '0.1.0'),
+                'host'    => parse_url(config('app.url', 'http://localhost'), PHP_URL_HOST) ?: 'localhost',
                 'port'    => config('app.port', '7878'),
             ],
             'system' => fn () => [

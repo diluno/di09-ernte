@@ -12,6 +12,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([
         \App\Console\Commands\BackupCommand::class,
+        \App\Console\Commands\DoctorCommand::class,
         \App\Console\Commands\RemindInvoicesCommand::class,
         \App\Console\Commands\StampOverdueInvoicesCommand::class,
     ])

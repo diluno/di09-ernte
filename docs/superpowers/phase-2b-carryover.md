@@ -36,7 +36,19 @@ Done:
 - **Keyboard shortcuts** — `AppLayout` owns `space`, `n`, `⌘P`, `g d/t/c/i`, `/`, and `⌘K`, with text-input guards.
 - **Backup command** — `ernte:backup` creates a gzipped database dump, optional invoices tarball, manifest, and `backups` row. Daily schedule at 03:00.
 
-(Laravel Forge production deployment docs/config + README remains Phase 3.)
+## Status after Phase 3 (Laravel Forge deployment — implemented)
+
+Implemented on branch `phase-3-forge-deployment`. **193 tests passing, build clean.** Local smoke covered `ernte:doctor`, shell syntax for the Forge scripts, command registration, and the full app test suite.
+
+Done:
+
+- **Forge runbook** — `docs/deployment/forge.md` documents server assumptions, environment setup, deployment, queue daemon, scheduler, backup/restore, and smoke testing.
+- **Forge env template** — `.env.forge.example` lists production values for Forge, SMTP, database, app identity, Browsershot, bootstrap user, and business profile.
+- **Forge deploy script** — `deploy/forge/deploy.sh` pulls `main`, installs Composer/npm dependencies, builds assets, prepares storage, migrates, seeds, warms safe caches, restarts queues, and runs `ernte:doctor`.
+- **Forge provision recipe** — `deploy/forge/provision-chrome-and-backups.sh` installs Google Chrome for Browsershot plus `mysqldump` support for backups.
+- **Runtime doctor** — `ernte:doctor` checks app key, HTTPS `APP_URL` in production, database connectivity/tables, business profile, writable storage, queue, mailer, Chromium, and `mysqldump`.
+- **Production footer host** — the status bar now displays the host derived from `APP_URL` instead of hardcoded `localhost`.
+- **Timezone config** — `APP_TIMEZONE` is now honored by `config/app.php`.
 
 ## Items deferred from the Phase-1 carryover
 
@@ -86,6 +98,6 @@ Deferred deliberately during 2b-i (the code works for the single-user happy path
 
 ## Suggested handoff prompt for the new conversation
 
-> Write the Phase 3 Laravel Forge deployment plan for ernte; read the spec §8 and the phase-2b carryover doc first. Note that Forge supersedes the spec's earlier docker-compose direction.
+> Continue Ernte polish after Phase 3; read the phase-2b carryover doc first.
 
-2b-i shipped the invoice subsystem (Index/Create/Show/PDF/QR-bill) and 2b-ii shipped send/reminders, Settings/Profile, Reports placeholder, ⌘K search/palette, keyboard shortcuts, scheduler commands, and backups. Phase 3 should prepare a Laravel Forge deployment runbook: Forge site/server assumptions, deploy script, `.env.example`, Nginx/PHP/storage notes, MariaDB/database setup, queue worker daemon for the `emails` queue, scheduler cron, SMTP configuration, Chromium/Browsershot setup, backup/restore docs, and a fresh Forge-site smoke path.
+Phase 3 shipped the Laravel Forge deployment path. Good next candidates are product polish rather than deployment: real `Clients/Show`, Projects/Show secondary tabs, the remaining EUR-to-CHF sweep outside invoice pages, safer draft PDF download behavior, a confirmation dialog for voiding invoices, and a possible accounting semantics pass on `paid_ytd`.

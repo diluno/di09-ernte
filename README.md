@@ -1,6 +1,6 @@
 # Ernte
 
-Self-hosted time tracking & invoicing. Single user. Swiss QR-bill on invoices.
+Self-hosted time tracking and Swiss invoicing for one operator.
 
 ## Local development (DDEV)
 
@@ -14,12 +14,19 @@ ddev launch                 # opens browser
 
 Default login: see `ERNTE_USER_*` in your `.env`.
 
+## Production (Laravel Forge)
+
+Production deployment targets Laravel Forge, not Docker. Start with:
+
+- [Forge deployment runbook](docs/deployment/forge.md)
+- [.env.forge.example](.env.forge.example)
+- [Forge deploy script](deploy/forge/deploy.sh)
+- [Chrome/backups provision recipe](deploy/forge/provision-chrome-and-backups.sh)
+
+Forge must run one scheduler job (`php artisan schedule:run`) and one queue daemon (`php artisan queue:work database --queue=default,emails --sleep=3 --tries=3 --timeout=120`).
+
 ## Tests
 
 ```bash
 ddev artisan test
 ```
-
-## Production deploy
-
-See `docs/superpowers/specs/2026-05-27-ernte-design.md` § 8 (docker-compose).

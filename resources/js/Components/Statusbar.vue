@@ -36,7 +36,7 @@ const backupAgo = computed(() => {
   <footer class="statusbar">
     <span><span class="dot" />connected</span>
     <span class="sep">│</span>
-    <span>localhost<span class="muted">:{{ app?.port }}</span></span>
+    <span>{{ app?.host || 'localhost' }}<span class="muted">:{{ app?.port }}</span></span>
     <span class="sep">│</span>
     <span>v{{ app?.version }} <span class="muted">(self-hosted)</span></span>
     <span class="sep">│</span>

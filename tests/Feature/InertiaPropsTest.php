@@ -24,6 +24,7 @@ test('shared props include user settings and system info', function () {
             ->where('auth.user.settings.theme', 'dark')
             ->where('auth.user.settings.density', 'compact')
             ->has('app.version')
+            ->has('app.host')
             ->has('app.port')
             ->has('system.db_driver')
             ->has('system.db_version')
