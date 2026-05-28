@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Support\SwissIban;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class UpdateBusinessProfileRequest extends FormRequest
 {
@@ -38,5 +40,27 @@ class UpdateBusinessProfileRequest extends FormRequest
         if ($this->has('country')) {
             $this->merge(['country' => strtoupper((string) $this->input('country'))]);
         }
+
+        foreach (['iban', 'qr_iban'] as $field) {
+            if ($this->has($field)) {
+                $this->merge([$field => SwissIban::normalize($this->input($field))]);
+            }
+        }
+    }
+
+    public function after(): array
+    {
+        return [
+            function (Validator $validator) {
+                $qrIban = $this->input('qr_iban');
+
+                if ($qrIban && ! SwissIban::isQrIban($qrIban)) {
+                    $validator->errors()->add(
+                        'qr_iban',
+                        'The QR-IBAN must use IID 30000-31999. Put a normal IBAN in the IBAN field.',
+                    );
+                }
+            },
+        ];
     }
 }

@@ -83,6 +83,22 @@ test('invalid profile fields are rejected', function () {
         ]);
 });
 
+test('normal iban values are rejected in the qr_iban field', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->patch('/settings/profile', [
+            'name' => 'Ernte Test',
+            'country' => 'CH',
+            'iban' => '',
+            'qr_iban' => 'CH3100700110006187392',
+            'default_currency' => 'CHF',
+            'default_vat_rate' => 8.10,
+            'reminder_days_after_due' => 7,
+        ])
+        ->assertSessionHasErrors('qr_iban');
+});
+
 test('unauthenticated users cannot access settings', function () {
     $this->get('/settings')->assertRedirect('/login');
     $this->patch('/settings/profile', [])->assertRedirect('/login');

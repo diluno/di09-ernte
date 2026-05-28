@@ -4,6 +4,7 @@ namespace App\Services\Invoicing;
 
 use App\Models\BusinessProfile;
 use App\Models\Invoice;
+use App\Support\SwissIban;
 use Sprain\SwissQrBill as QrBill;
 use Sprain\SwissQrBill\DataGroup\AddressInterface;
 use Sprain\SwissQrBill\DataGroup\Element\StructuredAddress;
@@ -22,16 +23,18 @@ class QrBillRenderer
         // Creditor (us).
         $qrBill->setCreditor($this->address(
             $profile->name ?: 'Creditor',
-            trim(($profile->address_line_1 ?? '') . ' ' . ($profile->address_line_2 ?? '')),
+            trim(($profile->address_line_1 ?? '').' '.($profile->address_line_2 ?? '')),
             $profile->postal_code,
             $profile->city,
             $profile->country,
         ));
 
         // QR-IBAN ⇒ QRR reference; plain IBAN ⇒ no reference (NON).
-        // The reference type must match the IBAN type, so the fallback IBAN must match
-        // the mode: QR mode uses the library's test QR-IBAN, NON mode a plain IBAN.
-        $useQrIban = ! empty($profile->qr_iban);
+        // The reference type must match the IBAN type. If a plain IBAN was entered
+        // in the QR-IBAN field, render in NON mode instead of failing the invoice.
+        $qrIban = SwissIban::normalize($profile->qr_iban);
+        $plainIban = SwissIban::normalize($profile->iban);
+        $useQrIban = SwissIban::isQrIban($qrIban);
 
         // A QR-IBAN requires a QRR reference. Self-heal invoices that lack one
         // (e.g. factory/seeded/imported) so the library does not reject them.
@@ -43,8 +46,8 @@ class QrBillRenderer
         }
 
         $iban = $useQrIban
-            ? ($profile->qr_iban ?: 'CH4431999123000889012')
-            : ($profile->iban ?: 'CH9300762011623852957');
+            ? ($qrIban ?: 'CH4431999123000889012')
+            : ($plainIban ?: $qrIban ?: 'CH9300762011623852957');
         $qrBill->setCreditorInformation(
             QrBill\DataGroup\Element\CreditorInformation::create($iban)
         );
@@ -53,7 +56,7 @@ class QrBillRenderer
         $client = $invoice->client;
         $qrBill->setUltimateDebtor($this->address(
             $client->name ?: 'Debtor',
-            trim(($client->address_line_1 ?? '') . ' ' . ($client->address_line_2 ?? '')),
+            trim(($client->address_line_1 ?? '').' '.($client->address_line_2 ?? '')),
             $client->postal_code,
             $client->city,
             $client->country,
@@ -95,12 +98,12 @@ class QrBillRenderer
             foreach ($violations as $v) {
                 $messages[] = $v->getMessage();
             }
-            throw new \RuntimeException('Invalid QR bill: ' . implode('; ', $messages));
+            throw new \RuntimeException('Invalid QR bill: '.implode('; ', $messages));
         }
 
         $output = new QrBill\PaymentPart\Output\HtmlOutput\HtmlOutput($qrBill, 'de');
 
-        $displayOptions = (new DisplayOptions())->setPrintable(false);
+        $displayOptions = (new DisplayOptions)->setPrintable(false);
 
         return (string) $output->setDisplayOptions($displayOptions)->getPaymentPart();
     }

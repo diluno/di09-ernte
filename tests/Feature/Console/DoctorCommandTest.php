@@ -47,6 +47,20 @@ test('doctor command rejects log mail in production', function () {
         ->assertExitCode(1);
 });
 
+test('doctor warns when qr_iban contains a normal IBAN', function () {
+    BusinessProfile::current()->update(['qr_iban' => 'CH3100700110006187392', 'iban' => null]);
+
+    config([
+        'app.key' => 'base64:test',
+        'app.env' => 'testing',
+        'app.url' => 'http://localhost',
+    ]);
+
+    $this->artisan('ernte:doctor')
+        ->expectsOutputToContain('[WARN] business profile - QR-IBAN field contains a normal IBAN')
+        ->assertExitCode(0);
+});
+
 test('doctor advisory mode reports failures without failing deployment', function () {
     config([
         'app.env' => 'production',

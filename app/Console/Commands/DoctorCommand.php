@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\BusinessProfile;
+use App\Support\SwissIban;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -85,15 +86,23 @@ class DoctorCommand extends Command
 
         return $missing === []
             ? $this->checkOk('database tables', implode(', ', $required))
-            : $this->checkFail('database tables', 'missing: ' . implode(', ', $missing));
+            : $this->checkFail('database tables', 'missing: '.implode(', ', $missing));
     }
 
     private function businessProfile(): array
     {
         try {
-            return BusinessProfile::query()->exists()
-                ? $this->checkOk('business profile', 'seeded')
-                : $this->checkFail('business profile', 'missing; run php artisan db:seed --class=BootstrapSeeder --force');
+            $profile = BusinessProfile::query()->first();
+
+            if (! $profile) {
+                return $this->checkFail('business profile', 'missing; run php artisan db:seed --class=BootstrapSeeder --force');
+            }
+
+            if ($profile->qr_iban && ! SwissIban::isQrIban($profile->qr_iban)) {
+                return $this->checkWarn('business profile', 'QR-IBAN field contains a normal IBAN; move it to IBAN or use a QR-IBAN with IID 30000-31999');
+            }
+
+            return $this->checkOk('business profile', 'seeded');
         } catch (Throwable $e) {
             return $this->checkFail('business profile', $e->getMessage());
         }
@@ -113,7 +122,7 @@ class DoctorCommand extends Command
 
         return $missing === []
             ? $this->checkOk('storage', 'writable')
-            : $this->checkFail('storage', 'not writable: ' . implode(', ', $missing));
+            : $this->checkFail('storage', 'not writable: '.implode(', ', $missing));
     }
 
     private function queue(): array
