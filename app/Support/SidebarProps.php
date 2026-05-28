@@ -53,16 +53,13 @@ class SidebarProps
         ];
     }
 
-    /** Top 4 active projects ordered by last activity (most recent entry's started_at). */
+    /** Projects the user has explicitly pinned (active only), alphabetical by name. */
     private static function pinnedProjects(): array
     {
         return Project::active()
-            ->select('projects.id', 'projects.name', 'projects.code', 'projects.glyph')
-            ->leftJoin('time_entries', 'time_entries.project_id', '=', 'projects.id')
-            ->groupBy('projects.id', 'projects.name', 'projects.code', 'projects.glyph')
-            ->orderByRaw('COALESCE(MAX(time_entries.started_at), projects.created_at) DESC')
-            ->limit(4)
-            ->get()
+            ->pinned()
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'glyph'])
             ->map(fn ($p) => [
                 'id' => $p->id,
                 'name' => $p->name,

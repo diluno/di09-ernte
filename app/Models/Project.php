@@ -11,7 +11,7 @@ class Project extends Model
     use HasFactory;
 
     protected $fillable = [
-        'client_id', 'name', 'code', 'description', 'glyph', 'status',
+        'client_id', 'name', 'code', 'description', 'glyph', 'status', 'pinned_at',
         'billable', 'retainer', 'retainer_hours', 'retainer_resets_monthly',
         'budget_hours', 'budget_amount_rappen', 'rate_rappen',
         'started_on', 'deadline_on',
@@ -26,6 +26,7 @@ class Project extends Model
         'rate_rappen' => 'integer',
         'started_on' => 'date',
         'deadline_on' => 'date',
+        'pinned_at' => 'datetime',
     ];
 
     public function client() { return $this->belongsTo(Client::class); }
@@ -34,6 +35,7 @@ class Project extends Model
 
     public function scopeActive($q) { return $q->where('status', 'active'); }
     public function scopeArchived($q) { return $q->where('status', 'archived'); }
+    public function scopePinned($q) { return $q->whereNotNull('pinned_at'); }
 
     public function spentHours(): float
     {

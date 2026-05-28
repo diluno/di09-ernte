@@ -49,7 +49,21 @@ class ProjectController extends Controller
 
     public function archive(Project $project): RedirectResponse
     {
-        $project->update(['status' => 'archived']);
+        $project->update(['status' => 'archived', 'pinned_at' => null]);
+        return back();
+    }
+
+    public function pin(Project $project): RedirectResponse
+    {
+        if ($project->pinned_at === null) {
+            $project->update(['pinned_at' => now()]);
+        }
+        return back();
+    }
+
+    public function unpin(Project $project): RedirectResponse
+    {
+        $project->update(['pinned_at' => null]);
         return back();
     }
 }

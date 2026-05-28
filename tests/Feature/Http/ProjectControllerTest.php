@@ -160,6 +160,54 @@ test('PATCH /projects/{p} updates fields', function () {
     expect($project->fresh()->name)->toBe('Renamed');
 });
 
+test('Projects/Show payload exposes is_pinned reflecting stored state', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['pinned_at' => now()]);
+
+    $this->actingAs($user)->get("/projects/{$project->code}")
+        ->assertInertia(fn (Assert $page) => $page->where('project.is_pinned', true));
+});
+
+test('Projects/Show payload exposes is_pinned as false when project is not pinned', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['pinned_at' => null]);
+
+    $this->actingAs($user)->get("/projects/{$project->code}")
+        ->assertInertia(fn (Assert $page) => $page->where('project.is_pinned', false));
+});
+
+test('archiving a pinned project also clears its pin', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['status' => 'active', 'pinned_at' => now()]);
+
+    $this->actingAs($user)->post("/projects/{$project->code}/archive")
+        ->assertRedirect();
+
+    $fresh = $project->fresh();
+    expect($fresh->status)->toBe('archived');
+    expect($fresh->pinned_at)->toBeNull();
+});
+
+test('POST /projects/{p}/pin sets pinned_at', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['pinned_at' => null]);
+
+    $this->actingAs($user)->post("/projects/{$project->code}/pin")
+        ->assertRedirect();
+
+    expect($project->fresh()->pinned_at)->not->toBeNull();
+});
+
+test('POST /projects/{p}/unpin clears pinned_at', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['pinned_at' => now()]);
+
+    $this->actingAs($user)->post("/projects/{$project->code}/unpin")
+        ->assertRedirect();
+
+    expect($project->fresh()->pinned_at)->toBeNull();
+});
+
 test('POST /tasks adds a task that appears on the project show payload', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
