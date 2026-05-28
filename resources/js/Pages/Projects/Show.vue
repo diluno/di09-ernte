@@ -47,6 +47,13 @@ function togglePin() {
   router.post(url, {}, { preserveScroll: true });
 }
 
+function startTimer() {
+  router.post('/timer/start', { project_id: props.project.id }, {
+    preserveScroll: true,
+    onSuccess: () => router.visit('/timer'),
+  });
+}
+
 function fmtHours(h) { return `${h.toFixed(1)}h`; }
 function fmtMoneyShort(v) { return formatChf(v); }
 
@@ -75,8 +82,7 @@ const remaining = computed(() => Math.max(0, props.project.budget_hours - props.
         :class="{ primary: project.is_pinned }"
         @click="togglePin"
       >{{ project.is_pinned ? '★ Pinned' : '☆ Pin' }}</button>
-      <button class="btn ghost" disabled title="Use the timer page or ⌘+space (Phase 2b shortcut)">⏵ Start timer</button>
-      <button class="btn" disabled title="Phase 2b">Export</button>
+      <button class="btn" @click="startTimer">⏵ Start timer</button>
       <Link :href="`/projects/${project.code}/edit`" class="btn">Edit</Link>
       <Link :href="`/invoices/new?client=${project.client.id}&project=${project.id}`" class="btn primary">+ Invoice</Link>
     </div>
