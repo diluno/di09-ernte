@@ -11,6 +11,7 @@ const NAV = computed(() => [
   { id: 'timer',    href: '/timer',    label: 'Timer',    glyph: '◐', count: sidebar.value.today_hours ? `${sidebar.value.today_hours.toFixed(1)}h` : null },
   { id: 'clients',  href: '/clients',  label: 'Clients',  glyph: '◇', count: sidebar.value.nav_counts.clients },
   { id: 'invoices', href: '/invoices', label: 'Invoices', glyph: '≡', count: null },
+  { id: 'estimates', href: '/estimates', label: 'Estimates', glyph: '✎', count: null },
   { id: 'reports',  href: '/reports',  label: 'Reports',  glyph: '△', count: null },
 ]);
 
