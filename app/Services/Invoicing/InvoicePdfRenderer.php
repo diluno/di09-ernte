@@ -33,6 +33,21 @@ class InvoicePdfRenderer
             mkdir($dir, 0775, true);
         }
 
+        $this->browsershot($invoice)->save($absolute);
+
+        $invoice->update(['pdf_path' => $relative]);
+
+        return $relative;
+    }
+
+    /** Render a PDF without caching it on the invoice. */
+    public function pdfBytes(Invoice $invoice): string
+    {
+        return $this->browsershot($invoice)->pdf();
+    }
+
+    private function browsershot(Invoice $invoice): Browsershot
+    {
         $shot = Browsershot::html($this->html($invoice))
             ->format('A4')
             ->showBackground()
@@ -44,10 +59,6 @@ class InvoicePdfRenderer
             $shot->setChromePath($path);
         }
 
-        $shot->save($absolute);
-
-        $invoice->update(['pdf_path' => $relative]);
-
-        return $relative;
+        return $shot;
     }
 }

@@ -19,6 +19,7 @@ use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -31,16 +32,16 @@ class InvoiceController extends Controller
 
         return Inertia::render('Invoices/Index', [
             'invoices' => InvoiceProjections::index($filter, $search)->values(),
-            'stats'    => InvoiceProjections::stats(),
-            'counts'   => [
-                'all'     => Invoice::count(),
-                'draft'   => Invoice::where('status', 'draft')->count(),
-                'sent'    => Invoice::where('status', 'sent')->count(),
+            'stats' => InvoiceProjections::stats(),
+            'counts' => [
+                'all' => Invoice::count(),
+                'draft' => Invoice::where('status', 'draft')->count(),
+                'sent' => Invoice::where('status', 'sent')->count(),
                 'overdue' => Invoice::where('status', 'sent')->whereDate('due_on', '<', now()->toDateString())->count(),
-                'paid'    => Invoice::where('status', 'paid')->count(),
-                'void'    => Invoice::where('status', 'void')->count(),
+                'paid' => Invoice::where('status', 'paid')->count(),
+                'void' => Invoice::where('status', 'void')->count(),
             ],
-            'filters'  => ['filter' => $filter, 'q' => $search],
+            'filters' => ['filter' => $filter, 'q' => $search],
         ]);
     }
 
@@ -86,7 +87,7 @@ class InvoiceController extends Controller
             'period' => ['start' => $start->toDateString(), 'end' => $end->toDateString()],
             'entries' => $entries->map(fn (TimeEntry $e) => [
                 'id' => $e->id,
-                'description' => $e->description !== '' ? $e->description : ($e->task_id ? ('Task #' . $e->task_id) : ('Entry #' . $e->id)),
+                'description' => $e->description !== '' ? $e->description : ($e->task_id ? ('Task #'.$e->task_id) : ('Entry #'.$e->id)),
                 'project' => ['id' => $e->project->id, 'name' => $e->project->name, 'code' => $e->project->code],
                 'hours' => round($e->duration_seconds / 3600, 2),
                 'started_at' => $e->started_at->toIso8601String(),
@@ -177,7 +178,9 @@ class InvoiceController extends Controller
             }
             if (! empty($data['lines'])) {
                 $invoice->lines()->delete();
-                $lineAmounts = []; $vatExempts = []; $sort = 0;
+                $lineAmounts = [];
+                $vatExempts = [];
+                $sort = 0;
                 foreach ($data['lines'] as $line) {
                     $hours = round((float) $line['hours'], 2);
                     $rate = (int) $line['rate_rappen'];
@@ -188,7 +191,8 @@ class InvoiceController extends Controller
                         'rate_rappen' => $rate, 'amount_rappen' => $amount,
                         'vat_exempt' => $exempt, 'sort_order' => $sort++,
                     ]);
-                    $lineAmounts[] = $amount; $vatExempts[] = $exempt;
+                    $lineAmounts[] = $amount;
+                    $vatExempts[] = $exempt;
                 }
                 $totals = InvoiceBuilder::computeTotals($lineAmounts, $vatExempts, (float) $invoice->vat_rate);
                 $invoice->subtotal_rappen = $totals['subtotal_rappen'];
@@ -208,6 +212,7 @@ class InvoiceController extends Controller
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
         }
+
         return back()->with('success', "Invoice {$invoice->number} marked paid.");
     }
 
@@ -218,6 +223,7 @@ class InvoiceController extends Controller
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
         }
+
         return back()->with('success', "Invoice {$invoice->number} voided.");
     }
 
@@ -235,17 +241,28 @@ class InvoiceController extends Controller
 
             return back()->with('error', "Could not email invoice {$invoice->number}. Please check mail settings and try again.");
         }
+
         return back()->with('success', "Invoice {$invoice->number} sent.");
     }
 
-    public function pdf(Invoice $invoice, InvoicePdfRenderer $renderer): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function pdf(Invoice $invoice, InvoicePdfRenderer $renderer): \Symfony\Component\HttpFoundation\Response
     {
-        $relative = $invoice->pdf_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($invoice->pdf_path)
+        if ($invoice->status === 'draft') {
+            return response()->streamDownload(
+                function () use ($invoice, $renderer) {
+                    echo $renderer->pdfBytes($invoice);
+                },
+                "Rechnung-{$invoice->number}.pdf",
+                ['Content-Type' => 'application/pdf'],
+            );
+        }
+
+        $relative = $invoice->pdf_path && Storage::disk('local')->exists($invoice->pdf_path)
             ? $invoice->pdf_path
             : $renderer->pdf($invoice);
 
         return response()->download(
-            \Illuminate\Support\Facades\Storage::disk('local')->path($relative),
+            Storage::disk('local')->path($relative),
             "Rechnung-{$invoice->number}.pdf",
         );
     }

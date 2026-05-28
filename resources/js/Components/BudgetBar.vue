@@ -1,10 +1,11 @@
 <script setup>
 import { computed } from 'vue';
+import { formatChf } from '@/formatters/money.js';
 
 const props = defineProps({
   spent:  { type: Number, required: true },
   budget: { type: Number, required: true },
-  unit:   { type: String, default: 'h' }, // 'h' or '€'
+  unit:   { type: String, default: 'h' }, // 'h' or 'CHF'
 });
 
 const pct = computed(() => props.budget ? Math.round((props.spent / props.budget) * 100) : 0);
@@ -14,7 +15,7 @@ const width = computed(() => Math.min(100, pct.value));
 function fmt(v) {
   return props.unit === 'h'
     ? `${v.toFixed(1)}h`
-    : `€${Math.round(v).toLocaleString('en-US')}`;
+    : formatChf(v);
 }
 </script>
 

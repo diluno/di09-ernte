@@ -2,25 +2,33 @@
 
 use App\Models\Client;
 use App\Models\Invoice;
+use App\Models\InvoiceLine;
+use App\Models\User;
 use App\Support\ClientProjections;
 use App\Support\DashboardProjections;
 use App\Support\InvoiceProjections;
-use App\Models\User;
 
 beforeEach(function () {
     $this->client = Client::factory()->create(['name' => 'Atlas Robotics', 'short_code' => 'AR']);
 });
 
-test('stats sum outstanding (sent), overdue, and paid-this-year', function () {
+test('stats sum outstanding (sent), overdue, and paid this calendar year', function () {
     // sent, not yet due -> outstanding only
     Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent',
         'due_on' => now()->addDays(10)->toDateString(), 'total_rappen' => 100_00]);
     // sent, past due -> outstanding AND overdue
     Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent',
         'due_on' => now()->subDays(3)->toDateString(), 'total_rappen' => 200_00]);
-    // paid this year -> paid_ytd only
+    // paid this year -> paid_ytd, even if issued earlier
     Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'paid',
-        'issued_on' => now()->startOfYear()->addDays(5)->toDateString(), 'total_rappen' => 500_00]);
+        'issued_on' => now()->subYear()->startOfYear()->addDays(5)->toDateString(),
+        'paid_at' => now()->startOfYear()->addDays(10),
+        'total_rappen' => 500_00]);
+    // issued this year but paid last year -> not paid_ytd
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'paid',
+        'issued_on' => now()->startOfYear()->addDays(5)->toDateString(),
+        'paid_at' => now()->subYear()->endOfYear()->subDays(2),
+        'total_rappen' => 700_00]);
     // draft -> none
     Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'draft', 'total_rappen' => 999_00]);
 
@@ -34,8 +42,8 @@ test('stats sum outstanding (sent), overdue, and paid-this-year', function () {
 test('index rows expose number, client, total, hours, status, overdue flag', function () {
     $inv = Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent',
         'number' => '2026-014', 'due_on' => now()->subDay()->toDateString(), 'total_rappen' => 428_000]);
-    \App\Models\InvoiceLine::factory()->create(['invoice_id' => $inv->id, 'hours' => 12.5]);
-    \App\Models\InvoiceLine::factory()->create(['invoice_id' => $inv->id, 'hours' => 17.0]);
+    InvoiceLine::factory()->create(['invoice_id' => $inv->id, 'hours' => 12.5]);
+    InvoiceLine::factory()->create(['invoice_id' => $inv->id, 'hours' => 17.0]);
 
     $rows = InvoiceProjections::index();
 

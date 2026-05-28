@@ -34,17 +34,24 @@ class TimerController extends Controller
     public function stop(Request $request): RedirectResponse
     {
         $this->timer->stop($request->user());
+
         return back();
     }
 
     public function switch(StartTimerRequest $request): RedirectResponse
     {
-        return $this->start($request);
+        $project = Project::findOrFail($request->integer('project_id'));
+        $task = $request->filled('task_id') ? Task::find($request->integer('task_id')) : null;
+
+        $this->timer->switch($request->user(), $project, $task, (string) $request->input('description', ''));
+
+        return back();
     }
 
     public function discard(Request $request): RedirectResponse
     {
         $this->timer->discard($request->user());
+
         return back();
     }
 }

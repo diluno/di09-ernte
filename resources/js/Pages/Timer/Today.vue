@@ -4,6 +4,7 @@ import { router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TimerHero from '@/Components/TimerHero.vue';
 import EntryRow from '@/Components/EntryRow.vue';
+import { formatChf } from '@/formatters/money.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -124,7 +125,7 @@ function submitManual() {
         </div>
         <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px">
           <span class="muted" style="font-size: var(--fs-xs)">EARNINGS</span>
-          <span style="font-size: var(--fs-md); color: var(--ink)">€{{ totals.earnings_amount.toFixed(0) }}</span>
+          <span style="font-size: var(--fs-md); color: var(--ink)">{{ formatChf(totals.earnings_amount) }}</span>
         </div>
       </div>
 

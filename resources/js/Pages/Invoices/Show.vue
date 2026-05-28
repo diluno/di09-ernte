@@ -19,7 +19,10 @@ const statusLabel = computed(() => props.invoice.overdue ? 'overdue' : props.inv
 
 function send()    { router.post(`/invoices/${props.invoice.id}/send`,  {}, { preserveScroll: true }); }
 function markPaid(){ router.post(`/invoices/${props.invoice.id}/paid`,  {}, { preserveScroll: true }); }
-function voidIt()  { router.post(`/invoices/${props.invoice.id}/void`,  {}, { preserveScroll: true }); }
+function voidIt()  {
+  if (!window.confirm(`Void invoice #${props.invoice.number}? Linked entries will become billable again.`)) return;
+  router.post(`/invoices/${props.invoice.id}/void`,  {}, { preserveScroll: true });
+}
 
 const EVENT_LABEL = {
   created: 'Created', sent: 'Sent', reminded: 'Reminder sent', paid: 'Marked paid',

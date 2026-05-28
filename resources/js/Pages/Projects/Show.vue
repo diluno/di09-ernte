@@ -7,6 +7,7 @@ import Heatmap from '@/Components/Heatmap.vue';
 import EntryRow from '@/Components/EntryRow.vue';
 import TaskRow from '@/Components/TaskRow.vue';
 import { pushRecent } from '@/composables/useRecent.js';
+import { formatChf } from '@/formatters/money.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -39,7 +40,7 @@ onMounted(() => {
 });
 
 function fmtHours(h) { return `${h.toFixed(1)}h`; }
-function fmtMoneyShort(v) { return '€' + Math.round(v).toLocaleString('en-US'); }
+function fmtMoneyShort(v) { return formatChf(v); }
 
 const remaining = computed(() => Math.max(0, props.project.budget_hours - props.project.spent_hours));
 </script>
@@ -55,7 +56,7 @@ const remaining = computed(() => Math.max(0, props.project.budget_hours - props.
       <h1 class="page-title">
         <span class="proj-glyph" :class="project.glyph" style="width: 28px; height: 28px; font-size: 14px">{{ project.code[0] }}</span>
         {{ project.name }}
-        <span class="meta">{{ project.client.name }}<span class="ascii-dot">·</span>€{{ project.rate }}/h</span>
+        <span class="meta">{{ project.client.name }}<span class="ascii-dot">·</span>{{ fmtMoneyShort(project.rate) }}/h</span>
       </h1>
     </div>
     <div style="display: flex; gap: 8px">
@@ -143,7 +144,7 @@ const remaining = computed(() => Math.max(0, props.project.budget_hours - props.
         <dt>Status</dt><dd><span class="badge dot" :class="project.status">{{ project.status }}</span></dd>
         <dt>Started</dt><dd>{{ project.started_on ?? '—' }}</dd>
         <dt>Due</dt><dd>{{ project.deadline_on ?? '—' }}</dd>
-        <dt>Billing</dt><dd>{{ project.billable ? `Hourly · €${project.rate}/h` : 'non-billable' }}</dd>
+        <dt>Billing</dt><dd>{{ project.billable ? `Hourly · ${fmtMoneyShort(project.rate)}/h` : 'non-billable' }}</dd>
       </dl>
 
       <h3 class="section-title" style="margin-top: 24px">Description</h3>

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Sparkline from '@/Components/Sparkline.vue';
+import { formatChf } from '@/formatters/money.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -29,7 +30,7 @@ const filtered = computed(() => {
 
 const totalOutstanding = computed(() => props.clients.reduce((a, c) => a + c.outstanding, 0));
 const glyphFor = (i) => ['alt-0', 'alt-1', 'alt-2', 'alt-3', 'alt-4'][i % 5];
-function fmtMoneyShort(v) { return '€' + Math.round(v).toLocaleString('en-US'); }
+function fmtMoneyShort(v) { return formatChf(v); }
 </script>
 
 <template>
@@ -94,7 +95,7 @@ function fmtMoneyShort(v) { return '€' + Math.round(v).toLocaleString('en-US')
             <span v-else class="dim">—</span>
           </td>
           <td class="num">
-            <template v-if="c.default_rate">€{{ c.default_rate }}/h</template>
+            <template v-if="c.default_rate">{{ fmtMoneyShort(c.default_rate) }}/h</template>
             <span v-else class="dim">—</span>
           </td>
           <td class="num">{{ c.projects_count }}</td>

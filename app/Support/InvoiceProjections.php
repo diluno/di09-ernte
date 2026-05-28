@@ -30,7 +30,7 @@ class InvoiceProjections
         if ($search) {
             $q->where(function ($w) use ($search) {
                 $w->where('number', 'like', "%{$search}%")
-                  ->orWhereHas('client', fn ($cq) => $cq->where('name', 'like', "%{$search}%"));
+                    ->orWhereHas('client', fn ($cq) => $cq->where('name', 'like', "%{$search}%"));
             });
         }
 
@@ -60,7 +60,7 @@ class InvoiceProjections
 
         $paidYtd = (int) Invoice::query()
             ->where('status', 'paid')
-            ->whereYear('issued_on', Carbon::now()->year)
+            ->whereYear('paid_at', Carbon::now()->year)
             ->sum('total_rappen');
 
         // Average days from issue to payment over paid invoices (null if none).

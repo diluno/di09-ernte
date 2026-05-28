@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
-import { router } from '@inertiajs/vue3';
 import { useTimer, fmtHMS } from '@/composables/useTimer.js';
+import { formatChf } from '@/formatters/money.js';
 
 const { running, elapsedSeconds, stop, discard } = useTimer();
 
@@ -39,9 +39,9 @@ const startedAtLocal = computed(() => {
     </div>
 
     <div class="timer-meta" v-if="running.billable">
-      <span>billable · €{{ earnings }}</span>
+      <span>billable · {{ formatChf(earnings, 2) }}</span>
       <span class="ascii-dot">·</span>
-      <span>rate €{{ (running.project.rate_rappen / 100).toFixed(0) }}/h</span>
+      <span>rate {{ formatChf(running.project.rate_rappen / 100) }}/h</span>
       <span class="ascii-dot">·</span>
       <span>{{ running.project.code }}</span>
     </div>

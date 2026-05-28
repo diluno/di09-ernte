@@ -1,14 +1,16 @@
 <?php
 
+use App\Mail\InvoiceMail;
 use App\Models\BusinessProfile;
 use App\Models\Client;
 use App\Models\Invoice;
-use App\Models\InvoiceEvent;
 use App\Models\InvoiceLine;
 use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Models\User;
 use App\Services\Invoicing\InvoiceBuilder;
+use App\Services\Invoicing\InvoicePdfRenderer;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -64,7 +66,7 @@ test('GET /invoices/new defaults to previous month and lists billable unbilled e
     $inRange = TimeEntry::factory()->create([
         'user_id' => $this->user->id, 'project_id' => $this->project->id, 'description' => 'In range',
         'started_at' => $prevMonth->copy()->startOfMonth()->addDays(5)->setTime(9, 0),
-        'ended_at'   => $prevMonth->copy()->startOfMonth()->addDays(5)->setTime(11, 30),
+        'ended_at' => $prevMonth->copy()->startOfMonth()->addDays(5)->setTime(11, 30),
         'billable' => true,
     ]);
     // out of range (this month) — excluded by default period
@@ -131,14 +133,14 @@ test('GET /invoices/new excludes running (in-progress) timers', function () {
     TimeEntry::factory()->create([
         'user_id' => $this->user->id, 'project_id' => $this->project->id, 'description' => 'Finished',
         'started_at' => $prevMonth->copy()->startOfMonth()->addDays(5)->setTime(9, 0),
-        'ended_at'   => $prevMonth->copy()->startOfMonth()->addDays(5)->setTime(11, 30),
+        'ended_at' => $prevMonth->copy()->startOfMonth()->addDays(5)->setTime(11, 30),
         'billable' => true,
     ]);
     // running entry started in range (ended_at null) — must be excluded
     TimeEntry::factory()->create([
         'user_id' => $this->user->id, 'project_id' => $this->project->id, 'description' => 'Running',
         'started_at' => $prevMonth->copy()->startOfMonth()->addDays(6)->setTime(9, 0),
-        'ended_at'   => null,
+        'ended_at' => null,
         'billable' => true,
     ]);
 
@@ -172,6 +174,7 @@ function makeDraft(): Invoice
         'user_id' => test()->user->id, 'project_id' => test()->project->id, 'description' => 'Work',
         'started_at' => $start, 'ended_at' => (clone $start)->addHours(2), 'billable' => true,
     ]);
+
     return app(InvoiceBuilder::class)->buildDraftFromEntries(
         test()->client, test()->project, TimeEntry::all(),
         now()->subMonth()->startOfMonth()->toDateString(), now()->subMonth()->endOfMonth()->toDateString()
@@ -199,6 +202,25 @@ test('GET /invoices/{number}/preview returns raw HTML (not Inertia)', function (
     $res->assertOk();
     expect($res->headers->get('content-type'))->toContain('text/html');
     $res->assertSee($inv->number, false);
+});
+
+test('GET /invoices/{number}/pdf streams draft PDFs without caching on the invoice', function () {
+    $inv = makeDraft();
+
+    $this->mock(InvoicePdfRenderer::class, function ($mock) use ($inv) {
+        $mock->shouldReceive('pdfBytes')
+            ->once()
+            ->with(Mockery::on(fn ($invoice) => $invoice->is($inv)))
+            ->andReturn('%PDF-draft');
+    });
+
+    $this->get("/invoices/{$inv->number}/pdf")
+        ->assertOk()
+        ->assertStreamed()
+        ->assertHeader('content-type', 'application/pdf')
+        ->assertStreamedContent('%PDF-draft');
+
+    expect($inv->fresh()->pdf_path)->toBeNull();
 });
 
 test('PATCH /invoices/{id} edits a draft notes + lines and recomputes totals', function () {
@@ -238,14 +260,14 @@ test('POST /invoices/{id}/void voids and releases entries', function () {
 test('POST /invoices/{id}/send issues the draft', function () {
     BusinessProfile::current()->update(['qr_iban' => 'CH4431999123000889012', 'address_line_1' => 'Bahnhofstrasse 1', 'postal_code' => '8001', 'city' => 'Zürich']);
     $this->client->update(['address_line_1' => 'Friedrichstrasse 47', 'postal_code' => '8004', 'city' => 'Zürich', 'country' => 'CH']);
-    \Illuminate\Support\Facades\Mail::fake();
+    Mail::fake();
     $inv = makeDraft();
     $this->post("/invoices/{$inv->id}/send")
         ->assertRedirect()
         ->assertSessionMissing('error')
         ->assertSessionHasNoErrors();
     expect($inv->fresh()->status)->toBe('sent');
-    \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\InvoiceMail::class);
+    Mail::assertSent(InvoiceMail::class);
 })->group('browsershot');
 
 test('POST /invoices/{id}/send keeps draft when client email is missing', function () {

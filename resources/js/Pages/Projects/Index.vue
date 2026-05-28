@@ -4,6 +4,7 @@ import { Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Sparkline from '@/Components/Sparkline.vue';
 import BudgetBar from '@/Components/BudgetBar.vue';
+import { formatChf } from '@/formatters/money.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -29,7 +30,7 @@ function onSearch() {
   }, 250);
 }
 
-function fmtMoneyShort(v) { return '€' + Math.round(v).toLocaleString('en-US'); }
+function fmtMoneyShort(v) { return formatChf(v); }
 
 const sparkColor = (band) => band === 'over' ? 'var(--red)' : band === 'warn' ? 'var(--rust)' : 'var(--forest)';
 
@@ -126,7 +127,7 @@ function relativeTime(iso) {
           </td>
           <td>{{ p.client.name }}</td>
           <td class="num">
-            <template v-if="p.rate">€{{ p.rate }}/h</template>
+            <template v-if="p.rate">{{ fmtMoneyShort(p.rate) }}/h</template>
             <span v-else class="dim">—</span>
           </td>
           <td>
@@ -134,7 +135,7 @@ function relativeTime(iso) {
             <span v-else class="dim">no budget · {{ p.spent_hours.toFixed(1) }}h logged</span>
           </td>
           <td>
-            <BudgetBar v-if="p.budget_amount > 0" :spent="p.spent_amount" :budget="p.budget_amount" unit="€" />
+            <BudgetBar v-if="p.budget_amount > 0" :spent="p.spent_amount" :budget="p.budget_amount" unit="CHF" />
             <span v-else class="dim">non-billable</span>
           </td>
           <td><Sparkline :data="p.sparkline" :w="120" :h="20" :color="sparkColor(p.band)" /></td>
