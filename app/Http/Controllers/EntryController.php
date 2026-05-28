@@ -12,8 +12,12 @@ class EntryController extends Controller
 {
     public function store(StoreEntryRequest $request): RedirectResponse
     {
+        $data = $request->validated();
+
         TimeEntry::create([
-            ...$request->validated(),
+            ...$data,
+            // description is NOT NULL; a blank field arrives as null via ConvertEmptyStringsToNull.
+            'description' => $data['description'] ?? '',
             'user_id' => $request->user()->id,
         ]);
         return back();

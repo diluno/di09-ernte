@@ -26,6 +26,20 @@ test('POST /entries creates a finished entry', function () {
     expect($entry->ended_at)->not->toBeNull();
 });
 
+test('POST /entries with no description stores an empty string (not null)', function () {
+    // Laravel's ConvertEmptyStringsToNull turns a blank description into null;
+    // the column is NOT NULL, so the controller must fall back to ''.
+    $this->post('/entries', [
+        'project_id' => $this->project->id,
+        'description' => null,
+        'started_at' => '2026-05-27T09:00:00Z',
+        'ended_at'   => '2026-05-27T10:00:00Z',
+        'billable'   => true,
+    ])->assertRedirect();
+
+    expect(TimeEntry::first()->description)->toBe('');
+});
+
 test('POST /entries rejects ended_at before started_at', function () {
     $this->post('/entries', [
         'project_id' => $this->project->id,
