@@ -6,7 +6,7 @@ import BudgetBar from '@/Components/BudgetBar.vue';
 import EntryRow from '@/Components/EntryRow.vue';
 import { formatChf } from '@/formatters/money.js';
 import { pushRecent } from '@/composables/useRecent.js';
-import { glyphClass } from '@/glyph.js';
+import { glyphClass } from '@/formatters/glyph.js';
 
 defineOptions({ layout: AppLayout });
 

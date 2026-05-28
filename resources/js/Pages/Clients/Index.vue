@@ -4,7 +4,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Sparkline from '@/Components/Sparkline.vue';
 import { formatChf } from '@/formatters/money.js';
-import { glyphClass } from '@/glyph.js';
+import { glyphClass } from '@/formatters/glyph.js';
 
 defineOptions({ layout: AppLayout });
 

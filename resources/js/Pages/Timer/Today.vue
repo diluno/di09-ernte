@@ -5,7 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import TimerHero from '@/Components/TimerHero.vue';
 import EntryRow from '@/Components/EntryRow.vue';
 import { formatChf } from '@/formatters/money.js';
-import { glyphClass } from '@/glyph.js';
+import { glyphClass } from '@/formatters/glyph.js';
 
 defineOptions({ layout: AppLayout });
 

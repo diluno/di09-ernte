@@ -8,7 +8,7 @@ import EntryRow from '@/Components/EntryRow.vue';
 import TaskRow from '@/Components/TaskRow.vue';
 import { pushRecent } from '@/composables/useRecent.js';
 import { formatChf } from '@/formatters/money.js';
-import { glyphClass } from '@/glyph.js';
+import { glyphClass } from '@/formatters/glyph.js';
 
 defineOptions({ layout: AppLayout });
 

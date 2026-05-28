@@ -5,7 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import Sparkline from '@/Components/Sparkline.vue';
 import BudgetBar from '@/Components/BudgetBar.vue';
 import { formatChf } from '@/formatters/money.js';
-import { glyphClass } from '@/glyph.js';
+import { glyphClass } from '@/formatters/glyph.js';
 
 defineOptions({ layout: AppLayout });
 
