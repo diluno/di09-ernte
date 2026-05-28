@@ -46,3 +46,12 @@ test('amount-based budget maps to budget_amount_rappen', function () {
     expect($p->budget_hours)->toBe(0);
     expect($p->code)->not->toBe(''); // generated from name when blank
 });
+
+test('skips projects whose client was not imported', function () {
+    $map = (new ProjectImporter())->import([
+        ['id' => 99, 'client' => ['id' => 12345], 'name' => 'Orphan', 'code' => 'ORP', 'is_active' => true],
+    ], $this->clientMap); // clientMap only contains harvest client 77
+
+    expect($map)->toBeEmpty();
+    expect(Project::count())->toBe(0);
+});

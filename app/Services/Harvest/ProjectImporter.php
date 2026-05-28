@@ -52,7 +52,7 @@ class ProjectImporter
     private function uniqueCode(string $code, string $name): string
     {
         $base = $code !== ''
-            ? $code
+            ? substr($code, 0, 32)
             : strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $name) ?: 'PRJ', 0, 6));
 
         $candidate = $base;
