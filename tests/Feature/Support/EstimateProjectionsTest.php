@@ -61,3 +61,16 @@ test('stats returns open total, accepted ytd, and acceptance rate', function () 
     expect($stats['acceptance_rate'])->toBe(50); // 1 accepted of 2 decided
     expect($stats['count'])->toBe(3);
 });
+
+test('index orders by document date (issued_on; drafts by created_at) newest first', function () {
+    Estimate::factory()->sent()->create(['client_id' => $this->client->id,
+        'number' => 'OF-2026-001', 'issued_on' => '2026-01-01', 'total_rappen' => 100_00]);
+    Estimate::factory()->sent()->create(['client_id' => $this->client->id,
+        'number' => 'OF-2025-001', 'issued_on' => '2025-01-01', 'total_rappen' => 100_00]);
+    Estimate::factory()->create(['client_id' => $this->client->id, 'status' => 'draft',
+        'number' => 'OF-2026-900', 'issued_on' => null, 'total_rappen' => 100_00]);
+
+    $rows = EstimateProjections::index('all');
+
+    expect($rows->pluck('number')->all())->toBe(['OF-2026-900', 'OF-2026-001', 'OF-2025-001']);
+});
