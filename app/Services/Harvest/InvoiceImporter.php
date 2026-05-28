@@ -32,6 +32,15 @@ class InvoiceImporter
                 continue;
             }
 
+            $amount = (float) ($row['amount'] ?? 0);
+            $hasNegative = $amount < 0 || collect($row['line_items'] ?? [])->contains(
+                fn ($l) => (float) ($l['amount'] ?? 0) < 0 || (float) ($l['unit_price'] ?? 0) < 0
+            );
+            if ($hasNegative) {
+                $warnings[] = "Skipped invoice {$row['number']}: negative amounts (credit note/discount) are not supported by ernte.";
+                continue;
+            }
+
             $currency = $row['currency'] ?? 'CHF';
             if ($currency !== 'CHF') {
                 $warnings[] = "Invoice {$row['number']} is {$currency}; imported as-is (amounts treated as CHF).";

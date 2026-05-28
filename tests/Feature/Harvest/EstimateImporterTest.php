@@ -66,3 +66,14 @@ test('skips an estimate whose client was not imported', function () {
     expect($result['warnings'])->not->toBeEmpty();
     expect(Estimate::count())->toBe(0);
 });
+
+test('skips an estimate with negative amounts', function () {
+    $result = (new EstimateImporter())->import([harvestEstimate([
+        'number' => 'CN-2', 'amount' => -50.0,
+        'line_items' => [['id' => 1, 'description' => 'Credit', 'quantity' => 1.0, 'unit_price' => -50.0, 'amount' => -50.0, 'taxed' => true]],
+    ])], $this->clientMap);
+
+    expect($result['imported'])->toBe(0);
+    expect($result['warnings'])->not->toBeEmpty();
+    expect(Estimate::count())->toBe(0);
+});

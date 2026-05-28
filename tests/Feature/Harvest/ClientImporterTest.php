@@ -43,3 +43,11 @@ test('inactive clients are archived', function () {
 
     expect($map[5]->archived_at)->not->toBeNull();
 });
+
+test('truncates an over-long address to 255 characters', function () {
+    $map = (new ClientImporter())->import([
+        ['id' => 1, 'name' => 'Co', 'is_active' => true, 'address' => str_repeat('x', 400)],
+    ], []);
+
+    expect(mb_strlen($map[1]->address_line_1))->toBe(255);
+});

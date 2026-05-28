@@ -25,7 +25,7 @@ class ClientImporter
             $map[$row['id']] = Client::create([
                 'name' => $row['name'],
                 'short_code' => $this->uniqueShortCode($row['name']),
-                'address_line_1' => $row['address'] ?? null,
+                'address_line_1' => isset($row['address']) ? mb_substr($row['address'], 0, 255) : null,
                 'country' => 'CH',
                 'contact_name' => $contact
                     ? (trim(($contact['first_name'] ?? '') . ' ' . ($contact['last_name'] ?? '')) ?: null)

@@ -85,3 +85,14 @@ test('skips an invoice whose client was not imported', function () {
     expect($result['warnings'])->not->toBeEmpty();
     expect(Invoice::count())->toBe(0);
 });
+
+test('skips an invoice with negative amounts (credit note)', function () {
+    $result = (new InvoiceImporter())->import([harvestInvoice([
+        'number' => 'CN-1', 'amount' => -108.1,
+        'line_items' => [['id' => 1, 'description' => 'Credit', 'quantity' => 1.0, 'unit_price' => -100.0, 'amount' => -100.0, 'taxed' => true]],
+    ])], $this->clientMap);
+
+    expect($result['imported'])->toBe(0);
+    expect($result['warnings'])->not->toBeEmpty();
+    expect(Invoice::count())->toBe(0);
+});
