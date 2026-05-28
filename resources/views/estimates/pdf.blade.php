@@ -92,7 +92,7 @@
   @endif
 
   <div class="foot">
-    <div>Dieses Angebot ist gültig bis {{ $estimate->valid_until?->format('d.m.Y') ?? '—' }}.</div>
+    @if ($estimate->valid_until)<div>Dieses Angebot ist gültig bis {{ $estimate->valid_until->format('d.m.Y') }}.</div>@endif
     @if ($profile->email)<div>{{ $profile->email }}</div>@endif
   </div>
 </body>
