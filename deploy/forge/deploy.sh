@@ -1,27 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${FORGE_SITE_PATH:-$HOME/ernte.example.com}"
-BRANCH="${FORGE_SITE_BRANCH:-main}"
+$CREATE_RELEASE()
 
-cd "$APP_DIR"
-
-git pull origin "$BRANCH"
+cd "$FORGE_RELEASE_DIRECTORY"
 
 export PUPPETEER_SKIP_DOWNLOAD="${PUPPETEER_SKIP_DOWNLOAD:-true}"
 
-composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
-npm ci
+$FORGE_COMPOSER install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
+npm ci || npm install
 npm run build
 
 mkdir -p storage/app/private storage/app/public storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache
 
-php artisan storage:link --force
-php artisan optimize:clear
-php artisan migrate --force --no-interaction
-php artisan db:seed --class=BootstrapSeeder --force --no-interaction
-php artisan config:cache
-php artisan view:cache
-php artisan event:cache
-php artisan queue:restart
-php artisan ernte:doctor --no-interaction
+$FORGE_PHP artisan storage:link
+$FORGE_PHP artisan migrate --force --no-interaction
+$FORGE_PHP artisan db:seed --class=BootstrapSeeder --force --no-interaction
+$FORGE_PHP artisan optimize
+$FORGE_PHP artisan ernte:doctor --no-interaction
+
+$ACTIVATE_RELEASE()
+
+$RESTART_QUEUES()

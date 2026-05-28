@@ -5,15 +5,15 @@ use App\Http\Controllers\EntryController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TimerController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::middleware('auth')->group(function () {
-    Route::get('/', fn () => redirect('/projects'));
+    Route::redirect('/', '/projects');
 
     Route::get   ('/projects',                          [ProjectController::class, 'index'])->name('projects.index');
     Route::post  ('/projects',                          [ProjectController::class, 'store'])->name('projects.store');
@@ -50,7 +50,7 @@ Route::middleware('auth')->group(function () {
     Route::post ('/invoices/{invoice}/paid',            [InvoiceController::class, 'markPaid'])->name('invoices.paid');
     Route::post ('/invoices/{invoice}/void',            [InvoiceController::class, 'void'])->name('invoices.void');
 
-    Route::get('/reports',  fn () => Inertia::render('Reports/Placeholder'))->name('reports.show');
+    Route::get('/reports', [ReportController::class, 'show'])->name('reports.show');
 
     Route::get('/settings', [SettingsController::class, 'show'])->name('settings.show');
     Route::patch('/settings/profile', [SettingsController::class, 'updateProfile'])->name('settings.profile');

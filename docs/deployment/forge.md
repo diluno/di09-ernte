@@ -46,15 +46,9 @@ Paste the printed key into `APP_KEY`.
 
 ## Deploy Script
 
-Use `deploy/forge/deploy.sh` as the Forge deployment script. In the Forge UI, set the site path before calling it:
+Paste the contents of `deploy/forge/deploy.sh` into the Forge deployment script editor. It uses Forge release macros such as `$CREATE_RELEASE()`, `$FORGE_RELEASE_DIRECTORY`, `$ACTIVATE_RELEASE()`, and `$RESTART_QUEUES()`, so it is a Forge script template rather than a script to run directly over SSH.
 
-```bash
-export FORGE_SITE_PATH=/home/forge/ernte.example.com
-export FORGE_SITE_BRANCH=${FORGE_SITE_BRANCH:-main}
-bash deploy/forge/deploy.sh
-```
-
-The script pulls the branch, installs production Composer dependencies, installs Node dependencies, builds Vite assets, creates storage directories, runs migrations, runs the idempotent bootstrap seeder, warms Laravel caches, restarts queue workers, and finishes with `php artisan ernte:doctor`.
+The script creates a release, installs production Composer dependencies, installs Node dependencies, builds Vite assets, prepares storage directories, runs migrations, runs the idempotent bootstrap seeder, warms Laravel caches, checks the release with `php artisan ernte:doctor`, activates the release, and restarts queue workers.
 
 ## Queue Daemon
 
