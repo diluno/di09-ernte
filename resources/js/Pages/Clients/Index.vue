@@ -4,6 +4,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Sparkline from '@/Components/Sparkline.vue';
 import { formatChf } from '@/formatters/money.js';
+import { glyphClass } from '@/glyph.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -29,7 +30,6 @@ const filtered = computed(() => {
 });
 
 const totalOutstanding = computed(() => props.clients.reduce((a, c) => a + c.outstanding, 0));
-const glyphFor = (i) => ['alt-0', 'alt-1', 'alt-2', 'alt-3', 'alt-4'][i % 5];
 function fmtMoneyShort(v) { return formatChf(v); }
 </script>
 
@@ -83,10 +83,10 @@ function fmtMoneyShort(v) { return formatChf(v); }
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(c, i) in filtered" :key="c.id">
+        <tr v-for="c in filtered" :key="c.id">
           <td class="pad-l strong">
             <Link :href="`/clients/${c.id}`" class="proj-cell" style="color: inherit">
-              <span class="proj-glyph" :class="glyphFor(i)">{{ c.short_code[0] }}</span>
+              <span class="proj-glyph" :class="glyphClass(c.id)">{{ c.short_code[0] }}</span>
               <span>{{ c.name }}</span>
             </Link>
           </td>

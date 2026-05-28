@@ -6,6 +6,7 @@ import BudgetBar from '@/Components/BudgetBar.vue';
 import EntryRow from '@/Components/EntryRow.vue';
 import { formatChf } from '@/formatters/money.js';
 import { pushRecent } from '@/composables/useRecent.js';
+import { glyphClass } from '@/glyph.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -44,7 +45,7 @@ function fmtDate(d) {
         <span>{{ client.short_code }}</span>
       </div>
       <h1 class="page-title">
-        <span class="proj-glyph alt-0" style="width: 28px; height: 28px; font-size: 14px">{{ client.short_code[0] }}</span>
+        <span class="proj-glyph" :class="glyphClass(client.id)" style="width: 28px; height: 28px; font-size: 14px">{{ client.short_code[0] }}</span>
         {{ client.name }}
         <span class="meta">
           {{ client.contact_name || 'no contact' }}
@@ -97,7 +98,7 @@ function fmtDate(d) {
             <tr v-for="project in projects" :key="project.id">
               <td class="pad-l strong">
                 <Link :href="`/projects/${project.code}`" class="proj-cell" style="color: inherit">
-                  <span class="proj-glyph" :class="project.glyph">{{ project.code[0] }}</span>
+                  <span class="proj-glyph" :class="glyphClass(project.id)">{{ project.code[0] }}</span>
                   <span>
                     {{ project.name }}
                     <span class="dim" style="margin-left: 8px; font-weight: 400">{{ project.code }}</span>
