@@ -208,6 +208,22 @@ test('POST /projects/{p}/unpin clears pinned_at', function () {
     expect($project->fresh()->pinned_at)->toBeNull();
 });
 
+test('GET /projects/create renders Projects/Create with the active clients list', function () {
+    $user = User::factory()->create();
+    $active = Client::factory()->create(['name' => 'Atlas Robotics']);
+    Client::factory()->create(['name' => 'Archived Co', 'archived_at' => now()]);
+
+    $this->actingAs($user)->get('/projects/create')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Projects/Create')
+            ->has('clients', 1, fn (Assert $c) => $c
+                ->where('id', $active->id)
+                ->where('name', 'Atlas Robotics')
+            )
+        );
+});
+
 test('POST /tasks adds a task that appears on the project show payload', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();

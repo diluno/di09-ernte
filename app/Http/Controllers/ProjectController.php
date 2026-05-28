@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
+use App\Models\Client;
 use App\Models\Project;
 use App\Support\DashboardProjections;
 use Illuminate\Http\RedirectResponse;
@@ -27,6 +28,18 @@ class ProjectController extends Controller
                 'archived' => Project::archived()->count(),
             ],
             'filters'  => ['filter' => $filter, 'q' => $search],
+        ]);
+    }
+
+    private function activeClients(): \Illuminate\Support\Collection
+    {
+        return Client::active()->orderBy('name')->get(['id', 'name']);
+    }
+
+    public function create(): Response
+    {
+        return Inertia::render('Projects/Create', [
+            'clients' => $this->activeClients(),
         ]);
     }
 
