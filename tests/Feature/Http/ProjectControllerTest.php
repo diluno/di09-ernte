@@ -160,6 +160,26 @@ test('PATCH /projects/{p} updates fields', function () {
     expect($project->fresh()->name)->toBe('Renamed');
 });
 
+test('POST /projects/{p}/pin sets pinned_at', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['pinned_at' => null]);
+
+    $this->actingAs($user)->post("/projects/{$project->code}/pin")
+        ->assertRedirect();
+
+    expect($project->fresh()->pinned_at)->not->toBeNull();
+});
+
+test('POST /projects/{p}/unpin clears pinned_at', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['pinned_at' => now()]);
+
+    $this->actingAs($user)->post("/projects/{$project->code}/unpin")
+        ->assertRedirect();
+
+    expect($project->fresh()->pinned_at)->toBeNull();
+});
+
 test('POST /tasks adds a task that appears on the project show payload', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
