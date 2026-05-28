@@ -209,6 +209,20 @@ class InvoiceController extends Controller
         return redirect("/invoices/{$invoice->number}")->with('success', 'Draft updated.');
     }
 
+    public function destroy(Invoice $invoice): RedirectResponse
+    {
+        $number = $invoice->number;
+
+        if ($invoice->pdf_path && Storage::disk('local')->exists($invoice->pdf_path)) {
+            Storage::disk('local')->delete($invoice->pdf_path);
+        }
+
+        // Lines/events cascade; linked time entries are released (FK ON DELETE SET NULL).
+        $invoice->delete();
+
+        return redirect('/invoices')->with('success', "Invoice {$number} deleted.");
+    }
+
     public function markSent(Invoice $invoice, InvoiceLifecycle $lifecycle): RedirectResponse
     {
         try {

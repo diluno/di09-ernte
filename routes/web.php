@@ -56,6 +56,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/invoices/{invoice}/mark-sent', [InvoiceController::class, 'markSent'])->name('invoices.mark-sent');
     Route::post('/invoices/{invoice}/paid', [InvoiceController::class, 'markPaid'])->name('invoices.paid');
     Route::post('/invoices/{invoice}/void', [InvoiceController::class, 'void'])->name('invoices.void');
+    Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
 
     Route::get('/estimates', [EstimateController::class, 'index'])->name('estimates.index');
     Route::get('/estimates/new', [EstimateController::class, 'create'])->name('estimates.create');
@@ -71,6 +72,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/estimates/{estimate}/accept', [EstimateController::class, 'accept'])->name('estimates.accept');
     Route::post('/estimates/{estimate}/decline', [EstimateController::class, 'decline'])->name('estimates.decline');
     Route::post('/estimates/{estimate}/convert', [EstimateController::class, 'convert'])->name('estimates.convert');
+    Route::delete('/estimates/{estimate}', [EstimateController::class, 'destroy'])->name('estimates.destroy');
 
     Route::get('/reports', [ReportController::class, 'show'])->name('reports.show');
 

@@ -37,6 +37,10 @@ function convert() {
   if (!window.confirm(`Create a draft invoice from estimate #${props.estimate.number}?`)) return;
   router.post(`/estimates/${props.estimate.id}/convert`, {}, { preserveScroll: true });
 }
+function destroy() {
+  if (!window.confirm(`Delete estimate #${props.estimate.number}? This permanently removes it and its line items.`)) return;
+  router.delete(`/estimates/${props.estimate.id}`);
+}
 
 const EVENT_LABEL = {
   created: 'Created', sent: 'Sent', accepted: 'Accepted', declined: 'Declined',
@@ -71,6 +75,7 @@ function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB', { day: 
       </template>
       <Link v-if="converted" :href="`/invoices/${converted.number}`" class="btn">Invoice #{{ converted.number }}</Link>
       <button v-else-if="isAccepted" class="btn primary" @click="convert">Convert to invoice</button>
+      <button class="btn ghost" style="color: var(--red)" @click="destroy">Delete</button>
     </div>
   </div>
 

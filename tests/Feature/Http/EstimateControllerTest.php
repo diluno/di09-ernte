@@ -232,6 +232,16 @@ test('PATCH is rejected once the estimate is not a draft', function () {
     $this->patch("/estimates/{$est->id}", ['notes' => 'x'])->assertStatus(403);
 });
 
+test('DELETE /estimates/{id} deletes it and cascades its lines (any status)', function () {
+    $est = makeDraftEstimate();
+    $est->update(['status' => 'accepted', 'decided_at' => now()]);
+
+    $this->delete("/estimates/{$est->id}")->assertRedirect('/estimates');
+
+    expect(Estimate::find($est->id))->toBeNull();
+    expect(EstimateLine::where('estimate_id', $est->id)->count())->toBe(0);
+});
+
 test('POST /estimates/{id}/accept accepts a sent estimate', function () {
     $est = makeDraftEstimate();
     $est->update(['status' => 'sent', 'issued_on' => now()->subDay(), 'valid_until' => now()->addDays(29)]);

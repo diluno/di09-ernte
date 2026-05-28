@@ -38,6 +38,10 @@ function voidIt()  {
   if (!window.confirm(`Void invoice #${props.invoice.number}? Linked entries will become billable again.`)) return;
   router.post(`/invoices/${props.invoice.id}/void`,  {}, { preserveScroll: true });
 }
+function destroy() {
+  if (!window.confirm(`Delete invoice #${props.invoice.number}? This permanently removes it and its line items. Linked time entries return to unbilled.`)) return;
+  router.delete(`/invoices/${props.invoice.id}`);
+}
 
 const EVENT_LABEL = {
   created: 'Created', sent: 'Sent', reminded: 'Reminder sent', paid: 'Marked paid',
@@ -66,6 +70,7 @@ function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-d
       <button v-if="isDraft" class="btn primary" @click="send">Send by email</button>
       <button v-else-if="isSent" class="btn primary" @click="markPaid">Mark paid</button>
       <button v-if="invoice.status !== 'paid' && invoice.status !== 'void'" class="btn ghost" @click="voidIt">Void</button>
+      <button class="btn ghost" style="color: var(--red)" @click="destroy">Delete</button>
     </div>
   </div>
 

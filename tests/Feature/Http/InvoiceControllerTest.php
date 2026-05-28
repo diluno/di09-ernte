@@ -280,6 +280,27 @@ test('POST /invoices/{id}/mark-sent is rejected once not a draft', function () {
     expect($inv->fresh()->status)->toBe('sent'); // unchanged, no error 500
 });
 
+test('DELETE /invoices/{id} deletes it, cascades lines/events, and releases linked entries', function () {
+    $inv = makeDraft();
+    $entryId = TimeEntry::first()->id;
+    expect(TimeEntry::find($entryId)->invoice_id)->toBe($inv->id);
+
+    $this->delete("/invoices/{$inv->id}")->assertRedirect('/invoices');
+
+    expect(Invoice::find($inv->id))->toBeNull();
+    expect(InvoiceLine::where('invoice_id', $inv->id)->count())->toBe(0);
+    expect(TimeEntry::find($entryId)->invoice_id)->toBeNull(); // back to unbilled
+});
+
+test('DELETE /invoices/{id} works regardless of status (e.g. paid)', function () {
+    $inv = makeDraft();
+    $inv->update(['status' => 'paid', 'paid_at' => now()]);
+
+    $this->delete("/invoices/{$inv->id}")->assertRedirect('/invoices');
+
+    expect(Invoice::find($inv->id))->toBeNull();
+});
+
 test('POST /invoices/{id}/paid marks a sent invoice paid', function () {
     $inv = makeDraft();
     $inv->update(['status' => 'sent', 'issued_on' => now()->subDay(), 'due_on' => now()->addDays(29)]);

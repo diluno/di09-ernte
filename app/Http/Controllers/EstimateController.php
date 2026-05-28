@@ -219,6 +219,20 @@ class EstimateController extends Controller
         return back()->with('success', "Estimate {$estimate->number} sent.");
     }
 
+    public function destroy(Estimate $estimate): RedirectResponse
+    {
+        $number = $estimate->number;
+
+        if ($estimate->pdf_path && Storage::disk('local')->exists($estimate->pdf_path)) {
+            Storage::disk('local')->delete($estimate->pdf_path);
+        }
+
+        // Lines/events cascade; a linked converted invoice is untouched (link clears via FK).
+        $estimate->delete();
+
+        return redirect('/estimates')->with('success', "Estimate {$number} deleted.");
+    }
+
     public function markSent(Estimate $estimate, EstimateLifecycle $lifecycle): RedirectResponse
     {
         try {
