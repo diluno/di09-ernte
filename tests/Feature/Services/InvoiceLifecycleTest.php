@@ -1,0 +1,83 @@
+<?php
+
+use App\Models\BusinessProfile;
+use App\Models\Client;
+use App\Models\Invoice;
+use App\Models\Project;
+use App\Models\TimeEntry;
+use App\Models\User;
+use App\Services\Invoicing\InvoiceBuilder;
+use App\Services\Invoicing\InvoiceLifecycle;
+
+beforeEach(function () {
+    BusinessProfile::create(['name' => 'Ernte Test', 'country' => 'CH', 'default_currency' => 'CHF', 'default_vat_rate' => 8.10]);
+    $this->user = User::factory()->create();
+    $this->client = Client::factory()->create();
+    $this->project = Project::factory()->create(['client_id' => $this->client->id, 'billable' => true, 'rate_rappen' => 14500]);
+    $this->builder = app(InvoiceBuilder::class);
+    $this->lifecycle = app(InvoiceLifecycle::class);
+});
+
+function draftWithEntry(): array
+{
+    $start = now()->subDays(2);
+    $entry = TimeEntry::factory()->create([
+        'user_id' => test()->user->id, 'project_id' => test()->project->id,
+        'description' => 'Work', 'started_at' => $start, 'ended_at' => (clone $start)->addHour(),
+        'billable' => true,
+    ]);
+    $invoice = test()->builder->buildDraftFromEntries(
+        test()->client, test()->project, TimeEntry::all(),
+        now()->subDays(7)->toDateString(), now()->toDateString()
+    );
+    return [$invoice, $entry];
+}
+
+test('markPaid transitions sent -> paid and stamps paid_at + event', function () {
+    [$invoice] = draftWithEntry();
+    $invoice->update(['status' => 'sent', 'issued_on' => now()->subDays(3), 'due_on' => now()->addDays(27), 'sent_at' => now()->subDays(3)]);
+
+    test()->lifecycle->markPaid($invoice);
+
+    $invoice->refresh();
+    expect($invoice->status)->toBe('paid');
+    expect($invoice->paid_at)->not->toBeNull();
+    expect($invoice->events()->where('kind', 'paid')->count())->toBe(1);
+});
+
+test('markPaid is rejected unless the invoice is sent', function () {
+    [$invoice] = draftWithEntry(); // draft
+    expect(fn () => test()->lifecycle->markPaid($invoice))
+        ->toThrow(\DomainException::class);
+});
+
+test('void clears linked entries invoice_id so they return to unbilled', function () {
+    [$invoice, $entry] = draftWithEntry();
+    expect($entry->fresh()->invoice_id)->toBe($invoice->id);
+    expect(TimeEntry::unbilled()->billable()->count())->toBe(0);
+
+    test()->lifecycle->void($invoice);
+
+    $invoice->refresh();
+    expect($invoice->status)->toBe('void');
+    expect($entry->fresh()->invoice_id)->toBeNull();
+    expect(TimeEntry::unbilled()->billable()->count())->toBe(1);   // re-invoiceable again
+    expect($invoice->events()->where('kind', 'voided')->count())->toBe(1);
+});
+
+test('void works on a sent invoice too', function () {
+    [$invoice, $entry] = draftWithEntry();
+    $invoice->update(['status' => 'sent', 'issued_on' => now(), 'due_on' => now()->addDays(30)]);
+
+    test()->lifecycle->void($invoice);
+
+    expect($invoice->fresh()->status)->toBe('void');
+    expect($entry->fresh()->invoice_id)->toBeNull();
+});
+
+test('voiding does not free the number', function () {
+    [$invoice] = draftWithEntry();
+    $number = $invoice->number;
+    test()->lifecycle->void($invoice);
+    expect($invoice->fresh()->number)->toBe($number);
+});
