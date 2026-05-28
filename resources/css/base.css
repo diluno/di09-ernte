@@ -789,7 +789,9 @@ a { color: inherit; text-decoration: none; }
 .invoice-doc-wrap {
   padding: 36px;
   background: var(--paper-2);
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* the iframe is the single scroll region (no double scrollbar) */
 }
 .invoice-doc {
   max-width: 760px;

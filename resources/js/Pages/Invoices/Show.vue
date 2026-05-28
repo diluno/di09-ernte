@@ -71,7 +71,7 @@ function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-d
 
   <div class="invoice-page">
     <div class="invoice-doc-wrap">
-      <iframe :src="previewSrc" title="Invoice document" style="width: 100%; height: 1100px; border: 1px solid var(--border); background: #fff"></iframe>
+      <iframe :src="previewSrc" title="Invoice document" style="flex: 1; width: 100%; min-height: 0; border: 1px solid var(--border); background: #fff"></iframe>
     </div>
 
     <aside class="invoice-side">
