@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import Sparkline from '@/Components/Sparkline.vue';
 import BudgetBar from '@/Components/BudgetBar.vue';
 import { formatChf } from '@/formatters/money.js';
 import { glyphClass } from '@/formatters/glyph.js';
@@ -32,18 +31,6 @@ function onSearch() {
 }
 
 function fmtMoneyShort(v) { return formatChf(v); }
-
-const sparkColor = (band) => band === 'over' ? 'var(--red)' : band === 'warn' ? 'var(--rust)' : 'var(--forest)';
-
-function relativeTime(iso) {
-  if (!iso) return '—';
-  const sec = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-  if (sec < 60)        return `${sec}s ago`;
-  if (sec < 3600)      return `${Math.floor(sec / 60)}m ago`;
-  if (sec < 86400)     return `${Math.floor(sec / 3600)}h ago`;
-  if (sec < 86400 * 7) return `${Math.floor(sec / 86400)}d ago`;
-  return new Date(iso).toLocaleDateString();
-}
 </script>
 
 <template>
@@ -103,17 +90,14 @@ function relativeTime(iso) {
   </div>
 
   <div class="table-wrap">
-    <table class="table">
+    <table class="table table--docs">
       <thead>
         <tr>
-          <th class="pad-l" style="width: 280px">Project</th>
-          <th>Client</th>
-          <th class="num" style="width: 90px">Rate</th>
-          <th style="width: 260px">Hours budget</th>
-          <th style="width: 240px">Fees budget</th>
-          <th style="width: 130px">14-day</th>
-          <th style="width: 90px">Status</th>
-          <th class="pad-r num" style="width: 110px">Last activity</th>
+          <th class="pad-l">Project</th>
+          <th style="width: 240px">Client</th>
+          <th class="num" style="width: 100px">Rate</th>
+          <th style="width: 280px">Hours budget</th>
+          <th class="pad-r" style="width: 110px">Status</th>
         </tr>
       </thead>
       <tbody>
@@ -121,13 +105,13 @@ function relativeTime(iso) {
           <td class="pad-l strong">
             <Link :href="`/projects/${p.code}`" class="proj-cell" style="color: inherit">
               <span class="proj-glyph" :class="glyphClass(p.id)">{{ p.code[0] }}</span>
-              <span>
+              <span class="cell-trunc" :title="p.name">
                 {{ p.name }}
                 <span class="dim" style="margin-left: 8px; font-weight: 400">{{ p.code }}</span>
               </span>
             </Link>
           </td>
-          <td>{{ p.client.name }}</td>
+          <td><div class="cell-trunc" :title="p.client.name">{{ p.client.name }}</div></td>
           <td class="num">
             <template v-if="p.rate">{{ fmtMoneyShort(p.rate) }}/h</template>
             <span v-else class="dim">—</span>
@@ -136,18 +120,12 @@ function relativeTime(iso) {
             <BudgetBar v-if="p.budget_hours > 0" :spent="p.spent_hours" :budget="p.budget_hours" unit="h" />
             <span v-else class="dim">no budget · {{ p.spent_hours.toFixed(1) }}h logged</span>
           </td>
-          <td>
-            <BudgetBar v-if="p.budget_amount > 0" :spent="p.spent_amount" :budget="p.budget_amount" unit="CHF" />
-            <span v-else class="dim">non-billable</span>
-          </td>
-          <td><Sparkline :data="p.sparkline" :w="120" :h="20" :color="sparkColor(p.band)" /></td>
-          <td>
+          <td class="pad-r">
             <span v-if="p.retainer" class="badge dot active">retainer</span>
             <span v-else-if="p.band === 'over'" class="badge dot over">over</span>
             <span v-else-if="p.band === 'warn'" class="badge dot warn">at risk</span>
             <span v-else class="badge dot active">active</span>
           </td>
-          <td class="pad-r num dim">{{ relativeTime(p.last_activity_at) }}</td>
         </tr>
       </tbody>
     </table>
