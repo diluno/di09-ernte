@@ -1,0 +1,232 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\StoreEstimateRequest;
+use App\Http\Requests\UpdateEstimateRequest;
+use App\Models\Client;
+use App\Models\Estimate;
+use App\Models\EstimateLine;
+use App\Models\Project;
+use App\Services\Estimating\EstimateBuilder;
+use App\Services\Estimating\EstimateLifecycle;
+use App\Services\Estimating\EstimatePdfRenderer;
+use App\Support\EstimateProjections;
+use App\Support\LineTotals;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class EstimateController extends Controller
+{
+    public function index(Request $request): Response
+    {
+        $filter = $request->string('filter', 'all')->toString();
+        $search = $request->string('q')->toString() ?: null;
+
+        return Inertia::render('Estimates/Index', [
+            'estimates' => EstimateProjections::index($filter, $search)->values(),
+            'stats' => EstimateProjections::stats(),
+            'counts' => [
+                'all' => Estimate::count(),
+                'draft' => Estimate::where('status', 'draft')->count(),
+                'sent' => Estimate::where('status', 'sent')->count(),
+                'accepted' => Estimate::where('status', 'accepted')->count(),
+                'declined' => Estimate::where('status', 'declined')->count(),
+                'expired' => Estimate::where('status', 'sent')->whereDate('valid_until', '<', now()->toDateString())->count(),
+            ],
+            'filters' => ['filter' => $filter, 'q' => $search],
+        ]);
+    }
+
+    public function create(): Response
+    {
+        return Inertia::render('Estimates/Create', [
+            'clients' => Client::active()->orderBy('name')->get(['id', 'name'])
+                ->map(fn (Client $c) => ['id' => $c->id, 'name' => $c->name])->values(),
+            'projects' => Project::orderBy('name')->get(['id', 'name', 'client_id', 'rate_rappen'])
+                ->map(fn (Project $p) => [
+                    'id' => $p->id, 'name' => $p->name, 'client_id' => $p->client_id,
+                    'rate' => (int) round(($p->rate_rappen ?? 0) / 100),
+                ])->values(),
+        ]);
+    }
+
+    public function store(StoreEstimateRequest $request, EstimateBuilder $builder): RedirectResponse
+    {
+        $data = $request->validated();
+        $client = Client::findOrFail($data['client_id']);
+        $project = isset($data['project_id']) ? Project::find($data['project_id']) : null;
+
+        $estimate = $builder->createDraft(
+            client: $client,
+            project: $project,
+            lines: $data['lines'],
+            notes: $data['notes'] ?? null,
+        );
+
+        return redirect("/estimates/{$estimate->number}")->with('success', "Draft {$estimate->number} created.");
+    }
+
+    public function show(Estimate $estimate): Response
+    {
+        $estimate->load([
+            'client', 'project',
+            'lines' => fn ($q) => $q->orderBy('sort_order'),
+            'events' => fn ($q) => $q->orderByDesc('occurred_at'),
+            'convertedInvoice:id,number',
+        ]);
+
+        return Inertia::render('Estimates/Show', [
+            'estimate' => [
+                'id' => $estimate->id,
+                'number' => $estimate->number,
+                'status' => $estimate->status,
+                'expired' => $estimate->expired,
+                'client' => $estimate->client->only('id', 'name'),
+                'project_name' => $estimate->project?->name,
+                'issued_on' => $estimate->issued_on?->toDateString(),
+                'valid_until' => $estimate->valid_until?->toDateString(),
+                'subtotal' => round($estimate->subtotal_rappen / 100, 2),
+                'vat' => round($estimate->vat_rappen / 100, 2),
+                'total' => round($estimate->total_rappen / 100, 2),
+                'vat_rate' => (float) $estimate->vat_rate,
+                'notes' => $estimate->notes,
+                'lines' => $estimate->lines->map(fn (EstimateLine $l) => [
+                    'id' => $l->id, 'description' => $l->description,
+                    'hours' => (float) $l->hours, 'rate' => (int) round($l->rate_rappen / 100),
+                    'amount' => round($l->amount_rappen / 100, 2), 'vat_exempt' => (bool) $l->vat_exempt,
+                ]),
+                'converted_invoice' => $estimate->convertedInvoice
+                    ? ['id' => $estimate->convertedInvoice->id, 'number' => $estimate->convertedInvoice->number]
+                    : null,
+            ],
+            'events' => $estimate->events->map(fn ($e) => [
+                'kind' => $e->kind,
+                'occurred_at' => $e->occurred_at->toIso8601String(),
+                'payload' => $e->payload,
+            ]),
+            'preview_url' => "/estimates/{$estimate->number}/preview",
+            'pdf_url' => "/estimates/{$estimate->number}/pdf",
+        ]);
+    }
+
+    public function preview(Estimate $estimate, EstimatePdfRenderer $renderer): HttpResponse
+    {
+        return response($renderer->html($estimate))->header('Content-Type', 'text/html');
+    }
+
+    public function update(UpdateEstimateRequest $request, Estimate $estimate): RedirectResponse
+    {
+        $data = $request->validated();
+
+        DB::transaction(function () use ($data, $estimate) {
+            if (array_key_exists('notes', $data)) {
+                $estimate->notes = $data['notes'];
+            }
+            if (! empty($data['lines'])) {
+                $estimate->lines()->delete();
+                $lineAmounts = [];
+                $vatExempts = [];
+                $sort = 0;
+                foreach ($data['lines'] as $line) {
+                    $hours = round((float) $line['hours'], 2);
+                    $rate = (int) $line['rate_rappen'];
+                    $amount = (int) round($hours * $rate);
+                    $exempt = (bool) ($line['vat_exempt'] ?? false);
+                    $estimate->lines()->create([
+                        'description' => $line['description'], 'hours' => $hours,
+                        'rate_rappen' => $rate, 'amount_rappen' => $amount,
+                        'vat_exempt' => $exempt, 'sort_order' => $sort++,
+                    ]);
+                    $lineAmounts[] = $amount;
+                    $vatExempts[] = $exempt;
+                }
+                $totals = LineTotals::compute($lineAmounts, $vatExempts, (float) $estimate->vat_rate);
+                $estimate->subtotal_rappen = $totals['subtotal_rappen'];
+                $estimate->vat_rappen = $totals['vat_rappen'];
+                $estimate->total_rappen = $totals['total_rappen'];
+            }
+            $estimate->save();
+        });
+
+        return redirect("/estimates/{$estimate->number}")->with('success', 'Draft updated.');
+    }
+
+    public function send(Estimate $estimate, EstimateLifecycle $lifecycle): RedirectResponse
+    {
+        try {
+            $lifecycle->send($estimate);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        } catch (\RuntimeException $e) {
+            return back()->with('error', "Could not send estimate {$estimate->number}: {$e->getMessage()}");
+        } catch (\Throwable $e) {
+            Log::error('Estimate send failed.', ['estimate_id' => $estimate->id, 'exception' => $e]);
+            return back()->with('error', "Could not email estimate {$estimate->number}. Please check mail settings and try again.");
+        }
+
+        return back()->with('success', "Estimate {$estimate->number} sent.");
+    }
+
+    public function accept(Estimate $estimate, EstimateLifecycle $lifecycle): RedirectResponse
+    {
+        try {
+            $lifecycle->accept($estimate);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "Estimate {$estimate->number} accepted.");
+    }
+
+    public function decline(Estimate $estimate, EstimateLifecycle $lifecycle): RedirectResponse
+    {
+        try {
+            $lifecycle->decline($estimate);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "Estimate {$estimate->number} declined.");
+    }
+
+    public function convert(Estimate $estimate, EstimateLifecycle $lifecycle): RedirectResponse
+    {
+        try {
+            $invoice = $lifecycle->convertToInvoice($estimate);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect("/invoices/{$invoice->number}")
+            ->with('success', "Invoice {$invoice->number} created from estimate {$estimate->number}.");
+    }
+
+    public function pdf(Estimate $estimate, EstimatePdfRenderer $renderer): \Symfony\Component\HttpFoundation\Response
+    {
+        if ($estimate->status === 'draft') {
+            return response()->streamDownload(
+                function () use ($estimate, $renderer) {
+                    echo $renderer->pdfBytes($estimate);
+                },
+                "Offerte-{$estimate->number}.pdf",
+                ['Content-Type' => 'application/pdf'],
+            );
+        }
+
+        $relative = $estimate->pdf_path && Storage::disk('local')->exists($estimate->pdf_path)
+            ? $estimate->pdf_path
+            : $renderer->pdf($estimate);
+
+        return response()->download(
+            Storage::disk('local')->path($relative),
+            "Offerte-{$estimate->number}.pdf",
+        );
+    }
+}

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\EntryController;
+use App\Http\Controllers\EstimateController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
@@ -49,6 +50,19 @@ Route::middleware('auth')->group(function () {
     Route::post('/invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
     Route::post('/invoices/{invoice}/paid', [InvoiceController::class, 'markPaid'])->name('invoices.paid');
     Route::post('/invoices/{invoice}/void', [InvoiceController::class, 'void'])->name('invoices.void');
+
+    Route::get('/estimates', [EstimateController::class, 'index'])->name('estimates.index');
+    Route::get('/estimates/new', [EstimateController::class, 'create'])->name('estimates.create');
+    Route::post('/estimates', [EstimateController::class, 'store'])->name('estimates.store');
+
+    Route::get('/estimates/{estimate:number}', [EstimateController::class, 'show'])->name('estimates.show');
+    Route::get('/estimates/{estimate:number}/preview', [EstimateController::class, 'preview'])->name('estimates.preview');
+    Route::get('/estimates/{estimate:number}/pdf', [EstimateController::class, 'pdf'])->name('estimates.pdf');
+    Route::patch('/estimates/{estimate}', [EstimateController::class, 'update'])->name('estimates.update');
+    Route::post('/estimates/{estimate}/send', [EstimateController::class, 'send'])->name('estimates.send');
+    Route::post('/estimates/{estimate}/accept', [EstimateController::class, 'accept'])->name('estimates.accept');
+    Route::post('/estimates/{estimate}/decline', [EstimateController::class, 'decline'])->name('estimates.decline');
+    Route::post('/estimates/{estimate}/convert', [EstimateController::class, 'convert'])->name('estimates.convert');
 
     Route::get('/reports', [ReportController::class, 'show'])->name('reports.show');
 
