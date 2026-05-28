@@ -59,4 +59,5 @@ test('stats returns open total, accepted ytd, and acceptance rate', function () 
     expect($stats['open'])->toBe(500.0);
     expect($stats['accepted_ytd'])->toBe(800.0);
     expect($stats['acceptance_rate'])->toBe(50); // 1 accepted of 2 decided
+    expect($stats['count'])->toBe(3);
 });

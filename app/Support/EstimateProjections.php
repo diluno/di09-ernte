@@ -51,6 +51,7 @@ class EstimateProjections
     /** Top-of-page summary numbers in CHF (plus an acceptance-rate percentage). */
     public static function stats(): array
     {
+        // 'open' = all sent estimates (includes ones past valid_until — 'expired' is a virtual UI-only state, not a stored status).
         $open = (int) Estimate::open()->sum('total_rappen');
 
         $acceptedYtd = (int) Estimate::query()
