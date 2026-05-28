@@ -14,7 +14,7 @@ class Estimate extends Model
         'issued_on', 'valid_until',
         'status', 'currency', 'vat_rate',
         'subtotal_rappen', 'vat_rappen', 'total_rappen',
-        'notes', 'sent_at', 'decided_at', 'converted_invoice_id', 'pdf_path',
+        'notes', 'title', 'sent_at', 'decided_at', 'converted_invoice_id', 'pdf_path',
     ];
 
     protected $casts = [

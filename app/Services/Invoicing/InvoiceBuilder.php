@@ -84,8 +84,10 @@ class InvoiceBuilder
         string $periodEnd,
         array $lines,
         array $entryIds,
+        ?string $title = null,
+        ?string $notes = null,
     ): Invoice {
-        return DB::transaction(function () use ($client, $project, $periodStart, $periodEnd, $lines, $entryIds) {
+        return DB::transaction(function () use ($client, $project, $periodStart, $periodEnd, $lines, $entryIds, $title, $notes) {
             $profile = BusinessProfile::current();
 
             $number = $this->numberer->nextFor((int) date('Y'));
@@ -102,6 +104,8 @@ class InvoiceBuilder
                 'subtotal_rappen' => 0,
                 'vat_rappen' => 0,
                 'total_rappen' => 0,
+                'title' => $title,
+                'notes' => $notes,
             ]);
 
             $invoice->qr_reference = $this->qr->generate($invoice->id);

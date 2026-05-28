@@ -34,6 +34,26 @@ test('html renders the estimate number, client, lines and the Offerte heading', 
     expect($html)->not->toContain('Fällig'); // no due date / no payment slip
 });
 
+test('html renders the document title when set', function () {
+    $estimate = Estimate::factory()->create(['title' => 'Partnerschaft auf Augenhöhe']);
+
+    expect(app(EstimatePdfRenderer::class)->html($estimate))
+        ->toContain('Partnerschaft auf Augenhöhe');
+});
+
+test('html renders markdown in the notes (lists, rules, emphasis, line breaks)', function () {
+    $estimate = Estimate::factory()->create([
+        'notes' => "Liebe Aline\nBesten Dank.\n\n---\n\nDie Website umfasst:\n\n- Informationsbereich\n- Checklisten-System\n\nStundensatz: **CHF 160.–**",
+    ]);
+
+    $html = app(EstimatePdfRenderer::class)->html($estimate);
+
+    expect($html)->toContain('<hr');
+    expect($html)->toContain('<li>Informationsbereich</li>');
+    expect($html)->toContain('<strong>CHF 160.–</strong>');
+    expect($html)->toContain('Liebe Aline<br>');
+});
+
 test('pdf caches the file on disk and stamps pdf_path', function () {
     $estimate = Estimate::factory()->create(['number' => 'OF-2026-009']);
 

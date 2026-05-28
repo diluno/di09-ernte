@@ -11,7 +11,7 @@ beforeEach(function () {
 
 test('index maps rows with client, hours, total and expired flag', function () {
     $estimate = Estimate::factory()->sent()->create([
-        'client_id' => $this->client->id, 'number' => 'OF-2026-001',
+        'client_id' => $this->client->id, 'number' => 'OF-2026-001', 'title' => 'Augenhöhe',
         'valid_until' => now()->subDay()->toDateString(), 'total_rappen' => 10050,
     ]);
     EstimateLine::factory()->create(['estimate_id' => $estimate->id, 'hours' => 5.5]);
@@ -21,6 +21,7 @@ test('index maps rows with client, hours, total and expired flag', function () {
     expect($rows)->toHaveCount(1);
     $row = $rows->first();
     expect($row['number'])->toBe('OF-2026-001');
+    expect($row['title'])->toBe('Augenhöhe');
     expect($row['client']['name'])->toBe('Atlas Robotics');
     expect($row['total'])->toBe(100.5);
     expect($row['hours'])->toBe(5.5);

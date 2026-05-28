@@ -14,7 +14,8 @@ class StoreEstimateRequest extends FormRequest
         return [
             'client_id' => 'required|exists:clients,id',
             'project_id' => ['nullable', Rule::exists('projects', 'id')->where(fn ($q) => $q->where('client_id', $this->input('client_id')))],
-            'notes' => 'sometimes|nullable|string|max:5000',
+            'title' => 'sometimes|nullable|string|max:255',
+            'notes' => 'sometimes|nullable|string|max:20000',
             'lines' => 'required|array|min:1',
             'lines.*.description' => 'required|string|max:1000',
             'lines.*.hours' => 'required|numeric|min:0',

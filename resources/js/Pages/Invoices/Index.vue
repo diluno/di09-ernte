@@ -101,6 +101,7 @@ const TABS = computed(() => [
         <tr v-for="inv in invoices" :key="inv.id" @click="router.visit(`/invoices/${inv.number}`)">
           <td class="pad-l strong">
             <span class="mono-tag" style="padding: 2px 6px; color: var(--ink); border-color: var(--border-strong)">#{{ inv.number }}</span>
+            <div v-if="inv.title" class="row-subtitle">{{ inv.title }}</div>
           </td>
           <td>{{ inv.client.name }}</td>
           <td class="num">{{ fmtDate(inv.issued_on) }}</td>

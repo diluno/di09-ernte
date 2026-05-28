@@ -27,8 +27,9 @@ class EstimateBuilder
         ?Project $project,
         array $lines,
         ?string $notes = null,
+        ?string $title = null,
     ): Estimate {
-        return DB::transaction(function () use ($client, $project, $lines, $notes) {
+        return DB::transaction(function () use ($client, $project, $lines, $notes, $title) {
             $profile = BusinessProfile::current();
 
             $number = $this->numberer->nextFor((int) date('Y'));
@@ -44,6 +45,7 @@ class EstimateBuilder
                 'vat_rappen' => 0,
                 'total_rappen' => 0,
                 'notes' => $notes,
+                'title' => $title,
             ]);
 
             $lineAmounts = [];

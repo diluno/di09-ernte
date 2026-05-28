@@ -107,6 +107,8 @@ class EstimateLifecycle
                 periodEnd: $today,
                 lines: $lines,
                 entryIds: [],
+                title: $estimate->title,
+                notes: $estimate->notes,
             );
 
             $estimate->update(['converted_invoice_id' => $invoice->id]);

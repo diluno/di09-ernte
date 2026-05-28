@@ -72,6 +72,7 @@ test('POST /estimates creates a draft from submitted lines and redirects to its 
     $res = $this->post('/estimates', [
         'client_id' => $this->client->id,
         'project_id' => $this->project->id,
+        'title' => 'Partnerschaft auf Augenhöhe',
         'notes' => 'Quote for Q3 work.',
         'lines' => [
             ['description' => 'Design phase', 'hours' => 2.0, 'rate_rappen' => 14500, 'vat_exempt' => false],
@@ -82,7 +83,23 @@ test('POST /estimates creates a draft from submitted lines and redirects to its 
     $res->assertRedirect("/estimates/{$estimate->number}");
     expect($estimate->lines)->toHaveCount(1);
     expect($estimate->total_rappen)->toBe(31349); // 29000 + 8.10%
+    expect($estimate->title)->toBe('Partnerschaft auf Augenhöhe');
     expect($estimate->notes)->toBe('Quote for Q3 work.');
+});
+
+test('POST /estimates accepts a long notes field (full specification, over the old 5000 limit)', function () {
+    $notes = str_repeat('Spezifikation Zeile. ', 400); // 8400 chars
+
+    $res = $this->post('/estimates', [
+        'client_id' => $this->client->id,
+        'notes' => $notes,
+        'lines' => [['description' => 'X', 'hours' => 1.0, 'rate_rappen' => 10000, 'vat_exempt' => false]],
+    ]);
+
+    $res->assertSessionHasNoErrors();
+    // TrimStrings middleware strips the trailing whitespace; the body is stored intact.
+    expect(Estimate::latest('id')->first()->notes)->toBe(rtrim($notes));
+    expect(strlen($notes))->toBeGreaterThan(5000);
 });
 
 test('POST /estimates requires at least one line', function () {
@@ -110,9 +127,60 @@ test('GET /estimates/{number} renders Estimates/Show with estimate + lines + eve
             ->component('Estimates/Show')
             ->where('estimate.number', $est->number)
             ->where('estimate.status', 'draft')
+            ->where('estimate.title', $est->title)
             ->has('estimate.lines', 1)
             ->has('events', 1, fn (Assert $e) => $e->where('kind', 'created')->etc())
             ->where('preview_url', "/estimates/{$est->number}/preview"));
+});
+
+test('GET /estimates/{number}/edit renders Estimates/Edit prefilled for a draft', function () {
+    $est = makeDraftEstimate();
+
+    $this->get("/estimates/{$est->number}/edit")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Estimates/Edit')
+            ->where('estimate.number', $est->number)
+            ->where('estimate.client_id', $est->client_id)
+            ->where('estimate.project_id', $est->project_id)
+            ->has('estimate.lines', 1)
+            ->has('clients')
+            ->has('projects'));
+});
+
+test('GET /estimates/{number}/edit redirects when the estimate is not a draft', function () {
+    $est = makeDraftEstimate();
+    $est->update(['status' => 'sent']);
+
+    $this->get("/estimates/{$est->number}/edit")
+        ->assertRedirect("/estimates/{$est->number}");
+});
+
+test('PATCH /estimates/{id} can change the client and project of a draft', function () {
+    $est = makeDraftEstimate();
+    $newClient = Client::factory()->create(['name' => 'New Co', 'short_code' => 'NC']);
+    $newProject = Project::factory()->create(['client_id' => $newClient->id, 'billable' => true, 'rate_rappen' => 12000]);
+
+    $this->patch("/estimates/{$est->id}", [
+        'client_id' => $newClient->id,
+        'project_id' => $newProject->id,
+        'lines' => [['description' => 'X', 'hours' => 1.0, 'rate_rappen' => 10000, 'vat_exempt' => false]],
+    ])->assertRedirect("/estimates/{$est->number}");
+
+    $est->refresh();
+    expect($est->client_id)->toBe($newClient->id);
+    expect($est->project_id)->toBe($newProject->id);
+});
+
+test('PATCH /estimates/{id} rejects a project belonging to a different client', function () {
+    $est = makeDraftEstimate();
+    $otherClient = Client::factory()->create(['name' => 'Other Co', 'short_code' => 'OC']);
+    $otherProject = Project::factory()->create(['client_id' => $otherClient->id, 'billable' => true, 'rate_rappen' => 10000]);
+
+    $this->patch("/estimates/{$est->id}", [
+        'project_id' => $otherProject->id,
+        'lines' => [['description' => 'X', 'hours' => 1.0, 'rate_rappen' => 10000, 'vat_exempt' => false]],
+    ])->assertSessionHasErrors('project_id');
 });
 
 test('GET /estimates/{number}/preview returns raw HTML (not Inertia)', function () {
@@ -145,11 +213,13 @@ test('GET /estimates/{number}/pdf streams draft PDFs without caching', function 
 test('PATCH /estimates/{id} edits a draft notes + lines and recomputes totals', function () {
     $est = makeDraftEstimate();
     $this->patch("/estimates/{$est->id}", [
+        'title' => 'Neuer Titel',
         'notes' => 'Updated scope.',
         'lines' => [['description' => 'Edited', 'hours' => 1.0, 'rate_rappen' => 10000, 'vat_exempt' => false]],
     ])->assertRedirect("/estimates/{$est->number}");
 
     $est->refresh();
+    expect($est->title)->toBe('Neuer Titel');
     expect($est->notes)->toBe('Updated scope.');
     expect($est->lines)->toHaveCount(1);
     expect($est->subtotal_rappen)->toBe(10000);

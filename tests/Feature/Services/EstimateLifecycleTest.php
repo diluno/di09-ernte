@@ -24,6 +24,8 @@ function draftEstimate(): \App\Models\Estimate
         client: test()->client,
         project: test()->project,
         lines: [['description' => 'Design phase', 'hours' => 2.0, 'rate_rappen' => 14500, 'vat_exempt' => false]],
+        notes: 'Scope notes.',
+        title: 'Partnerschaft auf Augenhöhe',
     );
 }
 
@@ -74,6 +76,16 @@ test('convertToInvoice builds a linked draft invoice from the lines', function (
     $estimate->refresh();
     expect($estimate->converted_invoice_id)->toBe($invoice->id);
     expect($estimate->events()->where('kind', 'converted')->count())->toBe(1);
+});
+
+test('convertToInvoice carries the estimate title and notes onto the invoice', function () {
+    $estimate = draftEstimate();
+    $estimate->update(['status' => 'accepted', 'decided_at' => now()]);
+
+    $invoice = test()->lifecycle->convertToInvoice($estimate);
+
+    expect($invoice->title)->toBe('Partnerschaft auf Augenhöhe');
+    expect($invoice->notes)->toBe('Scope notes.');
 });
 
 test('convertToInvoice is rejected unless the estimate is accepted', function () {

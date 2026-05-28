@@ -6,33 +6,33 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
+  estimate: { type: Object, required: true }, // { id, number, client_id, project_id, title, notes, lines }
   clients:  { type: Array, default: () => [] },
   projects: { type: Array, default: () => [] }, // { id, name, client_id, rate }
 });
 
-const clientId = ref(null);
-const projectId = ref(null);
-const title = ref('');
-const notes = ref('');
+const clientId = ref(props.estimate.client_id);
+const projectId = ref(props.estimate.project_id);
+const title = ref(props.estimate.title ?? '');
+const notes = ref(props.estimate.notes ?? '');
 
 // Projects belonging to the selected client.
 const clientProjects = computed(() => props.projects.filter((p) => p.client_id === clientId.value));
 const selectedProject = computed(() => props.projects.find((p) => p.id === projectId.value) ?? null);
 
-// Reset the project when the client changes.
+// Reset the project when the client changes (skip the initial assignment above).
 watch(clientId, () => { projectId.value = null; });
 
-// Editable lines (manual entry).
-const lines = ref([]);
+// Editable lines, seeded from the existing estimate.
 let nextKey = 0;
+const lines = ref(props.estimate.lines.map((l) => ({ key: nextKey++, ...l })));
 function addLine() {
   lines.value.push({ key: nextKey++, description: '', hours: 0, rate: selectedProject.value?.rate ?? 0, vat_exempt: false });
 }
 function removeLine(key) { lines.value = lines.value.filter((l) => l.key !== key); }
 function moveUp(i) { if (i > 0) { const a = lines.value; [a[i - 1], a[i]] = [a[i], a[i - 1]]; } }
 
-// Seed one empty line on mount for convenience.
-addLine();
+if (lines.value.length === 0) addLine();
 
 function fmtMoney(rappen) { return 'CHF ' + (rappen / 100).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
@@ -58,23 +58,23 @@ function save() {
       rate_rappen: Math.round(Number(l.rate) * 100),
       vat_exempt: !!l.vat_exempt,
     })),
-  })).post('/estimates');
+  })).patch(`/estimates/${props.estimate.id}`);
 }
 </script>
 
 <template>
-  <Head title="New estimate" />
+  <Head :title="`Edit estimate #${estimate.number}`" />
 
   <div class="page-head">
     <div>
       <div class="crumb">
-        <Link href="/estimates">~ / estimates</Link><span class="ascii-dot">/</span><span>new</span>
+        <Link href="/estimates">~ / estimates</Link><span class="ascii-dot">/</span><Link :href="`/estimates/${estimate.number}`">#{{ estimate.number }}</Link><span class="ascii-dot">/</span><span>edit</span>
       </div>
-      <h1 class="page-title">New estimate</h1>
+      <h1 class="page-title">Edit estimate #{{ estimate.number }}</h1>
     </div>
     <div style="display: flex; gap: 8px">
-      <Link href="/estimates" class="btn ghost">Cancel</Link>
-      <button class="btn primary" :disabled="form.processing || !canSave" @click="save">Create draft</button>
+      <Link :href="`/estimates/${estimate.number}`" class="btn ghost">Cancel</Link>
+      <button class="btn primary" :disabled="form.processing || !canSave" @click="save">Save changes</button>
     </div>
   </div>
 
@@ -142,7 +142,7 @@ function save() {
         <div class="grand-l">Total</div><div class="v grand">{{ fmtMoney(totalRappen) }}</div>
       </div>
       <p class="dim" style="font-size: var(--fs-xs); margin-top: 16px; line-height: 1.6">
-        Server recomputes all amounts on save. The estimate is created as a draft; send it to stamp the validity date and email the client.
+        Server recomputes all amounts on save. Only draft estimates can be edited.
       </p>
       <div v-if="Object.keys(form.errors).length" style="color: var(--red); font-size: var(--fs-sm); margin-top: 12px">
         {{ Object.values(form.errors).join(' · ') }}

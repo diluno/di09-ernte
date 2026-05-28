@@ -61,6 +61,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/estimates', [EstimateController::class, 'store'])->name('estimates.store');
 
     Route::get('/estimates/{estimate:number}', [EstimateController::class, 'show'])->name('estimates.show');
+    Route::get('/estimates/{estimate:number}/edit', [EstimateController::class, 'edit'])->name('estimates.edit');
     Route::get('/estimates/{estimate:number}/preview', [EstimateController::class, 'preview'])->name('estimates.preview');
     Route::get('/estimates/{estimate:number}/pdf', [EstimateController::class, 'pdf'])->name('estimates.pdf');
     Route::patch('/estimates/{estimate}', [EstimateController::class, 'update'])->name('estimates.update');

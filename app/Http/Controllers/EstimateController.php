@@ -68,6 +68,7 @@ class EstimateController extends Controller
             project: $project,
             lines: $data['lines'],
             notes: $data['notes'] ?? null,
+            title: $data['title'] ?? null,
         );
 
         return redirect("/estimates/{$estimate->number}")->with('success', "Draft {$estimate->number} created.");
@@ -88,6 +89,7 @@ class EstimateController extends Controller
                 'number' => $estimate->number,
                 'status' => $estimate->status,
                 'expired' => $estimate->expired,
+                'title' => $estimate->title,
                 'client' => $estimate->client->only('id', 'name'),
                 'project_name' => $estimate->project?->name,
                 'issued_on' => $estimate->issued_on?->toDateString(),
@@ -116,6 +118,39 @@ class EstimateController extends Controller
         ]);
     }
 
+    public function edit(Estimate $estimate): RedirectResponse|Response
+    {
+        if ($estimate->status !== 'draft') {
+            return redirect("/estimates/{$estimate->number}")->with('error', 'Only draft estimates can be edited.');
+        }
+
+        $estimate->load(['lines' => fn ($q) => $q->orderBy('sort_order')]);
+
+        return Inertia::render('Estimates/Edit', [
+            'estimate' => [
+                'id' => $estimate->id,
+                'number' => $estimate->number,
+                'client_id' => $estimate->client_id,
+                'project_id' => $estimate->project_id,
+                'title' => $estimate->title,
+                'notes' => $estimate->notes,
+                'lines' => $estimate->lines->map(fn (EstimateLine $l) => [
+                    'description' => $l->description,
+                    'hours' => (float) $l->hours,
+                    'rate' => (int) round($l->rate_rappen / 100),
+                    'vat_exempt' => (bool) $l->vat_exempt,
+                ])->values(),
+            ],
+            'clients' => Client::active()->orderBy('name')->get(['id', 'name'])
+                ->map(fn (Client $c) => ['id' => $c->id, 'name' => $c->name])->values(),
+            'projects' => Project::active()->orderBy('name')->get(['id', 'name', 'client_id', 'rate_rappen'])
+                ->map(fn (Project $p) => [
+                    'id' => $p->id, 'name' => $p->name, 'client_id' => $p->client_id,
+                    'rate' => (int) round(($p->rate_rappen ?? 0) / 100),
+                ])->values(),
+        ]);
+    }
+
     public function preview(Estimate $estimate, EstimatePdfRenderer $renderer): HttpResponse
     {
         return response($renderer->html($estimate))->header('Content-Type', 'text/html');
@@ -126,6 +161,15 @@ class EstimateController extends Controller
         $data = $request->validated();
 
         DB::transaction(function () use ($data, $estimate) {
+            if (array_key_exists('client_id', $data)) {
+                $estimate->client_id = $data['client_id'];
+            }
+            if (array_key_exists('project_id', $data)) {
+                $estimate->project_id = $data['project_id'];
+            }
+            if (array_key_exists('title', $data)) {
+                $estimate->title = $data['title'];
+            }
             if (array_key_exists('notes', $data)) {
                 $estimate->notes = $data['notes'];
             }
@@ -168,6 +212,7 @@ class EstimateController extends Controller
             return back()->with('error', "Could not send estimate {$estimate->number}: {$e->getMessage()}");
         } catch (\Throwable $e) {
             Log::error('Estimate send failed.', ['estimate_id' => $estimate->id, 'exception' => $e]);
+
             return back()->with('error', "Could not email estimate {$estimate->number}. Please check mail settings and try again.");
         }
 

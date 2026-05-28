@@ -1,6 +1,6 @@
 <script setup>
-import { computed } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
@@ -16,6 +16,17 @@ const props = defineProps({
 const isDraft = computed(() => props.invoice.status === 'draft');
 const isSent = computed(() => props.invoice.status === 'sent');
 const statusLabel = computed(() => props.invoice.overdue ? 'overdue' : props.invoice.status);
+
+// Draft-only inline editor for the document title + notes (the only place to set them on an invoice).
+const docForm = useForm({ title: props.invoice.title ?? '', notes: props.invoice.notes ?? '' });
+const previewVersion = ref(0);
+function saveDoc() {
+  docForm.patch(`/invoices/${props.invoice.id}`, {
+    preserveScroll: true,
+    onSuccess: () => { previewVersion.value++; },
+  });
+}
+const previewSrc = computed(() => `${props.preview_url}?v=${previewVersion.value}`);
 
 function send()    { router.post(`/invoices/${props.invoice.id}/send`,  {}, { preserveScroll: true }); }
 function markPaid(){ router.post(`/invoices/${props.invoice.id}/paid`,  {}, { preserveScroll: true }); }
@@ -43,6 +54,7 @@ function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-d
         Invoice #{{ invoice.number }}
         <span class="meta">{{ invoice.client.name }}<span class="ascii-dot">·</span><span class="badge dot" :class="statusLabel">{{ statusLabel }}</span></span>
       </h1>
+      <div v-if="invoice.title" class="page-subtitle">{{ invoice.title }}</div>
     </div>
     <div style="display: flex; gap: 8px">
       <a :href="pdf_url" class="btn">Download PDF</a>
@@ -54,10 +66,24 @@ function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-d
 
   <div class="invoice-page">
     <div class="invoice-doc-wrap">
-      <iframe :src="preview_url" title="Invoice document" style="width: 100%; height: 1100px; border: 1px solid var(--border); background: #fff"></iframe>
+      <iframe :src="previewSrc" title="Invoice document" style="width: 100%; height: 1100px; border: 1px solid var(--border); background: #fff"></iframe>
     </div>
 
     <aside class="invoice-side">
+      <template v-if="isDraft">
+        <h3 class="section-title">Document</h3>
+        <label class="field" style="display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); color: var(--ink-2)">
+          <span>Title</span>
+          <input v-model="docForm.title" style="border: 1px solid var(--border-strong); background: var(--paper); padding: 6px 8px; font-family: inherit; color: var(--ink)" placeholder="e.g. Projekt Aurora" />
+        </label>
+        <label class="field" style="display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); color: var(--ink-2); margin-top: 10px">
+          <span>Notes</span>
+          <textarea v-model="docForm.notes" rows="5" style="border: 1px solid var(--border-strong); background: var(--paper); padding: 8px; font-family: inherit; color: var(--ink)" placeholder="Markdown supported — shown on the PDF…"></textarea>
+        </label>
+        <button class="btn primary" style="margin-top: 10px" :disabled="docForm.processing" @click="saveDoc">Save document</button>
+        <hr style="border: none; border-top: 1px solid var(--border); margin: 24px 0" />
+      </template>
+
       <h3 class="section-title">Activity</h3>
       <div style="display: flex; flex-direction: column; gap: 10px; font-size: var(--fs-sm)">
         <div v-for="(e, i) in events" :key="i" style="display: flex; gap: 10px; align-items: baseline">

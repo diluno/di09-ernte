@@ -9,6 +9,7 @@
     .head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 36px; }
     .label { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: #6b6b6b; margin-bottom: 4px; }
     h1 { font-size: 22px; margin: 4px 0 0; }
+    .doc-title { font-size: 16px; font-weight: 600; margin-top: 8px; max-width: 380px; }
     .cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; margin-bottom: 28px; }
     table { width: 100%; border-collapse: collapse; }
     thead th { text-align: left; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: #6b6b6b; border-bottom: 1px solid #1a1a1a; padding: 8px 0; }
@@ -19,6 +20,12 @@
     .totals .grand { font-weight: 700; font-size: 16px; border-top: 1px solid #1a1a1a; padding-top: 8px; }
     .totals .grand-l { border-top: 1px solid #1a1a1a; padding-top: 8px; font-weight: 600; }
     .qr { margin-top: 48px; border-top: 1px dashed #999; padding-top: 12px; }
+    .notes { margin-top: 28px; font-size: 12px; color: #1a1a1a; line-height: 1.5; }
+    .notes p { margin: 0 0 10px; }
+    .notes ul, .notes ol { margin: 0 0 10px; padding-left: 20px; }
+    .notes li { margin-bottom: 3px; }
+    .notes hr { border: none; border-top: 1px solid #e8e1d4; margin: 18px 0; }
+    .notes h1, .notes h2, .notes h3 { font-size: 13px; margin: 16px 0 6px; }
     .foot { margin-top: 28px; font-size: 10px; color: #6b6b6b; }
   </style>
 </head>
@@ -30,6 +37,7 @@
     <div>
       <div class="label">Rechnung</div>
       <h1>#{{ $invoice->number }}</h1>
+      @if ($invoice->title)<div class="doc-title">{{ $invoice->title }}</div>@endif
     </div>
     <div style="text-align: right">
       <div style="font-weight: 700">{{ $profile->name }}</div>
@@ -91,7 +99,7 @@
   </div>
 
   @if ($invoice->notes)
-    <div class="foot">{{ $invoice->notes }}</div>
+    <div class="notes">{!! \App\Support\Markdown::toHtml($invoice->notes) !!}</div>
   @endif
 
   <div class="foot">

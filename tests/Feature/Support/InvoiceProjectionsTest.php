@@ -41,7 +41,7 @@ test('stats sum outstanding (sent), overdue, and paid this calendar year', funct
 
 test('index rows expose number, client, total, hours, status, overdue flag', function () {
     $inv = Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent',
-        'number' => '2026-014', 'due_on' => now()->subDay()->toDateString(), 'total_rappen' => 428_000]);
+        'number' => '2026-014', 'title' => 'Projekt Aurora', 'due_on' => now()->subDay()->toDateString(), 'total_rappen' => 428_000]);
     InvoiceLine::factory()->create(['invoice_id' => $inv->id, 'hours' => 12.5]);
     InvoiceLine::factory()->create(['invoice_id' => $inv->id, 'hours' => 17.0]);
 
@@ -50,6 +50,7 @@ test('index rows expose number, client, total, hours, status, overdue flag', fun
     expect($rows)->toHaveCount(1);
     $row = $rows->first();
     expect($row['number'])->toBe('2026-014');
+    expect($row['title'])->toBe('Projekt Aurora');
     expect($row['client']['name'])->toBe('Atlas Robotics');
     expect($row['total'])->toBe(4280.0);
     expect($row['hours'])->toBe(29.5);

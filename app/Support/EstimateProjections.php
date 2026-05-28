@@ -39,6 +39,7 @@ class EstimateProjections
             ->get()->map(fn (Estimate $e) => [
             'id' => $e->id,
             'number' => $e->number,
+            'title' => $e->title,
             'status' => $e->status,
             'expired' => $e->expired,
             'issued_on' => $e->issued_on?->toDateString(),

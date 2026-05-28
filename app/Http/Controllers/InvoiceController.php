@@ -137,6 +137,7 @@ class InvoiceController extends Controller
                 'number' => $invoice->number,
                 'status' => $invoice->status,
                 'overdue' => $invoice->overdue,
+                'title' => $invoice->title,
                 'client' => $invoice->client->only('id', 'name'),
                 'project_name' => $invoice->project?->name,
                 'issued_on' => $invoice->issued_on?->toDateString(),
@@ -173,6 +174,9 @@ class InvoiceController extends Controller
         $data = $request->validated();
 
         DB::transaction(function () use ($data, $invoice) {
+            if (array_key_exists('title', $data)) {
+                $invoice->title = $data['title'];
+            }
             if (array_key_exists('notes', $data)) {
                 $invoice->notes = $data['notes'];
             }

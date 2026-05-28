@@ -107,6 +107,7 @@ const TABS = computed(() => [
         <tr v-for="est in estimates" :key="est.id" @click="router.visit(`/estimates/${est.number}`)">
           <td class="pad-l strong">
             <span class="mono-tag" style="padding: 2px 6px; color: var(--ink); border-color: var(--border-strong)">#{{ est.number }}</span>
+            <div v-if="est.title" class="row-subtitle">{{ est.title }}</div>
           </td>
           <td>{{ est.client.name }}</td>
           <td class="num">{{ fmtDate(est.issued_on) }}</td>

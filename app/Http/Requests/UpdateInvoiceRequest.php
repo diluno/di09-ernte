@@ -15,7 +15,8 @@ class UpdateInvoiceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'notes' => 'sometimes|nullable|string|max:5000',
+            'title' => 'sometimes|nullable|string|max:255',
+            'notes' => 'sometimes|nullable|string|max:20000',
             'lines' => 'sometimes|array|min:1',
             'lines.*.description' => 'required_with:lines|string|max:1000',
             'lines.*.hours' => 'required_with:lines|numeric|min:0',

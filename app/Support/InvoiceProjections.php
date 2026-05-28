@@ -39,6 +39,7 @@ class InvoiceProjections
             ->get()->map(fn (Invoice $i) => [
             'id' => $i->id,
             'number' => $i->number,
+            'title' => $i->title,
             'status' => $i->status,
             'overdue' => $i->overdue,
             'issued_on' => $i->issued_on?->toDateString(),

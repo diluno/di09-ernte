@@ -54,9 +54,11 @@ function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB', { day: 
         Estimate #{{ estimate.number }}
         <span class="meta">{{ estimate.client.name }}<span class="ascii-dot">·</span><span class="badge dot" :class="badge.cls">{{ badge.label }}</span></span>
       </h1>
+      <div v-if="estimate.title" class="page-subtitle">{{ estimate.title }}</div>
     </div>
     <div style="display: flex; gap: 8px">
       <a :href="pdf_url" class="btn">Download PDF</a>
+      <Link v-if="isDraft" :href="`/estimates/${estimate.number}/edit`" class="btn">Edit</Link>
       <button v-if="isDraft" class="btn primary" @click="send">Send</button>
       <template v-else-if="isSent">
         <button class="btn primary" @click="accept">Accept</button>

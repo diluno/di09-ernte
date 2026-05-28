@@ -190,6 +190,7 @@ test('GET /invoices/{number} renders Invoices/Show with invoice + lines + events
             ->component('Invoices/Show')
             ->where('invoice.number', $inv->number)
             ->where('invoice.status', 'draft')
+            ->where('invoice.title', $inv->title)
             ->has('invoice.lines', 1)
             ->has('events', 1, fn (Assert $e) => $e->where('kind', 'created')->etc())
             ->has('linked_entries')
@@ -202,6 +203,21 @@ test('GET /invoices/{number}/preview returns raw HTML (not Inertia)', function (
     $res->assertOk();
     expect($res->headers->get('content-type'))->toContain('text/html');
     $res->assertSee($inv->number, false);
+});
+
+test('GET /invoices/{number}/preview renders markdown notes (lists, rules, emphasis, line breaks)', function () {
+    $inv = Invoice::factory()->create([
+        'client_id' => $this->client->id,
+        'notes' => "Liebe Aline\nBesten Dank.\n\n---\n\nLeistungen:\n\n- Setup\n- Betrieb\n\nStundensatz: **CHF 160.–**",
+    ]);
+
+    $res = $this->get("/invoices/{$inv->number}/preview");
+
+    $res->assertOk();
+    $res->assertSee('<hr', false);
+    $res->assertSee('<li>Setup</li>', false);
+    $res->assertSee('<strong>CHF 160.–</strong>', false);
+    $res->assertSee('Liebe Aline<br>', false);
 });
 
 test('GET /invoices/{number}/pdf streams draft PDFs without caching on the invoice', function () {
@@ -226,11 +242,13 @@ test('GET /invoices/{number}/pdf streams draft PDFs without caching on the invoi
 test('PATCH /invoices/{id} edits a draft notes + lines and recomputes totals', function () {
     $inv = makeDraft();
     $this->patch("/invoices/{$inv->id}", [
+        'title' => 'Projekt Aurora',
         'notes' => 'Thanks for your business.',
         'lines' => [['description' => 'Edited', 'hours' => 1.0, 'rate_rappen' => 10000, 'vat_exempt' => false]],
     ])->assertRedirect("/invoices/{$inv->number}");
 
     $inv->refresh();
+    expect($inv->title)->toBe('Projekt Aurora');
     expect($inv->notes)->toBe('Thanks for your business.');
     expect($inv->lines)->toHaveCount(1);
     expect($inv->subtotal_rappen)->toBe(10000);
