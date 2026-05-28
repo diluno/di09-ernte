@@ -29,7 +29,7 @@ class ProjectDetail
                 'code' => $project->code,
                 'glyph' => $project->glyph,
                 'status' => $project->status,
-                'is_pinned' => $project->pinned_at !== null,
+                'is_pinned' => (bool) $project->pinned_at,
                 'description' => $project->description,
                 'billable' => (bool) $project->billable,
                 'retainer' => (bool) $project->retainer,

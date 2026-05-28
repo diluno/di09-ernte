@@ -55,7 +55,9 @@ class ProjectController extends Controller
 
     public function pin(Project $project): RedirectResponse
     {
-        $project->update(['pinned_at' => now()]);
+        if ($project->pinned_at === null) {
+            $project->update(['pinned_at' => now()]);
+        }
         return back();
     }
 
