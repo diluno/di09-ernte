@@ -28,6 +28,8 @@ class ClientProjections
             ->groupBy('projects.client_id')
             ->pluck('secs', 'projects.client_id');
 
+        $outstanding = \App\Support\InvoiceProjections::outstandingByClient();
+
         return $clients->map(fn (Client $c) => [
             'id' => $c->id,
             'name' => $c->name,
@@ -37,7 +39,7 @@ class ClientProjections
             'default_rate' => $c->default_rate_rappen ? (int) round($c->default_rate_rappen / 100) : null,
             'projects_count' => (int) $c->projects_count,
             'hours_ytd' => round(((int) ($hoursYtd[$c->id] ?? 0)) / 3600, 1),
-            'outstanding' => 0,                             // Phase 2b
+            'outstanding' => round(((int) ($outstanding[$c->id] ?? 0)) / 100, 2),
             'archived' => $c->archived_at !== null,
         ]);
     }

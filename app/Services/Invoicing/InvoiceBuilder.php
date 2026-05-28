@@ -9,6 +9,7 @@ use App\Models\InvoiceEvent;
 use App\Models\InvoiceLine;
 use App\Models\Project;
 use App\Models\TimeEntry;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -50,32 +51,59 @@ class InvoiceBuilder
     }
 
     /**
-     * Build a draft invoice from selected time entries.
+     * Group eligible entries into suggested invoice lines for the Create editor.
+     * Pure read — does not persist anything.
+     *
+     * @return array<int, array{description:string, hours:float, rate_rappen:int, amount_rappen:int, vat_exempt:bool, entry_ids:int[]}>
      */
-    public function buildDraftFromEntries(
+    public function suggestLinesFromEntries(Collection $entries, ?Project $project): array
+    {
+        $eligible = $entries
+            ->filter(fn (TimeEntry $e) => $e->billable && $e->invoice_id === null)
+            ->when($project, fn ($c) => $c->filter(fn (TimeEntry $e) => $e->project_id === $project->id))
+            ->values();
+
+        $groups = $eligible->groupBy(fn (TimeEntry $e) => $e->description !== ''
+            ? $e->description
+            : ($e->task_id ? ('Task #' . $e->task_id) : ('Entry #' . $e->id)));
+
+        $lines = [];
+        foreach ($groups as $description => $bucket) {
+            /** @var Collection<int, TimeEntry> $bucket */
+            $hours = round($bucket->sum(fn (TimeEntry $e) => $e->duration_seconds / 3600), 2);
+            $rate = (int) ($bucket->first()->project->rate_rappen ?? 0);
+            $lines[] = [
+                'description' => (string) $description,
+                'hours' => $hours,
+                'rate_rappen' => $rate,
+                'amount_rappen' => (int) round($hours * $rate),
+                'vat_exempt' => false,
+                'entry_ids' => $bucket->pluck('id')->all(),
+            ];
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Persist a draft invoice from the user's edited lines and the selected entry ids.
+     * Recomputes every line's amount and the invoice totals server-side (never trusts client math).
+     *
+     * @param  array<int, array{description:string, hours:float|string, rate_rappen:int, vat_exempt?:bool}>  $lines
+     * @param  int[]  $entryIds
+     */
+    public function createDraft(
         Client $client,
         ?Project $project,
-        Collection $entries,
         string $periodStart,
         string $periodEnd,
+        array $lines,
+        array $entryIds,
     ): Invoice {
-        return DB::transaction(function () use ($client, $project, $entries, $periodStart, $periodEnd) {
+        return DB::transaction(function () use ($client, $project, $periodStart, $periodEnd, $lines, $entryIds) {
             $profile = BusinessProfile::current();
 
-            // Filter to billable, unbilled entries; restrict to the optional project.
-            $eligible = $entries
-                ->filter(fn (TimeEntry $e) => $e->billable && $e->invoice_id === null)
-                ->when($project, fn ($c) => $c->filter(fn (TimeEntry $e) => $e->project_id === $project->id))
-                ->values();
-
-            // Group by description (or task fallback if description empty).
-            $groups = $eligible->groupBy(fn (TimeEntry $e) => $e->description !== ''
-                ? $e->description
-                : ('Task #' . $e->task_id));
-
-            // Allocate number and create the header.
-            $year = (int) date('Y');
-            $number = $this->numberer->nextFor($year);
+            $number = $this->numberer->nextFor((int) date('Y'));
 
             $invoice = Invoice::create([
                 'number' => $number,
@@ -91,28 +119,25 @@ class InvoiceBuilder
                 'total_rappen' => 0,
             ]);
 
-            // Now that we have an id, fill the QR reference.
             $invoice->qr_reference = $this->qr->generate($invoice->id);
 
-            // Build lines from groups, collecting amounts and exempt flags for totals.
             $lineAmounts = [];
             $vatExempts  = [];
             $sort = 0;
-            foreach ($groups as $description => $bucket) {
-                /** @var Collection<int, TimeEntry> $bucket */
-                $hours = round($bucket->sum(fn (TimeEntry $e) => $e->duration_seconds / 3600), 2);
-                $rate = (int) ($bucket->first()->project->rate_rappen ?? 0);
-                $amount = (int) round($hours * $rate);
-                $exempt = false; // time entries do not carry vat_exempt yet
+            foreach ($lines as $line) {
+                $hours = round((float) $line['hours'], 2);
+                $rate = (int) $line['rate_rappen'];
+                $amount = (int) round($hours * $rate);           // recompute — ignore any submitted amount
+                $exempt = (bool) ($line['vat_exempt'] ?? false);
 
                 InvoiceLine::create([
-                    'invoice_id'  => $invoice->id,
-                    'description' => $description,
-                    'hours'       => $hours,
+                    'invoice_id' => $invoice->id,
+                    'description' => (string) $line['description'],
+                    'hours' => $hours,
                     'rate_rappen' => $rate,
                     'amount_rappen' => $amount,
-                    'vat_exempt'  => $exempt,
-                    'sort_order'  => $sort++,
+                    'vat_exempt' => $exempt,
+                    'sort_order' => $sort++,
                 ]);
 
                 $lineAmounts[] = $amount;
@@ -120,27 +145,45 @@ class InvoiceBuilder
             }
 
             $totals = self::computeTotals($lineAmounts, $vatExempts, (float) $invoice->vat_rate);
-
             $invoice->subtotal_rappen = $totals['subtotal_rappen'];
             $invoice->vat_rappen      = $totals['vat_rappen'];
             $invoice->total_rappen    = $totals['total_rappen'];
             $invoice->save();
 
-            // Attach entries.
-            TimeEntry::whereIn('id', $eligible->pluck('id'))->update(['invoice_id' => $invoice->id]);
+            if (! empty($entryIds)) {
+                TimeEntry::whereIn('id', $entryIds)
+                    ->whereNull('invoice_id')
+                    ->where('billable', true)
+                    ->update(['invoice_id' => $invoice->id]);
+            }
 
-            // Audit event.
             InvoiceEvent::create([
                 'invoice_id' => $invoice->id,
                 'kind' => 'created',
                 'occurred_at' => now(),
                 'payload' => [
                     'period' => ['start' => $periodStart, 'end' => $periodEnd],
-                    'entries_count' => $eligible->count(),
+                    'entries_count' => count($entryIds),
                 ],
             ]);
 
             return $invoice->fresh(['lines', 'events']);
         });
+    }
+
+    /**
+     * Back-compat convenience: auto-group entries and persist (used by existing tests/callers).
+     */
+    public function buildDraftFromEntries(
+        Client $client,
+        ?Project $project,
+        Collection $entries,
+        string $periodStart,
+        string $periodEnd,
+    ): Invoice {
+        $suggested = $this->suggestLinesFromEntries($entries, $project);
+        $entryIds = Arr::flatten(array_map(fn ($l) => $l['entry_ids'], $suggested));
+
+        return $this->createDraft($client, $project, $periodStart, $periodEnd, $suggested, $entryIds);
     }
 }

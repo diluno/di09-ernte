@@ -25,6 +25,11 @@ class Client extends Model
         return $this->hasMany(Project::class);
     }
 
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
     public function scopeActive($q) { return $q->whereNull('archived_at'); }
     public function scopeArchived($q) { return $q->whereNotNull('archived_at'); }
 }

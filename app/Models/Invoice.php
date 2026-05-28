@@ -42,4 +42,12 @@ class Invoice extends Model
             && $this->due_on !== null
             && $this->due_on->isPast();
     }
+
+    public function scopeOutstanding($q) { return $q->where('status', 'sent'); }
+    public function scopePaid($q)        { return $q->where('status', 'paid'); }
+
+    public function getHoursAttribute(): float
+    {
+        return round((float) $this->lines->sum('hours'), 2);
+    }
 }
