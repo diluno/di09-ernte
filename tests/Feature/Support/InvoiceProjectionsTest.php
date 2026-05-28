@@ -80,3 +80,19 @@ test('global outstanding_amount lands on DashboardProjections stats', function (
     $stats = DashboardProjections::stats(User::factory()->create());
     expect($stats['outstanding_amount'])->toBe(321.0);
 });
+
+test('index orders by document date (issued_on; drafts by created_at) newest first', function () {
+    // Insert so id order differs from date order: 2026 first (id 1), then 2025 (id 2),
+    // then a draft with no issue date (id 3, created now).
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent',
+        'number' => '2026-001', 'issued_on' => '2026-01-01', 'total_rappen' => 100_00]);
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent',
+        'number' => '2025-001', 'issued_on' => '2025-01-01', 'total_rappen' => 100_00]);
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'draft',
+        'number' => '2026-900', 'issued_on' => null, 'total_rappen' => 100_00]);
+
+    $rows = InvoiceProjections::index('all');
+
+    // draft (created now) first, then 2026-issued, then 2025-issued.
+    expect($rows->pluck('number')->all())->toBe(['2026-900', '2026-001', '2025-001']);
+});

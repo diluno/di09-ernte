@@ -34,7 +34,9 @@ class InvoiceProjections
             });
         }
 
-        return $q->orderByDesc('id')->get()->map(fn (Invoice $i) => [
+        return $q->orderByRaw('COALESCE(issued_on, created_at) DESC')
+            ->orderByDesc('id')
+            ->get()->map(fn (Invoice $i) => [
             'id' => $i->id,
             'number' => $i->number,
             'status' => $i->status,

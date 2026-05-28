@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { fmtDate } from '@/formatters/date.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -26,7 +27,6 @@ function onSearch() {
 
 function fmtMoney(v)      { return 'CHF ' + Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function fmtMoneyShort(v) { return 'CHF ' + Math.round(v).toLocaleString('de-CH'); }
-function fmtDate(d)       { return d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'; }
 
 const TABS = computed(() => [
   { id: 'all',     label: 'All',     count: props.counts.all },
@@ -90,8 +90,8 @@ const TABS = computed(() => [
         <tr>
           <th class="pad-l" style="width: 140px">Invoice</th>
           <th style="width: 240px">Client</th>
-          <th class="num" style="width: 100px">Issued</th>
-          <th class="num" style="width: 100px">Due</th>
+          <th class="num" style="width: 120px">Issued</th>
+          <th class="num" style="width: 120px">Due</th>
           <th class="num" style="width: 80px">Hours</th>
           <th class="num" style="width: 140px">Total</th>
           <th style="width: 120px">Status</th>

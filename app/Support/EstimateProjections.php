@@ -34,7 +34,9 @@ class EstimateProjections
             });
         }
 
-        return $q->orderByDesc('id')->get()->map(fn (Estimate $e) => [
+        return $q->orderByRaw('COALESCE(issued_on, created_at) DESC')
+            ->orderByDesc('id')
+            ->get()->map(fn (Estimate $e) => [
             'id' => $e->id,
             'number' => $e->number,
             'status' => $e->status,
