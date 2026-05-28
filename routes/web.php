@@ -20,6 +20,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/projects', [ProjectController::class, 'store'])->name('projects.store');
     Route::get('/projects/create', [ProjectController::class, 'create'])->name('projects.create');
     Route::get('/projects/{project:code}', [ProjectController::class, 'show'])->name('projects.show');
+    Route::get('/projects/{project:code}/edit', [ProjectController::class, 'edit'])->name('projects.edit');
     Route::patch('/projects/{project}', [ProjectController::class, 'update'])->name('projects.update');
     Route::post('/projects/{project:code}/archive', [ProjectController::class, 'archive'])->name('projects.archive');
     Route::post('/projects/{project:code}/pin', [ProjectController::class, 'pin'])->name('projects.pin');

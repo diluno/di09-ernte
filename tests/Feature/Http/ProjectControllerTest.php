@@ -224,6 +224,27 @@ test('GET /projects/create renders Projects/Create with the active clients list'
         );
 });
 
+test('GET /projects/{code}/edit renders Projects/Edit with project money in CHF and clients', function () {
+    $user = User::factory()->create();
+    $client = Client::factory()->create();
+    $project = Project::factory()->create([
+        'client_id' => $client->id, 'code' => 'ATLS-FLT',
+        'rate_rappen' => 14500, 'budget_amount_rappen' => 31900_00, 'budget_hours' => 220,
+    ]);
+
+    $this->actingAs($user)->get("/projects/{$project->code}/edit")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Projects/Edit')
+            ->where('project.code', 'ATLS-FLT')
+            ->where('project.rate', 145)            // CHF, not rappen
+            ->where('project.budget_amount', 31900) // CHF, not rappen
+            ->where('project.budget_hours', 220)
+            ->where('project.client_id', $client->id)
+            ->has('clients')
+        );
+});
+
 test('POST /tasks adds a task that appears on the project show payload', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();

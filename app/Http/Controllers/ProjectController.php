@@ -54,6 +54,28 @@ class ProjectController extends Controller
         return Inertia::render('Projects/Show', \App\Support\ProjectDetail::payload($project));
     }
 
+    public function edit(Project $project): Response
+    {
+        return Inertia::render('Projects/Edit', [
+            'project' => [
+                'id' => $project->id,
+                'client_id' => $project->client_id,
+                'name' => $project->name,
+                'code' => $project->code,
+                'glyph' => $project->glyph,
+                'description' => $project->description,
+                'billable' => (bool) $project->billable,
+                'budget_hours' => (int) $project->budget_hours,
+                'budget_amount' => (int) round($project->budget_amount_rappen / 100),
+                'rate' => (int) round($project->rate_rappen / 100),
+                'started_on' => $project->started_on?->toDateString(),
+                'deadline_on' => $project->deadline_on?->toDateString(),
+                'status' => $project->status,
+            ],
+            'clients' => $this->activeClients(),
+        ]);
+    }
+
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse
     {
         $project->update($request->validated());
