@@ -57,16 +57,21 @@ test('import wipes pre-existing clients/projects/invoices/estimates first', func
 test('a failure inside the transaction rolls back, leaving existing data intact', function () {
     $old = Client::factory()->create(['name' => 'Keep Me']);
 
-    // Estimate with a missing 'number' key triggers a DB error mid-import.
+    // Two invoices share a number; the invoices.number UNIQUE index makes the
+    // second insert throw a QueryException AFTER the wipe + first writes have run.
     $bad = new HarvestData(
         clients: [['id' => 77, 'name' => 'Atlas', 'is_active' => true]],
-        contacts: [], projects: [], invoices: [],
-        estimates: [['id' => 1, 'client' => ['id' => 77], 'state' => 'sent', 'amount' => 0]], // no 'number'
+        contacts: [], projects: [], estimates: [],
+        invoices: [
+            ['id' => 9,  'client' => ['id' => 77], 'number' => 'DUP-001', 'state' => 'draft', 'currency' => 'CHF', 'issue_date' => '2025-01-01', 'amount' => 0, 'tax' => 0, 'tax_amount' => 0, 'line_items' => []],
+            ['id' => 10, 'client' => ['id' => 77], 'number' => 'DUP-001', 'state' => 'draft', 'currency' => 'CHF', 'issue_date' => '2025-01-01', 'amount' => 0, 'tax' => 0, 'tax_amount' => 0, 'line_items' => []],
+        ],
     );
 
-    expect(fn () => runner()->import($bad))->toThrow(\ErrorException::class);
+    expect(fn () => runner()->import($bad))->toThrow(\Illuminate\Database\QueryException::class);
 
     // Rolled back: the wipe was undone, original client still present, no new ones.
     expect(Client::where('name', 'Keep Me')->exists())->toBeTrue();
     expect(Client::where('name', 'Atlas')->exists())->toBeFalse();
+    expect(\App\Models\Invoice::where('number', 'DUP-001')->exists())->toBeFalse();
 });

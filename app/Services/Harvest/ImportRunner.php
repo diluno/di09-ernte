@@ -55,7 +55,7 @@ class ImportRunner
         });
     }
 
-    /** FK-safe wipe: estimates → invoices → projects → clients, then reset counters. */
+    /** FK-safe wipe: estimates → invoices → projects → clients, then clear the number counters. */
     private function wipe(): void
     {
         Estimate::query()->delete();
