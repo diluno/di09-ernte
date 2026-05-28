@@ -160,6 +160,18 @@ test('PATCH /projects/{p} updates fields', function () {
     expect($project->fresh()->name)->toBe('Renamed');
 });
 
+test('archiving a pinned project also clears its pin', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['status' => 'active', 'pinned_at' => now()]);
+
+    $this->actingAs($user)->post("/projects/{$project->code}/archive")
+        ->assertRedirect();
+
+    $fresh = $project->fresh();
+    expect($fresh->status)->toBe('archived');
+    expect($fresh->pinned_at)->toBeNull();
+});
+
 test('POST /projects/{p}/pin sets pinned_at', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create(['pinned_at' => null]);
