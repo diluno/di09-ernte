@@ -8,12 +8,12 @@ Working end-to-end: Projects (index + show overview tab), Tasks (CRUD + reorder 
 
 > **Correction (found during 2b-i):** the Phase-2a CSS port was actually **incomplete** — `resources/css/base.css` only ported the chrome subset of `styles.css`. Page-level classes (`.table*`, `.stats*`, `.invoice-*`, `.heat*`, `.detail-grid`, `.task-*`, `.entry-row*`, `.timer-*`, `.spark*`) were referenced by shipped pages but missing from the compiled bundle, so those pages rendered unstyled. **2b-i Task 2 completed the port** (verbatim from `styles.css`), which also retroactively styled the Phase-2a tables/charts. The "keep reusing existing classes" guidance now holds because the classes finally all exist.
 
-## Status after Phase 2b-i (Invoices core — built on branch `phase-2b-i-invoices`)
+## Status after Phase 2b-i (Invoices core — MERGED to `main`)
 
-Done and merged into the 2b-i branch (165 tests passing, build clean):
+Merged to `main` (merge commit `f3a9a19`; branch `phase-2b-i-invoices` deleted), plus a follow-up fix (`16dd7fd`) so the top-level "New invoice" button renders a client picker instead of 404ing. **166 tests passing, build clean.** Done:
 
 - **Invoices/Index** — stats strip (outstanding/overdue/paid-ytd/avg-days) + status filter tabs + search + table (CHF, German-aware). `InvoiceController@index` + `InvoiceProjections`.
-- **Invoices/Create** — period picker (default previous month), billable+unbilled+**finished** entry checklist, server-suggested line grouping, editable line table with per-line `vat_exempt`, live CHF totals. `create`/`store` + `StoreInvoiceRequest` + `InvoiceBuilder::suggestLinesFromEntries`/`createDraft`.
+- **Invoices/Create** — period picker (default previous month), billable+unbilled+**finished** entry checklist, server-suggested line grouping, editable line table with per-line `vat_exempt`, live CHF totals. `create`/`store` + `StoreInvoiceRequest` + `InvoiceBuilder::suggestLinesFromEntries`/`createDraft`. `/invoices/new` with no `?client=` renders a **client-picker mode** (the top-level "New invoice" button); the project/client `+ Invoice` buttons deep-link with `?client=`.
 - **Invoices/Show** — document via an `<iframe>` to `/invoices/{number}/preview` (the same Blade the PDF uses), activity sidebar from `invoice_events`, linked-entries summary, status-gated actions (Send / Mark paid / Void) + draft `update` (notes + lines).
 - **PDF** — `spatie/browsershot` v5 (drives the container Chromium; needs `puppeteer` npm + `->noSandbox()` + a `config('services.browsershot.chrome_path')` key). `InvoicePdfRenderer` (html() + cached pdf()). Document Blade is German + CHF.
 - **Swiss QR-bill** — `sprain/swiss-qr-bill` **v5** (NOT v4 — API differs: `StructuredAddress`, `DisplayOptions::setPrintable`). `QrBillRenderer` builds the payment part, validates via `getViolations()`, QRR when `qr_iban` else NON, self-heals a missing `qr_reference`.
@@ -84,4 +84,6 @@ Deferred deliberately during 2b-i (the code works for the single-user happy path
 
 > Write the Phase 2b-ii plan for ernte; read the spec § 6 (sending/reminders) + § 7 (search/shortcuts) and the phase-2b carryover doc first.
 
-2b-i shipped the invoice subsystem (Index/Create/Show/PDF/QR-bill) on branch `phase-2b-i-invoices`. 2b-ii covers what's listed under "Phase 2b-ii scope" above: email send + reminders + overdue-stamp job, Settings/Profile, Reports placeholder, ⌘K palette + `/api/search`, keyboard shortcuts, backup command. The email work hangs off the existing `InvoiceLifecycle::issue()` (it already issues + renders the PDF; just add the `InvoiceMail` dispatch + queue). The 2b-i plan lives at `docs/superpowers/plans/2026-05-28-ernte-phase-2b-i-invoices.md`.
+2b-i shipped the invoice subsystem (Index/Create/Show/PDF/QR-bill) — merged to `main`. 2b-ii covers what's listed under "Phase 2b-ii scope" above: email send + reminders + overdue-stamp job, Settings/Profile, Reports placeholder, ⌘K palette + `/api/search`, keyboard shortcuts, backup command. The email work hangs off the existing `InvoiceLifecycle::issue()` (it already issues + renders the PDF; just add the `InvoiceMail` dispatch + queue). The 2b-i plan lives at `docs/superpowers/plans/2026-05-28-ernte-phase-2b-i-invoices.md`.
+
+2b-ii is still sizable (email + scheduler + settings + reports + ⌘K + shortcuts + backup) — consider splitting it the way Phase 2 and 2b were split (e.g. 2b-ii-a = send/reminders/overdue-stamp + scheduler/queue wiring; 2b-ii-b = settings/profile + reports + ⌘K/search + keyboard shortcuts + backup command), so each plan ships working, testable software on its own. Settings/Profile is worth doing early since the QR-bill creditor (IBAN/QR-IBAN/address) is currently only seedable, not editable in-app.
