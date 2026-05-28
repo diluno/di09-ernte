@@ -10,7 +10,7 @@ const props = defineProps({
 
 const form = useForm({
   client_id: props.clients[0]?.id ?? null,
-  name: '', code: '', glyph: 'alt-0', description: '',
+  name: '', code: '', description: '',
   billable: true, budget_hours: null, budget_amount: null, rate: null,
   started_on: '', deadline_on: '',
 });
@@ -20,7 +20,6 @@ function submit() {
     client_id: d.client_id,
     name: d.name,
     code: d.code,
-    glyph: d.glyph,
     description: d.description,
     billable: d.billable,
     budget_hours: d.budget_hours ? Number(d.budget_hours) : 0,
@@ -62,16 +61,6 @@ function submit() {
       <span>Code (≤32 chars)</span>
       <input v-model="form.code" required maxlength="32" style="text-transform: uppercase" />
       <small v-if="form.errors.code" class="err">{{ form.errors.code }}</small>
-    </label>
-    <label class="field">
-      <span>Glyph</span>
-      <select v-model="form.glyph" required>
-        <option value="alt-0">alt-0</option>
-        <option value="alt-1">alt-1</option>
-        <option value="alt-2">alt-2</option>
-        <option value="alt-3">alt-3</option>
-        <option value="alt-4">alt-4</option>
-      </select>
     </label>
     <label class="field" style="flex-direction: row; align-items: center; gap: 8px">
       <input type="checkbox" v-model="form.billable" />
