@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\EntryController;
+use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
@@ -35,7 +36,7 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('clients', ClientController::class)->except(['show']);
 
-    Route::get('/invoices', fn () => Inertia::render('Invoices/Index'))->name('invoices.index');
+    Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
     Route::get('/reports',  fn () => Inertia::render('Reports/Placeholder'))->name('reports.show');
 
     Route::patch('/settings/tweaks', [\App\Http\Controllers\SettingsController::class, 'updateTweaks'])

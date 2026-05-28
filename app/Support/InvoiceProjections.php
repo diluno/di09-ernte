@@ -41,8 +41,8 @@ class InvoiceProjections
             'overdue' => $i->overdue,
             'issued_on' => $i->issued_on?->toDateString(),
             'due_on' => $i->due_on?->toDateString(),
-            'hours' => round((float) $i->lines->sum('hours'), 2),
-            'total' => round($i->total_rappen / 100, 2),
+            'hours' => (float) round((float) $i->lines->sum('hours'), 2),
+            'total' => (float) round($i->total_rappen / 100, 2),
             'client' => ['id' => $i->client->id, 'name' => $i->client->name],
             'project_name' => $i->project?->name,
         ]);
