@@ -73,7 +73,7 @@ class SearchController extends Controller
                 'id' => $client->id,
                 'label' => $client->name,
                 'sublabel' => trim(implode(' · ', array_filter([$client->contact_name, $client->email]))),
-                'url' => "/clients/{$client->id}/edit",
+                'url' => "/clients/{$client->id}",
             ])
             ->all();
     }

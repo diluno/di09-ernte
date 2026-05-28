@@ -83,7 +83,7 @@ function fmtMoneyShort(v) { return formatChf(v); }
       <tbody>
         <tr v-for="(c, i) in filtered" :key="c.id">
           <td class="pad-l strong">
-            <Link :href="`/clients/${c.id}/edit`" class="proj-cell" style="color: inherit">
+            <Link :href="`/clients/${c.id}`" class="proj-cell" style="color: inherit">
               <span class="proj-glyph" :class="glyphFor(i)">{{ c.short_code[0] }}</span>
               <span>{{ c.name }}</span>
             </Link>
@@ -105,7 +105,7 @@ function fmtMoneyShort(v) { return formatChf(v); }
             <span v-else class="dim">—</span>
           </td>
           <td class="pad-r">
-            <Sparkline :data="[2,3,1,4,5,2,3,4,5,6,5,4,3,5]" :w="110" :h="20" color="var(--ink-3)" />
+            <Sparkline :data="c.sparkline" :w="110" :h="20" color="var(--ink-3)" />
           </td>
           <td class="pad-r">
             <Link :href="`/invoices/new?client=${c.id}`" class="btn ghost" style="padding: 2px 8px" @click.stop>+ Invoice</Link>

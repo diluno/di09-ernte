@@ -54,7 +54,7 @@ test('search finds clients by name contact and email', function () {
         $results = collect($this->actingAs($this->user)->getJson("/api/search?q={$term}")->json());
         $row = $results->firstWhere('type', 'client');
         expect($row['id'])->toBe($client->id);
-        expect($row['url'])->toBe("/clients/{$client->id}/edit");
+        expect($row['url'])->toBe("/clients/{$client->id}");
     }
 });
 

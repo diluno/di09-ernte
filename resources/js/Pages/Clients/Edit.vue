@@ -13,7 +13,7 @@ const props = defineProps({
 const form = useForm({ ...props.client });
 
 onMounted(() => {
-  pushRecent({ url: `/clients/${props.client.id}/edit`, label: props.client.name });
+  pushRecent({ url: `/clients/${props.client.id}`, label: props.client.name });
 });
 
 function submit() {

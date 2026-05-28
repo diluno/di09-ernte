@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreClientRequest;
 use App\Http\Requests\UpdateClientRequest;
 use App\Models\Client;
+use App\Support\ClientDetail;
 use App\Support\ClientProjections;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -24,9 +25,15 @@ class ClientController extends Controller
         return Inertia::render('Clients/Create');
     }
 
+    public function show(Client $client): Response
+    {
+        return Inertia::render('Clients/Show', ClientDetail::payload($client));
+    }
+
     public function store(StoreClientRequest $request): RedirectResponse
     {
         Client::create($request->validated());
+
         return redirect('/clients');
     }
 
@@ -44,6 +51,7 @@ class ClientController extends Controller
     public function update(UpdateClientRequest $request, Client $client): RedirectResponse
     {
         $client->update($request->validated());
+
         return back();
     }
 
@@ -51,6 +59,7 @@ class ClientController extends Controller
     {
         // Soft-archive instead of delete (preserves FK integrity for projects/invoices).
         $client->update(['archived_at' => now()]);
+
         return redirect('/clients');
     }
 }

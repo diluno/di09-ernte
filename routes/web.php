@@ -15,40 +15,40 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth')->group(function () {
     Route::redirect('/', '/projects');
 
-    Route::get   ('/projects',                          [ProjectController::class, 'index'])->name('projects.index');
-    Route::post  ('/projects',                          [ProjectController::class, 'store'])->name('projects.store');
-    Route::get   ('/projects/{project:code}',           [ProjectController::class, 'show'])->name('projects.show');
-    Route::patch ('/projects/{project}',                [ProjectController::class, 'update'])->name('projects.update');
-    Route::post  ('/projects/{project:code}/archive',   [ProjectController::class, 'archive'])->name('projects.archive');
+    Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
+    Route::post('/projects', [ProjectController::class, 'store'])->name('projects.store');
+    Route::get('/projects/{project:code}', [ProjectController::class, 'show'])->name('projects.show');
+    Route::patch('/projects/{project}', [ProjectController::class, 'update'])->name('projects.update');
+    Route::post('/projects/{project:code}/archive', [ProjectController::class, 'archive'])->name('projects.archive');
 
-    Route::post  ('/tasks',          [TaskController::class, 'store'])->name('tasks.store');
-    Route::patch ('/tasks/reorder',  [TaskController::class, 'reorder'])->name('tasks.reorder');
-    Route::patch ('/tasks/{task}',   [TaskController::class, 'update'])->name('tasks.update');
-    Route::delete('/tasks/{task}',   [TaskController::class, 'destroy'])->name('tasks.destroy');
+    Route::post('/tasks', [TaskController::class, 'store'])->name('tasks.store');
+    Route::patch('/tasks/reorder', [TaskController::class, 'reorder'])->name('tasks.reorder');
+    Route::patch('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
+    Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
 
-    Route::get ('/timer',          [TimerController::class, 'show'])->name('timer.show');
-    Route::post('/timer/start',    [TimerController::class, 'start'])->name('timer.start');
-    Route::post('/timer/stop',     [TimerController::class, 'stop'])->name('timer.stop');
-    Route::post('/timer/switch',   [TimerController::class, 'switch'])->name('timer.switch');
-    Route::post('/timer/discard',  [TimerController::class, 'discard'])->name('timer.discard');
+    Route::get('/timer', [TimerController::class, 'show'])->name('timer.show');
+    Route::post('/timer/start', [TimerController::class, 'start'])->name('timer.start');
+    Route::post('/timer/stop', [TimerController::class, 'stop'])->name('timer.stop');
+    Route::post('/timer/switch', [TimerController::class, 'switch'])->name('timer.switch');
+    Route::post('/timer/discard', [TimerController::class, 'discard'])->name('timer.discard');
 
-    Route::post  ('/entries',          [EntryController::class, 'store'])->name('entries.store');
-    Route::patch ('/entries/{entry}',  [EntryController::class, 'update'])->name('entries.update');
-    Route::delete('/entries/{entry}',  [EntryController::class, 'destroy'])->name('entries.destroy');
+    Route::post('/entries', [EntryController::class, 'store'])->name('entries.store');
+    Route::patch('/entries/{entry}', [EntryController::class, 'update'])->name('entries.update');
+    Route::delete('/entries/{entry}', [EntryController::class, 'destroy'])->name('entries.destroy');
 
-    Route::resource('clients', ClientController::class)->except(['show']);
+    Route::resource('clients', ClientController::class);
 
-    Route::get ('/invoices',     [InvoiceController::class, 'index'])->name('invoices.index');
-    Route::get ('/invoices/new', [InvoiceController::class, 'create'])->name('invoices.create');
-    Route::post('/invoices',     [InvoiceController::class, 'store'])->name('invoices.store');
+    Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+    Route::get('/invoices/new', [InvoiceController::class, 'create'])->name('invoices.create');
+    Route::post('/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
 
-    Route::get  ('/invoices/{invoice:number}',          [InvoiceController::class, 'show'])->name('invoices.show');
-    Route::get  ('/invoices/{invoice:number}/preview',  [InvoiceController::class, 'preview'])->name('invoices.preview');
-    Route::get  ('/invoices/{invoice:number}/pdf',      [InvoiceController::class, 'pdf'])->name('invoices.pdf');
-    Route::patch('/invoices/{invoice}',                 [InvoiceController::class, 'update'])->name('invoices.update');
-    Route::post ('/invoices/{invoice}/send',            [InvoiceController::class, 'send'])->name('invoices.send');
-    Route::post ('/invoices/{invoice}/paid',            [InvoiceController::class, 'markPaid'])->name('invoices.paid');
-    Route::post ('/invoices/{invoice}/void',            [InvoiceController::class, 'void'])->name('invoices.void');
+    Route::get('/invoices/{invoice:number}', [InvoiceController::class, 'show'])->name('invoices.show');
+    Route::get('/invoices/{invoice:number}/preview', [InvoiceController::class, 'preview'])->name('invoices.preview');
+    Route::get('/invoices/{invoice:number}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
+    Route::patch('/invoices/{invoice}', [InvoiceController::class, 'update'])->name('invoices.update');
+    Route::post('/invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
+    Route::post('/invoices/{invoice}/paid', [InvoiceController::class, 'markPaid'])->name('invoices.paid');
+    Route::post('/invoices/{invoice}/void', [InvoiceController::class, 'void'])->name('invoices.void');
 
     Route::get('/reports', [ReportController::class, 'show'])->name('reports.show');
 
@@ -58,8 +58,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/api/search', SearchController::class)->name('api.search');
 
-    Route::get('/profile',    [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile',  [ProfileController::class, 'update'])->name('profile.update');
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
