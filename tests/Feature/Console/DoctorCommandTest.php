@@ -46,3 +46,16 @@ test('doctor command rejects log mail in production', function () {
         ->expectsOutputToContain('[FAIL] mail')
         ->assertExitCode(1);
 });
+
+test('doctor advisory mode reports failures without failing deployment', function () {
+    config([
+        'app.env' => 'production',
+        'app.key' => null,
+        'app.url' => 'http://ernte.example.com',
+    ]);
+
+    $this->artisan('ernte:doctor --advisory')
+        ->expectsOutputToContain('[FAIL] APP_KEY')
+        ->expectsOutputToContain('[FAIL] APP_URL')
+        ->assertExitCode(0);
+});

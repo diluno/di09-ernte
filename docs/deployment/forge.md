@@ -50,7 +50,7 @@ Paste the printed key into `APP_KEY`.
 
 Paste the contents of `deploy/forge/deploy.sh` into the Forge deployment script editor. It uses Forge release macros such as `$CREATE_RELEASE()`, `$FORGE_RELEASE_DIRECTORY`, `$ACTIVATE_RELEASE()`, and `$RESTART_QUEUES()`, so it is a Forge script template rather than a script to run directly over SSH.
 
-The script creates a release, installs production Composer dependencies, installs Node dependencies, builds Vite assets, prepares storage directories, runs migrations, runs the idempotent bootstrap seeder, warms Laravel caches, checks the release with `php artisan ernte:doctor`, activates the release, and restarts queue workers.
+The script creates a release, installs production Composer dependencies, installs Node dependencies, builds Vite assets, prepares storage directories, runs migrations, runs the idempotent bootstrap seeder, warms Laravel caches, checks the release with `php artisan ernte:doctor --advisory`, activates the release, and restarts queue workers. Advisory mode prints configuration failures without blocking the release, so first deploys can still activate while SMTP/SSL/Browsershot are being finished.
 
 ## Queue Daemon
 
@@ -102,6 +102,12 @@ Then check the web app:
 4. Open `/invoices`; draft PDF preview should render.
 5. If SMTP is configured and a test client has an email address, send one draft invoice and confirm it receives a PDF attachment.
 6. Confirm the status bar shows the production host from `APP_URL`, database information, and a non-`never` backup timestamp after the manual backup.
+
+Common `ernte:doctor` fixes:
+
+- `APP_URL` must be the HTTPS production URL, for example `https://ernte.dil.uno`.
+- `MAIL_MAILER=log` is fine for local development only. Set a real production mailer such as `smtp`, with `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, and `MAIL_FROM_NAME`.
+- `BROWSERSHOT_CHROME_PATH` must point at an executable Chrome/Chromium binary. If the provision recipe installed Google Chrome, use `/usr/bin/google-chrome-stable`. Confirm on the server with `which google-chrome-stable chromium chromium-browser`.
 
 ## Restore Notes
 

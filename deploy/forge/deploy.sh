@@ -18,7 +18,7 @@ $FORGE_PHP artisan storage:link
 $FORGE_PHP artisan migrate --force --no-interaction
 $FORGE_PHP artisan db:seed --class=BootstrapSeeder --force --no-interaction
 $FORGE_PHP artisan optimize
-$FORGE_PHP artisan ernte:doctor --no-interaction
+$FORGE_PHP artisan ernte:doctor --advisory --no-interaction
 
 $ACTIVATE_RELEASE()
 

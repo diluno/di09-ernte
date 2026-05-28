@@ -11,7 +11,9 @@ use Throwable;
 
 class DoctorCommand extends Command
 {
-    protected $signature = 'ernte:doctor {--json : Output machine-readable JSON}';
+    protected $signature = 'ernte:doctor
+        {--json : Output machine-readable JSON}
+        {--advisory : Print failures but exit successfully}';
 
     protected $description = 'Check the production runtime dependencies Ernte needs.';
 
@@ -36,6 +38,10 @@ class DoctorCommand extends Command
             foreach ($checks as $check) {
                 $this->line(sprintf('[%s] %s - %s', strtoupper($check['status']), $check['name'], $check['detail']));
             }
+        }
+
+        if ($this->option('advisory')) {
+            return self::SUCCESS;
         }
 
         return collect($checks)->contains(fn (array $check) => $check['status'] === 'fail')
