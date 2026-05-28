@@ -16,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -161,7 +162,7 @@ class InvoiceController extends Controller
     {
         $data = $request->validated();
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($data, $invoice) {
+        DB::transaction(function () use ($data, $invoice) {
             if (array_key_exists('notes', $data)) {
                 $invoice->notes = $data['notes'];
             }
