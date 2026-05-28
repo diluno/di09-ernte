@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import BurnDown from '@/Components/BurnDown.vue';
 import Heatmap from '@/Components/Heatmap.vue';
@@ -39,6 +39,13 @@ onMounted(() => {
   pushRecent({ url: `/projects/${props.project.code}`, label: props.project.name });
 });
 
+function togglePin() {
+  const url = props.project.is_pinned
+    ? `/projects/${props.project.code}/unpin`
+    : `/projects/${props.project.code}/pin`;
+  router.post(url, {}, { preserveScroll: true });
+}
+
 function fmtHours(h) { return `${h.toFixed(1)}h`; }
 function fmtMoneyShort(v) { return formatChf(v); }
 
@@ -62,6 +69,11 @@ const remaining = computed(() => Math.max(0, props.project.budget_hours - props.
       </h1>
     </div>
     <div style="display: flex; gap: 8px">
+      <button
+        class="btn"
+        :class="{ primary: project.is_pinned }"
+        @click="togglePin"
+      >{{ project.is_pinned ? '★ Pinned' : '☆ Pin' }}</button>
       <button class="btn ghost" disabled title="Use the timer page or ⌘+space (Phase 2b shortcut)">⏵ Start timer</button>
       <button class="btn" disabled title="Phase 2b">Export</button>
       <Link :href="`/invoices/new?client=${project.client.id}&project=${project.id}`" class="btn primary">+ Invoice</Link>
