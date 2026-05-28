@@ -134,7 +134,12 @@ class DemoFixturesSeeder extends Seeder
 
                 // One draft.
                 $builder->buildDraftFromEntries(
-                    $atlas, $fleet, TimeEntry::where('project_id', $fleet->id)->whereNull('invoice_id')->where('billable', true)->get(),
+                    $atlas, $fleet,
+                    TimeEntry::where('project_id', $fleet->id)
+                        ->whereNull('invoice_id')
+                        ->where('billable', true)
+                        ->whereDate('started_at', '<', Carbon::today())  // only backdated entries; leave today's unbilled
+                        ->get(),
                     Carbon::now()->subMonthNoOverflow()->startOfMonth()->toDateString(),
                     Carbon::now()->subMonthNoOverflow()->endOfMonth()->toDateString(),
                 );
