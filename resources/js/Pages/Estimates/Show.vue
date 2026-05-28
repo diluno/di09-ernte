@@ -39,6 +39,7 @@ const EVENT_LABEL = {
   converted: 'Converted to invoice', pdf_generated: 'Generated PDF',
 };
 function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'; }
 </script>
 
 <template>
@@ -84,7 +85,7 @@ function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-d
       <h3 class="section-title" style="margin-top: 24px">Validity</h3>
       <div style="font-size: var(--fs-sm); color: var(--ink-2)">
         <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border)">
-          <span>Valid until</span><span class="muted">{{ estimate.valid_until ?? '—' }}</span>
+          <span>Valid until</span><span class="muted">{{ fmtDate(estimate.valid_until) }}</span>
         </div>
       </div>
     </aside>
