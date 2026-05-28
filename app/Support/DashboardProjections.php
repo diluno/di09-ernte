@@ -128,7 +128,7 @@ class DashboardProjections
             'week_hours' => round($weekSecs / 3600, 1),
             'unbilled_amount' => round(((float) $unbilledRows->rappen) / 100, 2),
             'unbilled_hours' => round(((int) $unbilledRows->secs) / 3600, 1),
-            'outstanding_amount' => 0.0,        // populated in Phase 2b
+            'outstanding_amount' => \App\Support\InvoiceProjections::stats()['outstanding'],
         ];
     }
 }
