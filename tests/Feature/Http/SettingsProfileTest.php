@@ -61,6 +61,25 @@ test('PATCH /settings/profile updates the business profile', function () {
     expect($profile->reminder_days_after_due)->toBe(10);
 });
 
+test('PATCH /settings/profile stores a blank invoice prefix as an empty string', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->patch('/settings/profile', [
+            'name' => 'Updated Studio',
+            'country' => 'CH',
+            'qr_iban' => null,
+            'default_currency' => 'CHF',
+            'default_vat_rate' => 8.10,
+            'invoice_number_prefix' => null,
+            'reminder_days_after_due' => 7,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect(BusinessProfile::current()->invoice_number_prefix)->toBe('');
+});
+
 test('invalid profile fields are rejected', function () {
     $user = User::factory()->create();
 

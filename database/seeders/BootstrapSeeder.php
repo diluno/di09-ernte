@@ -29,7 +29,7 @@ class BootstrapSeeder extends Seeder
             ]
         );
 
-        BusinessProfile::updateOrCreate(
+        BusinessProfile::firstOrCreate(
             ['id' => 1],
             [
                 'name' => env('BUSINESS_NAME', 'Your Name'),

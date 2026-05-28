@@ -41,6 +41,10 @@ class UpdateBusinessProfileRequest extends FormRequest
             $this->merge(['country' => strtoupper((string) $this->input('country'))]);
         }
 
+        if ($this->has('invoice_number_prefix')) {
+            $this->merge(['invoice_number_prefix' => (string) $this->input('invoice_number_prefix', '')]);
+        }
+
         foreach (['iban', 'qr_iban'] as $field) {
             if ($this->has($field)) {
                 $this->merge([$field => SwissIban::normalize($this->input($field))]);
