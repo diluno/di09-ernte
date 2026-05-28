@@ -30,3 +30,7 @@ test('a project can be pinned via pinned_at and the pinned scope finds it', func
     expect($ids)->toContain($pinned->id);
     expect($ids)->not->toContain($unpinned->id);
 });
+
+test('the projects table has no glyph column', function () {
+    expect(\Illuminate\Support\Facades\Schema::hasColumn('projects', 'glyph'))->toBeFalse();
+});

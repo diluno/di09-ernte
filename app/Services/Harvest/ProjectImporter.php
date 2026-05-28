@@ -42,7 +42,6 @@ class ProjectImporter
                 'budget_amount_rappen' => $isAmount ? (int) round($budget * 100) : 0,
                 'started_on' => $row['starts_on'] ?? null,
                 'deadline_on' => $row['ends_on'] ?? null,
-                'glyph' => '▦',
             ]);
         }
 

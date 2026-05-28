@@ -27,7 +27,6 @@ class ProjectDetail
                 'id' => $project->id,
                 'name' => $project->name,
                 'code' => $project->code,
-                'glyph' => $project->glyph,
                 'status' => $project->status,
                 'is_pinned' => (bool) $project->pinned_at,
                 'description' => $project->description,

@@ -68,7 +68,6 @@ test('POST /projects creates a new project', function () {
         'client_id' => $client->id,
         'name' => 'New Project',
         'code' => 'NEW-1',
-        'glyph' => 'alt-0',
         'rate_rappen' => 12000,
         'budget_hours' => 100,
         'budget_amount_rappen' => 1200000,
@@ -86,7 +85,7 @@ test('POST /projects rejects a duplicate code', function () {
     $this->actingAs($user)->post('/projects', [
         'client_id' => $client->id,
         'name' => 'x', 'code' => 'DUP',
-        'glyph' => 'alt-0', 'rate_rappen' => 0,
+        'rate_rappen' => 0,
         'billable' => true,
     ])->assertSessionHasErrors('code');
 });

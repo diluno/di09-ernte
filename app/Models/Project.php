@@ -11,7 +11,7 @@ class Project extends Model
     use HasFactory;
 
     protected $fillable = [
-        'client_id', 'name', 'code', 'description', 'glyph', 'status', 'pinned_at',
+        'client_id', 'name', 'code', 'description', 'status', 'pinned_at',
         'billable', 'retainer', 'retainer_hours', 'retainer_resets_monthly',
         'budget_hours', 'budget_amount_rappen', 'rate_rappen',
         'started_on', 'deadline_on',

@@ -15,7 +15,6 @@ class StoreProjectRequest extends FormRequest
             'name' => 'required|string|max:255',
             'code' => 'required|string|max:32|unique:projects,code',
             'description' => 'nullable|string',
-            'glyph' => 'required|in:alt-0,alt-1,alt-2,alt-3,alt-4',
             'billable' => 'required|boolean',
             'retainer' => 'sometimes|boolean',
             'retainer_hours' => 'nullable|integer|min:0',

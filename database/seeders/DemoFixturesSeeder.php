@@ -31,14 +31,14 @@ class DemoFixturesSeeder extends Seeder
             ])->map(fn ($c) => Client::firstOrCreate(['short_code' => $c['short_code']], $c));
 
             $projectDefs = [
-                ['code' => 'ATLS-FLT', 'client' => 'AR', 'name' => 'Fleet Console v2',         'glyph' => 'alt-0', 'budget_hours' => 220, 'budget_amount_rappen' => 3190000, 'rate_rappen' => 14500],
-                ['code' => 'KS-ERP',   'client' => 'KS', 'name' => 'ERP Migration',            'glyph' => 'alt-1', 'budget_hours' => 160, 'budget_amount_rappen' => 1920000, 'rate_rappen' => 12000],
-                ['code' => 'ATLS-DOC', 'client' => 'AR', 'name' => 'Developer Docs Portal',    'glyph' => 'alt-2', 'budget_hours' => 80,  'budget_amount_rappen' => 1160000, 'rate_rappen' => 14500],
-                ['code' => 'NL-WEB',   'client' => 'NP', 'name' => 'Marketing Site Refresh',   'glyph' => 'alt-3', 'budget_hours' => 120, 'budget_amount_rappen' => 1560000, 'rate_rappen' => 13000],
-                ['code' => 'KF-BRD',   'client' => 'KF', 'name' => 'Brand System',             'glyph' => 'alt-4', 'budget_hours' => 60,  'budget_amount_rappen' => 900000,  'rate_rappen' => 15000],
-                ['code' => 'HS-IOS',   'client' => 'HS', 'name' => 'iOS App MVP',              'glyph' => 'alt-0', 'budget_hours' => 100, 'budget_amount_rappen' => 1100000, 'rate_rappen' => 11000],
-                ['code' => 'KS-SUP',   'client' => 'KS', 'name' => 'Retainer / Support',       'glyph' => 'alt-1', 'budget_hours' => 16,  'budget_amount_rappen' => 192000,  'rate_rappen' => 12000, 'retainer' => true],
-                ['code' => 'ERNTE',    'client' => 'PR', 'name' => 'ernte (self)',              'glyph' => 'alt-2', 'budget_hours' => 0,   'budget_amount_rappen' => 0,       'rate_rappen' => 0,     'billable' => false],
+                ['code' => 'ATLS-FLT', 'client' => 'AR', 'name' => 'Fleet Console v2',         'budget_hours' => 220, 'budget_amount_rappen' => 3190000, 'rate_rappen' => 14500],
+                ['code' => 'KS-ERP',   'client' => 'KS', 'name' => 'ERP Migration',            'budget_hours' => 160, 'budget_amount_rappen' => 1920000, 'rate_rappen' => 12000],
+                ['code' => 'ATLS-DOC', 'client' => 'AR', 'name' => 'Developer Docs Portal',    'budget_hours' => 80,  'budget_amount_rappen' => 1160000, 'rate_rappen' => 14500],
+                ['code' => 'NL-WEB',   'client' => 'NP', 'name' => 'Marketing Site Refresh',   'budget_hours' => 120, 'budget_amount_rappen' => 1560000, 'rate_rappen' => 13000],
+                ['code' => 'KF-BRD',   'client' => 'KF', 'name' => 'Brand System',             'budget_hours' => 60,  'budget_amount_rappen' => 900000,  'rate_rappen' => 15000],
+                ['code' => 'HS-IOS',   'client' => 'HS', 'name' => 'iOS App MVP',              'budget_hours' => 100, 'budget_amount_rappen' => 1100000, 'rate_rappen' => 11000],
+                ['code' => 'KS-SUP',   'client' => 'KS', 'name' => 'Retainer / Support',       'budget_hours' => 16,  'budget_amount_rappen' => 192000,  'rate_rappen' => 12000, 'retainer' => true],
+                ['code' => 'ERNTE',    'client' => 'PR', 'name' => 'ernte (self)',              'budget_hours' => 0,   'budget_amount_rappen' => 0,       'rate_rappen' => 0,     'billable' => false],
             ];
 
             foreach ($projectDefs as $d) {
@@ -48,7 +48,6 @@ class DemoFixturesSeeder extends Seeder
                     [
                         'client_id' => $client->id,
                         'name' => $d['name'],
-                        'glyph' => $d['glyph'],
                         'status' => 'active',
                         'billable' => $d['billable'] ?? true,
                         'retainer' => $d['retainer'] ?? false,

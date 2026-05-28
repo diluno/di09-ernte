@@ -99,7 +99,6 @@ class ClientDetail
                     'id' => $project->id,
                     'code' => $project->code,
                     'name' => $project->name,
-                    'glyph' => $project->glyph,
                     'status' => $project->status,
                     'billable' => (bool) $project->billable,
                     'rate' => (int) round($project->rate_rappen / 100),
@@ -116,7 +115,7 @@ class ClientDetail
     {
         return TimeEntry::query()
             ->whereIn('project_id', $projectIds)
-            ->with(['project:id,name,code,glyph', 'task:id,name'])
+            ->with(['project:id,name,code', 'task:id,name'])
             ->orderByDesc('started_at')
             ->limit(8)
             ->get()
@@ -133,7 +132,6 @@ class ClientDetail
                     'id' => $entry->project->id,
                     'name' => $entry->project->name,
                     'code' => $entry->project->code,
-                    'glyph' => $entry->project->glyph,
                 ],
             ])
             ->all();

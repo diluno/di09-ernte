@@ -69,7 +69,7 @@ test('sidebar shared prop contains nav_counts, pinned, week_hours', function () 
             ->has('sidebar', fn (Assert $s) => $s
                 ->has('nav_counts.projects')
                 ->has('nav_counts.clients')
-                ->has('pinned')                  // array of {code, name, glyph}
+                ->has('pinned')                  // array of {id, code, name}
                 ->has('week_hours')              // 7-element array Mon..Sun
                 ->has('today_hours')             // number, seconds today
                 ->etc()

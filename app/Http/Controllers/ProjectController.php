@@ -63,7 +63,6 @@ class ProjectController extends Controller
                 'client_id' => $project->client_id,
                 'name' => $project->name,
                 'code' => $project->code,
-                'glyph' => $project->glyph,
                 'description' => $project->description,
                 'billable' => (bool) $project->billable,
                 'budget_hours' => (int) $project->budget_hours,

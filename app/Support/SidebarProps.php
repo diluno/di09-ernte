@@ -14,7 +14,7 @@ class SidebarProps
     {
         $entry = TimeEntry::running()
             ->where('user_id', $user->id)
-            ->with(['project:id,name,code,glyph,rate_rappen', 'task:id,name'])
+            ->with(['project:id,name,code,rate_rappen', 'task:id,name'])
             ->first();
 
         if (! $entry) {
@@ -30,7 +30,6 @@ class SidebarProps
                 'id' => $entry->project->id,
                 'name' => $entry->project->name,
                 'code' => $entry->project->code,
-                'glyph' => $entry->project->glyph,
                 'rate_rappen' => (int) $entry->project->rate_rappen,
             ],
             'task' => $entry->task ? [
@@ -59,12 +58,11 @@ class SidebarProps
         return Project::active()
             ->pinned()
             ->orderBy('name')
-            ->get(['id', 'name', 'code', 'glyph'])
+            ->get(['id', 'name', 'code'])
             ->map(fn ($p) => [
                 'id' => $p->id,
                 'name' => $p->name,
                 'code' => $p->code,
-                'glyph' => $p->glyph,
             ])
             ->all();
     }
