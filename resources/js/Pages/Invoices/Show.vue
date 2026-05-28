@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
@@ -32,6 +32,8 @@ function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-d
 </script>
 
 <template>
+  <Head :title="`Invoice #${invoice.number}`" />
+
   <div class="page-head">
     <div>
       <div class="crumb">

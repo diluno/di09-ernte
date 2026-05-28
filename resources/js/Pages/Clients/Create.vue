@@ -1,5 +1,5 @@
 <script setup>
-import { Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
@@ -17,6 +17,8 @@ function submit() {
 </script>
 
 <template>
+  <Head title="New client" />
+
   <div class="page-head">
     <div>
       <div class="crumb">

@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted } from 'vue';
-import { Link, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { pushRecent } from '@/composables/useRecent.js';
 
@@ -28,6 +28,8 @@ function archive() {
 </script>
 
 <template>
+  <Head :title="`Edit ${client.name}`" />
+
   <div class="page-head">
     <div>
       <div class="crumb">

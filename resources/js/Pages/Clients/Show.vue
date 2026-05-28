@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import BudgetBar from '@/Components/BudgetBar.vue';
 import EntryRow from '@/Components/EntryRow.vue';
@@ -34,6 +34,8 @@ function fmtDate(d) {
 </script>
 
 <template>
+  <Head :title="client.name" />
+
   <div class="page-head">
     <div>
       <div class="crumb">

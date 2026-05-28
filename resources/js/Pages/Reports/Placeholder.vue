@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { Head } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 defineOptions({ layout: AppLayout });
 </script>
 
 <template>
+  <Head title="Reports" />
+
   <div class="page-head">
     <div>
       <div class="crumb">~ / reports</div>

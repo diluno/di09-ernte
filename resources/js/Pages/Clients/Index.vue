@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Sparkline from '@/Components/Sparkline.vue';
 import { formatChf } from '@/formatters/money.js';
@@ -34,6 +34,8 @@ function fmtMoneyShort(v) { return formatChf(v); }
 </script>
 
 <template>
+  <Head title="Clients" />
+
   <div class="page-head">
     <div>
       <div class="crumb">~ / clients</div>

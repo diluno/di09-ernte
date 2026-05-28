@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref } from 'vue';
-import { Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
@@ -74,6 +74,8 @@ function save() {
 </script>
 
 <template>
+  <Head :title="client ? `New invoice for ${client.name}` : 'New invoice'" />
+
   <div class="page-head">
     <div>
       <div class="crumb">

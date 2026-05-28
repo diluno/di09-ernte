@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
@@ -38,6 +38,8 @@ const TABS = computed(() => [
 </script>
 
 <template>
+  <Head title="Invoices" />
+
   <div class="page-head">
     <div>
       <div class="crumb">~ / invoices</div>

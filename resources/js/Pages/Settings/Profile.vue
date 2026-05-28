@@ -1,5 +1,5 @@
 <script setup>
-import { useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
@@ -33,6 +33,8 @@ function submit() {
 </script>
 
 <template>
+  <Head title="Settings" />
+
   <div class="page-head">
     <div>
       <div class="crumb">~ / settings</div>

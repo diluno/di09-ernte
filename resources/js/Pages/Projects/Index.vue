@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Sparkline from '@/Components/Sparkline.vue';
 import BudgetBar from '@/Components/BudgetBar.vue';
@@ -46,6 +46,8 @@ function relativeTime(iso) {
 </script>
 
 <template>
+  <Head title="Projects" />
+
   <div class="page-head">
     <div>
       <div class="crumb">~ / projects</div>

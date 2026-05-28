@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
-import { Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import BurnDown from '@/Components/BurnDown.vue';
 import Heatmap from '@/Components/Heatmap.vue';
@@ -46,6 +46,8 @@ const remaining = computed(() => Math.max(0, props.project.budget_hours - props.
 </script>
 
 <template>
+  <Head :title="`${project.code} · ${project.name}`" />
+
   <div class="page-head">
     <div>
       <div class="crumb">

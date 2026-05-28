@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { router, useForm, usePage } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TimerHero from '@/Components/TimerHero.vue';
 import EntryRow from '@/Components/EntryRow.vue';
@@ -73,6 +73,8 @@ function submitManual() {
 </script>
 
 <template>
+  <Head title="Today" />
+
   <div class="page-head">
     <div>
       <div class="crumb">~ / timer</div>
