@@ -1,6 +1,6 @@
 # Phase 2b carryover notes
 
-Hand-off from the Phase 2a/2b build train. Captures what shipped, what was deliberately deferred, and the items that should shape the production packaging phase. Not bugs — forward-compat hooks and reminders. Read this alongside the spec (`docs/superpowers/specs/2026-05-27-ernte-design.md`, especially §8 deployment) before writing the Phase 3 plan.
+Hand-off from the Phase 2a/2b build train. Captures what shipped, what was deliberately deferred, and the items that should shape the production deployment phase. Not bugs — forward-compat hooks and reminders. Read this alongside the spec (`docs/superpowers/specs/2026-05-27-ernte-design.md`, especially §8 deployment) before writing the Phase 3 plan. **Deployment direction has changed:** Phase 3 should target Laravel Forge, not Docker/docker-compose.
 
 ## State of the app after Phase 2a
 
@@ -36,7 +36,7 @@ Done:
 - **Keyboard shortcuts** — `AppLayout` owns `space`, `n`, `⌘P`, `g d/t/c/i`, `/`, and `⌘K`, with text-input guards.
 - **Backup command** — `ernte:backup` creates a gzipped database dump, optional invoices tarball, manifest, and `backups` row. Daily schedule at 03:00.
 
-(Production docker-compose + `bin/install` + README remains Phase 3.)
+(Laravel Forge production deployment docs/config + README remains Phase 3.)
 
 ## Items deferred from the Phase-1 carryover
 
@@ -70,7 +70,7 @@ Deferred deliberately during 2b-i (the code works for the single-user happy path
 - **`GET /invoices/{number}/pdf` is side-effecting** — it renders + writes `pdf_path` on a cache miss, even for drafts (the "Download PDF" button shows unconditionally). A GET should be safe; restrict PDF to issued invoices or stream a transient render for drafts.
 - **`Void` has no confirmation dialog** and is shown on drafts too (lifecycle allows draft→void). Add a confirm prompt for the destructive action.
 - **QR-bill plain-IBAN path uses reference type `NON`** (no reference). Implement SCOR if a non-QR-IBAN business profile is ever used in anger.
-- **Production Browsershot needs three things** now codified in 2b-i: `puppeteer` in `package.json` (installed with `PUPPETEER_SKIP_DOWNLOAD=true`), `->noSandbox()` in `InvoicePdfRenderer`, and the `BROWSERSHOT_CHROME_PATH` → `config('services.browsershot.chrome_path')` key. Phase 3 (production docker-compose) must provide Chromium at that path. The carryover's old "no further system setup" note was incomplete.
+- **Production Browsershot needs three things** now codified in 2b-i: `puppeteer` in `package.json` (installed with `PUPPETEER_SKIP_DOWNLOAD=true`), `->noSandbox()` in `InvoicePdfRenderer`, and the `BROWSERSHOT_CHROME_PATH` → `config('services.browsershot.chrome_path')` key. Phase 3 (Laravel Forge) must install/provide Chromium on the server and set that env var to the real binary path. The carryover's old "no further system setup" note was incomplete.
 - **PDF determinism (spec §9 #7):** `pdf_path` is cached at issue time; the `pdf` route re-renders only if the file is missing. Drafts are the only editable state and have no issued PDF, so there's no stale-PDF risk today — but revisit if issued invoices ever become editable.
 
 ## Smaller findings worth a sweep (none block 2b)
@@ -86,6 +86,6 @@ Deferred deliberately during 2b-i (the code works for the single-user happy path
 
 ## Suggested handoff prompt for the new conversation
 
-> Write the Phase 3 production packaging plan for ernte; read the spec §8 and the phase-2b carryover doc first.
+> Write the Phase 3 Laravel Forge deployment plan for ernte; read the spec §8 and the phase-2b carryover doc first. Note that Forge supersedes the spec's earlier docker-compose direction.
 
-2b-i shipped the invoice subsystem (Index/Create/Show/PDF/QR-bill) and 2b-ii shipped send/reminders, Settings/Profile, Reports placeholder, ⌘K search/palette, keyboard shortcuts, scheduler commands, and backups. Phase 3 should package the app for production self-hosting: docker-compose, install script, env example, scheduler/queue/service docs, Chromium/Browsershot setup, backup/restore docs, and a fresh-clone smoke path.
+2b-i shipped the invoice subsystem (Index/Create/Show/PDF/QR-bill) and 2b-ii shipped send/reminders, Settings/Profile, Reports placeholder, ⌘K search/palette, keyboard shortcuts, scheduler commands, and backups. Phase 3 should prepare a Laravel Forge deployment runbook: Forge site/server assumptions, deploy script, `.env.example`, Nginx/PHP/storage notes, MariaDB/database setup, queue worker daemon for the `emails` queue, scheduler cron, SMTP configuration, Chromium/Browsershot setup, backup/restore docs, and a fresh Forge-site smoke path.

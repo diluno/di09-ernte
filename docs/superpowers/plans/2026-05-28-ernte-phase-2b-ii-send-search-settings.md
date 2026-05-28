@@ -26,7 +26,7 @@ Phase 2b-i shipped invoice index/create/show/PDF/QR-bill and the lifecycle shell
 - `ernte:backup` command that writes `backups` rows for the statusbar.
 - Carryover update after completion.
 
-Production Docker/`bin/install`/README remain Phase 3.
+Laravel Forge production deployment docs/config remain Phase 3. This supersedes the earlier Docker/`docker-compose` direction.
 
 ---
 
@@ -655,7 +655,7 @@ Update `docs/superpowers/phase-2b-carryover.md`:
 
 - mark 2b-ii complete
 - record final test count/build status
-- keep Phase 3 items: production Docker, `bin/install`, README
+- keep Phase 3 items: Laravel Forge deployment runbook/config, README
 - keep still-valid known-pending notes, especially:
   - real `Clients/Show` and search result retargeting
   - Projects/Show secondary tabs
