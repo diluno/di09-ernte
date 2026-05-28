@@ -71,18 +71,18 @@ function submit() {
       <textarea v-model="form.description" rows="2" />
     </label>
     <label class="field">
-      <span>Budget hours</span>
-      <input type="number" v-model="form.budget_hours" min="0" required />
+      <span>Budget hours <span class="opt">(optional)</span></span>
+      <input type="number" v-model="form.budget_hours" min="0" />
       <small v-if="form.errors.budget_hours" class="err">{{ form.errors.budget_hours }}</small>
     </label>
     <label class="field">
-      <span>Budget amount (CHF)</span>
-      <input type="number" v-model="form.budget_amount" min="0" required />
+      <span>Budget amount (CHF) <span class="opt">(optional)</span></span>
+      <input type="number" v-model="form.budget_amount" min="0" />
       <small v-if="form.errors.budget_amount_rappen" class="err">{{ form.errors.budget_amount_rappen }}</small>
     </label>
     <label class="field">
-      <span>Rate (CHF/h)</span>
-      <input type="number" v-model="form.rate" min="0" required />
+      <span>Rate (CHF/h) <span class="opt">(optional)</span></span>
+      <input type="number" v-model="form.rate" min="0" />
       <small v-if="form.errors.rate_rappen" class="err">{{ form.errors.rate_rappen }}</small>
     </label>
     <label class="field">
@@ -109,4 +109,5 @@ function submit() {
 }
 .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
 .err { color: var(--red); font-size: var(--fs-xs); }
+.opt { color: var(--ink-4); font-weight: 400; }
 </style>

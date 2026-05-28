@@ -19,9 +19,9 @@ class StoreProjectRequest extends FormRequest
             'retainer' => 'sometimes|boolean',
             'retainer_hours' => 'nullable|integer|min:0',
             'retainer_resets_monthly' => 'sometimes|boolean',
-            'budget_hours' => 'required|integer|min:0',
-            'budget_amount_rappen' => 'required|integer|min:0',
-            'rate_rappen' => 'required|integer|min:0',
+            'budget_hours' => 'nullable|integer|min:0',
+            'budget_amount_rappen' => 'nullable|integer|min:0',
+            'rate_rappen' => 'nullable|integer|min:0',
             'started_on' => 'nullable|date',
             'deadline_on' => 'nullable|date|after_or_equal:started_on',
         ];

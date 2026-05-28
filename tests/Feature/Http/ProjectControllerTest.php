@@ -77,6 +77,24 @@ test('POST /projects creates a new project', function () {
     expect(Project::where('code', 'NEW-1')->exists())->toBeTrue();
 });
 
+test('POST /projects can create a project without a budget or rate (defaults to 0)', function () {
+    $user = User::factory()->create();
+    $client = Client::factory()->create();
+
+    $this->actingAs($user)->post('/projects', [
+        'client_id' => $client->id,
+        'name' => 'No Budget',
+        'code' => 'NOBUDG',
+        'billable' => true,
+    ])->assertRedirect('/projects/NOBUDG');
+
+    $p = Project::where('code', 'NOBUDG')->first();
+    expect($p)->not->toBeNull();
+    expect($p->budget_hours)->toBe(0);
+    expect($p->budget_amount_rappen)->toBe(0);
+    expect($p->rate_rappen)->toBe(0);
+});
+
 test('POST /projects rejects a duplicate code', function () {
     $user = User::factory()->create();
     $client = Client::factory()->create();
