@@ -23,6 +23,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/projects/{project:code}/edit', [ProjectController::class, 'edit'])->name('projects.edit');
     Route::patch('/projects/{project}', [ProjectController::class, 'update'])->name('projects.update');
     Route::post('/projects/{project:code}/archive', [ProjectController::class, 'archive'])->name('projects.archive');
+    Route::post('/projects/{project:code}/unarchive', [ProjectController::class, 'unarchive'])->name('projects.unarchive');
     Route::post('/projects/{project:code}/pin', [ProjectController::class, 'pin'])->name('projects.pin');
     Route::post('/projects/{project:code}/unpin', [ProjectController::class, 'unpin'])->name('projects.unpin');
 

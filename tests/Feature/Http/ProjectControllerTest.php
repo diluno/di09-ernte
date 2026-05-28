@@ -265,6 +265,16 @@ test('PATCH /projects/{id} saving the same code is allowed (unique ignores self)
     expect($project->fresh()->name)->toBe('New');
 });
 
+test('POST /projects/{code}/unarchive flips an archived project back to active', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['status' => 'archived']);
+
+    $this->actingAs($user)->post("/projects/{$project->code}/unarchive")
+        ->assertRedirect();
+
+    expect($project->fresh()->status)->toBe('active');
+});
+
 test('POST /tasks adds a task that appears on the project show payload', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();

@@ -88,6 +88,12 @@ class ProjectController extends Controller
         return back();
     }
 
+    public function unarchive(Project $project): RedirectResponse
+    {
+        $project->update(['status' => 'active']);
+        return back();
+    }
+
     public function pin(Project $project): RedirectResponse
     {
         if ($project->pinned_at === null) {
