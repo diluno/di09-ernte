@@ -36,7 +36,7 @@ class InvoiceLifecycle
         });
     }
 
-    private function event(Invoice $invoice, string $kind, array $payload = null): void
+    private function event(Invoice $invoice, string $kind, ?array $payload = null): void
     {
         InvoiceEvent::create([
             'invoice_id' => $invoice->id,
