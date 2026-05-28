@@ -104,6 +104,28 @@ test('convertToInvoice refuses to convert the same estimate twice', function () 
     expect(fn () => test()->lifecycle->convertToInvoice($estimate->fresh()))->toThrow(\DomainException::class);
 });
 
+test('markSent transitions draft -> sent without emailing or needing a client email', function () {
+    test()->client->update(['email' => null]);
+    $estimate = draftEstimate();
+    Mail::fake();
+
+    test()->lifecycle->markSent($estimate);
+
+    $estimate->refresh();
+    expect($estimate->status)->toBe('sent');
+    expect($estimate->issued_on)->not->toBeNull();
+    expect($estimate->valid_until?->toDateString())->toBe(now()->addDays(30)->toDateString());
+    expect($estimate->sent_at)->not->toBeNull();
+    expect($estimate->events()->where('kind', 'sent')->count())->toBe(1);
+    Mail::assertNothingSent();
+});
+
+test('markSent is rejected unless the estimate is draft', function () {
+    $estimate = draftEstimate();
+    $estimate->update(['status' => 'sent']);
+    expect(fn () => test()->lifecycle->markSent($estimate))->toThrow(\DomainException::class);
+});
+
 test('send transitions draft -> sent, stamps dates, caches pdf, mails, writes events', function () {
     BusinessProfile::current()->update(['address_line_1' => 'Bahnhofstrasse 1', 'postal_code' => '8001', 'city' => 'Zürich']);
     test()->client->update(['address_line_1' => 'Friedrichstrasse 47', 'postal_code' => '8004', 'city' => 'Zürich', 'country' => 'CH']);

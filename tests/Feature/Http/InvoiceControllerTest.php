@@ -261,6 +261,25 @@ test('PATCH is rejected once the invoice is not a draft', function () {
     $this->patch("/invoices/{$inv->id}", ['notes' => 'x'])->assertStatus(403);
 });
 
+test('POST /invoices/{id}/mark-sent issues a draft without emailing', function () {
+    $inv = makeDraft();
+    Mail::fake();
+
+    $this->post("/invoices/{$inv->id}/mark-sent")->assertRedirect();
+
+    expect($inv->fresh()->status)->toBe('sent');
+    Mail::assertNothingSent();
+});
+
+test('POST /invoices/{id}/mark-sent is rejected once not a draft', function () {
+    $inv = makeDraft();
+    $inv->update(['status' => 'sent']);
+
+    $this->post("/invoices/{$inv->id}/mark-sent");
+
+    expect($inv->fresh()->status)->toBe('sent'); // unchanged, no error 500
+});
+
 test('POST /invoices/{id}/paid marks a sent invoice paid', function () {
     $inv = makeDraft();
     $inv->update(['status' => 'sent', 'issued_on' => now()->subDay(), 'due_on' => now()->addDays(29)]);

@@ -47,6 +47,28 @@ class InvoiceLifecycle
         });
     }
 
+    /**
+     * draft -> sent without emailing — used when the invoice was sent to the client
+     * by other means. Stamps the same dates as issue(); the PDF is rendered lazily on
+     * download, so this needs neither a client email nor QR-bill setup.
+     */
+    public function markSent(Invoice $invoice): void
+    {
+        if ($invoice->status !== 'draft') {
+            throw new \DomainException("Only a draft can be marked as sent (status: {$invoice->status}).");
+        }
+
+        DB::transaction(function () use ($invoice) {
+            $invoice->update([
+                'status' => 'sent',
+                'issued_on' => now()->toDateString(),
+                'due_on' => now()->addDays(30)->toDateString(),
+                'sent_at' => now(),
+            ]);
+            $this->event($invoice, 'sent', ['manual' => true]);
+        });
+    }
+
     /** sent -> paid. */
     public function markPaid(Invoice $invoice): void
     {

@@ -101,6 +101,28 @@ test('issue transitions draft -> sent, stamps dates, writes pdf_generated + sent
     Mail::assertSent(\App\Mail\InvoiceMail::class, fn ($mail) => $mail->invoice->is($invoice) && $mail->pdfPath === $invoice->pdf_path);
 })->group('browsershot');
 
+test('markSent transitions draft -> sent without emailing or needing a client email', function () {
+    test()->client->update(['email' => null]);
+    [$invoice] = draftWithEntry();
+    Mail::fake();
+
+    test()->lifecycle->markSent($invoice);
+
+    $invoice->refresh();
+    expect($invoice->status)->toBe('sent');
+    expect($invoice->issued_on)->not->toBeNull();
+    expect($invoice->due_on?->toDateString())->toBe(now()->addDays(30)->toDateString());
+    expect($invoice->sent_at)->not->toBeNull();
+    expect($invoice->events()->where('kind', 'sent')->count())->toBe(1);
+    Mail::assertNothingSent();
+});
+
+test('markSent is rejected unless draft', function () {
+    [$invoice] = draftWithEntry();
+    $invoice->update(['status' => 'sent']);
+    expect(fn () => test()->lifecycle->markSent($invoice))->toThrow(\DomainException::class);
+});
+
 test('issue is rejected unless draft', function () {
     [$invoice] = draftWithEntry();
     $invoice->update(['status' => 'sent']);

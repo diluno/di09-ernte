@@ -271,6 +271,16 @@ test('POST /estimates/{id}/send keeps draft when client email is missing', funct
     expect($est->events()->where('kind', 'sent')->count())->toBe(0);
 });
 
+test('POST /estimates/{id}/mark-sent issues a draft without emailing', function () {
+    $est = makeDraftEstimate();
+    Mail::fake();
+
+    $this->post("/estimates/{$est->id}/mark-sent")->assertRedirect();
+
+    expect($est->fresh()->status)->toBe('sent');
+    Mail::assertNothingSent();
+});
+
 test('POST /estimates/{id}/send issues the draft', function () {
     BusinessProfile::current()->update(['address_line_1' => 'Bahnhofstrasse 1', 'postal_code' => '8001', 'city' => 'Zürich']);
     $this->client->update(['address_line_1' => 'Friedrichstrasse 47', 'postal_code' => '8004', 'city' => 'Zürich', 'country' => 'CH']);

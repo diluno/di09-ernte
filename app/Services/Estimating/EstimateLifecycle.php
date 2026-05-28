@@ -48,6 +48,28 @@ class EstimateLifecycle
         });
     }
 
+    /**
+     * draft -> sent without emailing — used when the estimate was sent to the client
+     * by other means. Stamps the same dates as send(); the PDF is rendered lazily on
+     * download, so this needs neither a client email nor a PDF render here.
+     */
+    public function markSent(Estimate $estimate): void
+    {
+        if ($estimate->status !== 'draft') {
+            throw new \DomainException("Only a draft can be marked as sent (status: {$estimate->status}).");
+        }
+
+        DB::transaction(function () use ($estimate) {
+            $estimate->update([
+                'status' => 'sent',
+                'issued_on' => now()->toDateString(),
+                'valid_until' => now()->addDays(30)->toDateString(),
+                'sent_at' => now(),
+            ]);
+            $this->event($estimate, 'sent', ['manual' => true]);
+        });
+    }
+
     /** sent -> accepted. */
     public function accept(Estimate $estimate): void
     {

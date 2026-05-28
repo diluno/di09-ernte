@@ -24,6 +24,10 @@ const badge = computed(() => {
 });
 
 function send()    { router.post(`/estimates/${props.estimate.id}/send`,    {}, { preserveScroll: true }); }
+function markSent() {
+  if (!window.confirm(`Mark estimate #${props.estimate.number} as sent? It will be locked from editing.`)) return;
+  router.post(`/estimates/${props.estimate.id}/mark-sent`, {}, { preserveScroll: true });
+}
 function accept()  { router.post(`/estimates/${props.estimate.id}/accept`,  {}, { preserveScroll: true }); }
 function decline() {
   if (!window.confirm(`Mark estimate #${props.estimate.number} as declined?`)) return;
@@ -59,7 +63,8 @@ function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB', { day: 
     <div style="display: flex; gap: 8px">
       <a :href="pdf_url" class="btn">Download PDF</a>
       <Link v-if="isDraft" :href="`/estimates/${estimate.number}/edit`" class="btn">Edit</Link>
-      <button v-if="isDraft" class="btn primary" @click="send">Send</button>
+      <button v-if="isDraft" class="btn" @click="markSent">Mark as sent</button>
+      <button v-if="isDraft" class="btn primary" @click="send">Send by email</button>
       <template v-else-if="isSent">
         <button class="btn primary" @click="accept">Accept</button>
         <button class="btn ghost" @click="decline">Decline</button>

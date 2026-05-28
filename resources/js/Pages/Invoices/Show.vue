@@ -29,6 +29,10 @@ function saveDoc() {
 const previewSrc = computed(() => `${props.preview_url}?v=${previewVersion.value}`);
 
 function send()    { router.post(`/invoices/${props.invoice.id}/send`,  {}, { preserveScroll: true }); }
+function markSent() {
+  if (!window.confirm(`Mark invoice #${props.invoice.number} as sent? It will be locked from editing.`)) return;
+  router.post(`/invoices/${props.invoice.id}/mark-sent`, {}, { preserveScroll: true });
+}
 function markPaid(){ router.post(`/invoices/${props.invoice.id}/paid`,  {}, { preserveScroll: true }); }
 function voidIt()  {
   if (!window.confirm(`Void invoice #${props.invoice.number}? Linked entries will become billable again.`)) return;
@@ -58,7 +62,8 @@ function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-d
     </div>
     <div style="display: flex; gap: 8px">
       <a :href="pdf_url" class="btn">Download PDF</a>
-      <button v-if="isDraft" class="btn primary" @click="send">Send</button>
+      <button v-if="isDraft" class="btn" @click="markSent">Mark as sent</button>
+      <button v-if="isDraft" class="btn primary" @click="send">Send by email</button>
       <button v-else-if="isSent" class="btn primary" @click="markPaid">Mark paid</button>
       <button v-if="invoice.status !== 'paid' && invoice.status !== 'void'" class="btn ghost" @click="voidIt">Void</button>
     </div>

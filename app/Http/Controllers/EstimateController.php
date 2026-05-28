@@ -219,6 +219,17 @@ class EstimateController extends Controller
         return back()->with('success', "Estimate {$estimate->number} sent.");
     }
 
+    public function markSent(Estimate $estimate, EstimateLifecycle $lifecycle): RedirectResponse
+    {
+        try {
+            $lifecycle->markSent($estimate);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "Estimate {$estimate->number} marked as sent.");
+    }
+
     public function accept(Estimate $estimate, EstimateLifecycle $lifecycle): RedirectResponse
     {
         try {

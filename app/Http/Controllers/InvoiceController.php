@@ -209,6 +209,17 @@ class InvoiceController extends Controller
         return redirect("/invoices/{$invoice->number}")->with('success', 'Draft updated.');
     }
 
+    public function markSent(Invoice $invoice, InvoiceLifecycle $lifecycle): RedirectResponse
+    {
+        try {
+            $lifecycle->markSent($invoice);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "Invoice {$invoice->number} marked as sent.");
+    }
+
     public function markPaid(Invoice $invoice, InvoiceLifecycle $lifecycle): RedirectResponse
     {
         try {
