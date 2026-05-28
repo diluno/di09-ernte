@@ -15,7 +15,7 @@ This is the Phase 3 production path for Ernte. It supersedes the older docker-co
 Run the recipe in `deploy/forge/provision-chrome-and-backups.sh` once on the Forge server. It installs:
 
 - Google Chrome for Browsershot PDF generation.
-- `default-mysql-client`, which provides `mysqldump` for `php artisan ernte:backup`.
+- A MySQL client only if `mysqldump` is missing. Forge/MySQL servers often already provide `/usr/bin/mysqldump`; in that case the script skips the client package to avoid package-source conflicts.
 - Minimal libraries Chrome commonly needs on Ubuntu servers.
 
 After it finishes, set this in the Forge site's environment:
@@ -25,7 +25,7 @@ BROWSERSHOT_CHROME_PATH=/usr/bin/google-chrome-stable
 PUPPETEER_SKIP_DOWNLOAD=true
 ```
 
-If `apt-get update` fails with `File has unexpected size` or `Mirror sync in progress`, the Ubuntu mirror is temporarily inconsistent. The provision script now clears apt package lists and retries three times. If it still fails, wait a few minutes and rerun the script. On DigitalOcean, this usually means `mirrors.digitalocean.com` is mid-sync; switching the server's Ubuntu apt source to the main Ubuntu archive is also safe if you do not want to wait.
+If `apt-get update` fails with `File has unexpected size` or `Mirror sync in progress`, the Ubuntu mirror is temporarily inconsistent. The provision script clears apt package lists, retries, and then switches only DigitalOcean Ubuntu mirror entries from `mirrors.digitalocean.com/ubuntu` to `archive.ubuntu.com/ubuntu` before retrying again.
 
 ## Environment
 
