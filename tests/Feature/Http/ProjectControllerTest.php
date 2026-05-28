@@ -245,6 +245,26 @@ test('GET /projects/{code}/edit renders Projects/Edit with project money in CHF 
         );
 });
 
+test('PATCH /projects/{id} with a changed code redirects to the new show URL and persists', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['code' => 'OLD-1']);
+
+    $this->actingAs($user)->patch("/projects/{$project->id}", ['code' => 'NEW-1'])
+        ->assertRedirect('/projects/NEW-1');
+
+    expect($project->fresh()->code)->toBe('NEW-1');
+});
+
+test('PATCH /projects/{id} saving the same code is allowed (unique ignores self) and redirects to show', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['code' => 'KEEP-1', 'name' => 'Old']);
+
+    $this->actingAs($user)->patch("/projects/{$project->id}", ['code' => 'KEEP-1', 'name' => 'New'])
+        ->assertRedirect('/projects/KEEP-1');
+
+    expect($project->fresh()->name)->toBe('New');
+});
+
 test('POST /tasks adds a task that appears on the project show payload', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();

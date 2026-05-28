@@ -79,7 +79,7 @@ class ProjectController extends Controller
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse
     {
         $project->update($request->validated());
-        return back();
+        return redirect("/projects/{$project->code}");
     }
 
     public function archive(Project $project): RedirectResponse
