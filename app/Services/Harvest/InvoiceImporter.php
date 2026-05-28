@@ -40,6 +40,13 @@ class InvoiceImporter
             $total = (int) round(((float) ($row['amount'] ?? 0)) * 100);
             $vat = (int) round((((float) ($row['tax_amount'] ?? 0)) + ((float) ($row['tax2_amount'] ?? 0))) * 100);
 
+            if ($vat > $total) {
+                $warnings[] = "Invoice {$row['number']}: VAT exceeds total; subtotal clamped to 0.";
+            }
+            if (! empty($row['tax2'])) {
+                $warnings[] = "Invoice {$row['number']} has a second tax (tax2); stored as a single blended VAT rate.";
+            }
+
             $invoice = Invoice::create([
                 'number' => $row['number'],
                 'client_id' => $client->id,
@@ -51,7 +58,7 @@ class InvoiceImporter
                 'paid_at' => isset($row['paid_at']) ? Carbon::parse($row['paid_at']) : null,
                 'currency' => $currency,
                 'vat_rate' => (float) ($row['tax'] ?? 0),
-                'subtotal_rappen' => $total - $vat,
+                'subtotal_rappen' => max(0, $total - $vat),
                 'vat_rappen' => $vat,
                 'total_rappen' => $total,
                 'notes' => $row['notes'] ?? null,

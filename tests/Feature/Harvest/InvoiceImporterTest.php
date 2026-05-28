@@ -77,3 +77,11 @@ test('non-CHF invoices are imported with a warning', function () {
     expect($result['warnings'])->not->toBeEmpty();
     expect(Invoice::first()->currency)->toBe('USD');
 });
+
+test('skips an invoice whose client was not imported', function () {
+    $result = (new InvoiceImporter())->import([harvestInvoice(['client' => ['id' => 99999]])], $this->clientMap);
+
+    expect($result['imported'])->toBe(0);
+    expect($result['warnings'])->not->toBeEmpty();
+    expect(Invoice::count())->toBe(0);
+});
