@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import Sparkline from '@/Components/Sparkline.vue';
 
 defineOptions({ layout: AppLayout });
 
