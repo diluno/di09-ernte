@@ -25,6 +25,8 @@ BROWSERSHOT_CHROME_PATH=/usr/bin/google-chrome-stable
 PUPPETEER_SKIP_DOWNLOAD=true
 ```
 
+If `apt-get update` fails with `File has unexpected size` or `Mirror sync in progress`, the Ubuntu mirror is temporarily inconsistent. The provision script now clears apt package lists and retries three times. If it still fails, wait a few minutes and rerun the script. On DigitalOcean, this usually means `mirrors.digitalocean.com` is mid-sync; switching the server's Ubuntu apt source to the main Ubuntu archive is also safe if you do not want to wait.
+
 ## Environment
 
 Use `.env.forge.example` as the production checklist. In Forge, fill the real values for:
