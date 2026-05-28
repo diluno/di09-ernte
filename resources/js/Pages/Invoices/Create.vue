@@ -6,16 +6,23 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-  client: { type: Object, required: true },
+  client: { type: Object, default: null },
   project: { type: Object, default: null },
-  period: { type: Object, required: true },
-  entries: { type: Array, required: true },
-  suggested_lines: { type: Array, required: true },
+  period: { type: Object, default: null },
+  entries: { type: Array, default: () => [] },
+  suggested_lines: { type: Array, default: () => [] },
+  clients: { type: Array, default: () => [] }, // populated only in picker mode (no client yet)
 });
 
+// Picker mode: no client chosen yet — let the user pick one, then reload with ?client=.
+const picked = ref(null);
+function chooseClient() {
+  if (picked.value) router.get('/invoices/new', { client: picked.value });
+}
+
 // Period: reload the page with new from/to to re-query eligible entries.
-const from = ref(props.period.start);
-const to = ref(props.period.end);
+const from = ref(props.period?.start ?? '');
+const to = ref(props.period?.end ?? '');
 function reloadPeriod() {
   router.get('/invoices/new', {
     client: props.client.id,
@@ -74,16 +81,36 @@ function save() {
       </div>
       <h1 class="page-title">
         New invoice
-        <span class="meta">{{ client.name }}<span v-if="project" class="ascii-dot">·</span><span v-if="project">{{ project.name }}</span></span>
+        <span v-if="client" class="meta">{{ client.name }}<span v-if="project" class="ascii-dot">·</span><span v-if="project">{{ project.name }}</span></span>
       </h1>
     </div>
     <div style="display: flex; gap: 8px">
       <Link href="/invoices" class="btn ghost">Cancel</Link>
-      <button class="btn primary" :disabled="form.processing || lines.length === 0" @click="save">Create draft</button>
+      <button v-if="client" class="btn primary" :disabled="form.processing || lines.length === 0" @click="save">Create draft</button>
     </div>
   </div>
 
-  <div style="padding: 0 28px 28px; display: grid; grid-template-columns: 1fr 360px; gap: 28px">
+  <!-- Picker mode: choose a client first. -->
+  <div v-if="!client" style="padding: 0 28px 28px; max-width: 460px">
+    <h3 class="section-title">Choose a client</h3>
+    <p class="dim" style="font-size: var(--fs-sm); margin: 0 0 12px">
+      Pick the client to invoice — you'll then select billable, unbilled entries for the period.
+      To start from a specific project, use the <strong>+ Invoice</strong> button on a project or client instead.
+    </p>
+    <label class="field" style="margin-bottom: 12px">
+      <span>Client</span>
+      <select v-model="picked">
+        <option :value="null" disabled>Select a client…</option>
+        <option v-for="c in clients" :key="c.id" :value="c.id">{{ c.name }}</option>
+      </select>
+    </label>
+    <button class="btn primary" :disabled="!picked" @click="chooseClient">Continue</button>
+    <p v-if="clients.length === 0" class="muted" style="font-size: var(--fs-sm); margin-top: 12px">
+      No active clients. <Link href="/clients/create">Create one first.</Link>
+    </p>
+  </div>
+
+  <div v-else style="padding: 0 28px 28px; display: grid; grid-template-columns: 1fr 360px; gap: 28px">
     <div>
       <h3 class="section-title">Lines</h3>
       <table class="table">
@@ -157,6 +184,6 @@ function save() {
 .cell-input:focus { outline: none; border-color: var(--accent); background: var(--paper); }
 .cell-input.num { text-align: right; }
 .field { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); color: var(--ink-2); }
-.field input { border: 1px solid var(--border-strong); background: var(--paper); padding: 6px 8px; font-family: inherit; color: var(--ink); }
-.field input:focus { outline: none; border-color: var(--accent); }
+.field input, .field select { border: 1px solid var(--border-strong); background: var(--paper); padding: 6px 8px; font-family: inherit; color: var(--ink); }
+.field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
 </style>

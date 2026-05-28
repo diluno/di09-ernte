@@ -45,6 +45,19 @@ class InvoiceController extends Controller
 
     public function create(Request $request, InvoiceBuilder $builder): Response
     {
+        // The top-level "New invoice" button has no client yet → render a client picker.
+        if (! $request->filled('client')) {
+            return Inertia::render('Invoices/Create', [
+                'client' => null,
+                'project' => null,
+                'period' => null,
+                'entries' => [],
+                'suggested_lines' => [],
+                'clients' => Client::active()->orderBy('name')->get(['id', 'name'])
+                    ->map(fn (Client $c) => ['id' => $c->id, 'name' => $c->name])->values(),
+            ]);
+        }
+
         $client = Client::findOrFail($request->integer('client'));
         $project = $request->filled('project') ? Project::find($request->integer('project')) : null;
 

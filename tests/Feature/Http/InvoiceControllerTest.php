@@ -245,3 +245,14 @@ test('POST /invoices/{id}/send issues the draft', function () {
         ->assertSessionHasNoErrors();
     expect($inv->fresh()->status)->toBe('sent');
 })->group('browsershot');
+
+test('GET /invoices/new without a client renders the client picker (not a 404)', function () {
+    Client::factory()->create(['name' => 'Pickable Co']);
+
+    $this->get('/invoices/new')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Invoices/Create')
+            ->where('client', null)
+            ->has('clients'));
+});
