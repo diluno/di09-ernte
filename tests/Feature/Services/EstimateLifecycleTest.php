@@ -65,6 +65,7 @@ test('convertToInvoice builds a linked draft invoice from the lines', function (
     expect($invoice)->toBeInstanceOf(Invoice::class);
     expect($invoice->status)->toBe('draft');
     expect($invoice->client_id)->toBe(test()->client->id);
+    expect($invoice->project_id)->toBe(test()->project->id);
     expect($invoice->lines)->toHaveCount(1);
     expect($invoice->lines->first()->description)->toBe('Design phase');
     expect($invoice->lines->first()->amount_rappen)->toBe(29000);
@@ -123,3 +124,19 @@ test('send is rejected when the client has no email address', function () {
     expect($estimate->fresh()->status)->toBe('draft');
     expect($estimate->events()->where('kind', 'sent')->count())->toBe(0);
 });
+
+test('mail failures keep the estimate as draft and write no sent event', function () {
+    BusinessProfile::current()->update(['address_line_1' => 'Bahnhofstrasse 1', 'postal_code' => '8001', 'city' => 'Zürich']);
+    test()->client->update(['address_line_1' => 'Friedrichstrasse 47', 'postal_code' => '8004', 'city' => 'Zürich', 'country' => 'CH']);
+    $estimate = draftEstimate();
+
+    Mail::shouldReceive('to')
+        ->once()
+        ->with(test()->client->email)
+        ->andThrow(new RuntimeException('SMTP down'));
+
+    expect(fn () => test()->lifecycle->send($estimate))->toThrow(RuntimeException::class);
+    expect($estimate->fresh()->status)->toBe('draft');
+    expect($estimate->fresh()->sent_at)->toBeNull();
+    expect($estimate->events()->where('kind', 'sent')->count())->toBe(0);
+})->group('browsershot');
