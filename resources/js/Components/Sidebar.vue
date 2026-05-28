@@ -49,13 +49,13 @@ const weekTotal = computed(() => sidebar.value.week_hours.reduce((a, h) => a + h
     </nav>
 
     <div class="side-section">Pinned</div>
-    <div v-if="sidebar.pinned.length === 0" class="muted" style="padding: 4px 14px; font-size: var(--fs-xs)">No projects yet</div>
+    <div v-if="sidebar.pinned.length === 0" class="muted" style="padding: 4px 14px; font-size: var(--fs-xs)">No pinned projects</div>
     <Link
       v-for="(p, i) in sidebar.pinned" :key="p.id"
       :href="`/projects/${p.code}`"
       class="pin-row"
     >
-      <span class="pin-dot" :class="{ solid: i < 2 }" :style="{ color: ['var(--forest)', 'var(--rust)', 'var(--ink)', 'var(--gold)'][i] }" />
+      <span class="pin-dot" :class="{ solid: i < 2 }" :style="{ color: ['var(--forest)', 'var(--rust)', 'var(--ink)', 'var(--gold)'][i % 4] }" />
       <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ p.name }}</span>
     </Link>
 
