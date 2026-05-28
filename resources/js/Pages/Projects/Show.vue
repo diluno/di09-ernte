@@ -2,7 +2,6 @@
 import { computed, onMounted, ref } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import BurnDown from '@/Components/BurnDown.vue';
 import Heatmap from '@/Components/Heatmap.vue';
 import EntryRow from '@/Components/EntryRow.vue';
 import TaskRow from '@/Components/TaskRow.vue';
@@ -20,7 +19,6 @@ const props = defineProps({
   counts:  { type: Object, required: true },
 });
 
-const tab = ref('overview');
 
 const showAddTask = ref(false);
 const taskForm = useForm({
@@ -88,31 +86,9 @@ const remaining = computed(() => Math.max(0, props.project.budget_hours - props.
     </div>
   </div>
 
-  <div class="filter-row">
-    <button
-      v-for="t in [
-        { id: 'overview', label: 'Overview' },
-        { id: 'entries',  label: 'Entries',  count: counts.entries },
-        { id: 'tasks',    label: 'Tasks',    count: counts.tasks },
-        { id: 'team',     label: 'Team',     count: 1 },
-        { id: 'settings', label: 'Settings' },
-      ]" :key="t.id"
-      class="chip"
-      :aria-pressed="tab === t.id"
-      :disabled="t.id !== 'overview'"
-      @click="tab = t.id"
-    >
-      {{ t.label }}
-      <span v-if="t.count !== undefined" class="dim" style="margin-left: 4px">{{ t.count }}</span>
-    </button>
-  </div>
-
   <div class="detail-grid">
     <div class="detail-main">
-      <h3 class="section-title">Budget burn-down</h3>
-      <BurnDown :spent="project.spent_hours" :budget="Math.max(project.budget_hours, 1)" />
-
-      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin: 20px 0 28px">
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin: 0 0 28px">
         <div>
           <div style="font-size: var(--fs-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3)">Hours spent</div>
           <div style="font-size: var(--fs-xl); font-weight: 600; margin-top: 4px" :style="{ color: project.band === 'over' ? 'var(--red)' : 'var(--ink)' }">
