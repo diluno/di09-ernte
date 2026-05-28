@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import Icon from '@/Components/Icon.vue';
 import { fmtDate } from '@/formatters/date.js';
 
 defineOptions({ layout: AppLayout });
@@ -85,7 +86,7 @@ const TABS = computed(() => [
       {{ tab.label }} <span class="dim" style="margin-left: 4px">{{ tab.count }}</span>
     </button>
     <div class="search">
-      <span style="color: var(--ink-4)">⌕</span>
+      <Icon name="search" style="color: var(--ink-4)" />
       <input v-model="search" placeholder="filter…" @input="onSearch" />
     </div>
   </div>

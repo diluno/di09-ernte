@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import Icon from '@/Components/Icon.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -121,8 +122,8 @@ function save() {
             <td class="num strong">{{ fmtMoney(Math.round(Number(l.hours) * Number(l.rate) * 100)) }}</td>
             <td><label style="display: flex; gap: 4px; align-items: center"><input type="checkbox" v-model="l.vat_exempt" /><span class="dim" style="font-size: var(--fs-xs)">exempt</span></label></td>
             <td>
-              <button class="icon-btn" title="move up" @click="moveUp(i)">↑</button>
-              <button class="icon-btn" title="remove" @click="removeLine(l.key)">×</button>
+              <button class="icon-btn" title="move up" @click="moveUp(i)"><Icon name="chevron-up" /></button>
+              <button class="icon-btn" title="remove" @click="removeLine(l.key)"><Icon name="close" /></button>
             </td>
           </tr>
           <tr v-if="lines.length === 0"><td colspan="6" class="pad-l muted" style="padding: 16px">No lines. Add one to start.</td></tr>

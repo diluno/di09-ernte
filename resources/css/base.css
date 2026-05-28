@@ -156,9 +156,11 @@ a { color: inherit; text-decoration: none; }
   font-weight: 600;
 }
 .nav-item .glyph {
-  width: 14px; color: var(--ink-3);
-  text-align: center;
+  width: 16px; height: 16px; color: var(--ink-3);
 }
+
+/* Pixel icons: inherit font-size (1em) + currentColor; nudge for baseline alignment. */
+.ico { display: inline-block; vertical-align: -0.125em; flex: 0 0 auto; }
 .nav-item[aria-current="page"] .glyph { color: var(--accent); }
 .nav-item .count {
   margin-left: auto;

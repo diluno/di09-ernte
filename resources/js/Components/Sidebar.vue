@@ -2,17 +2,18 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import WeekBars from '@/Components/WeekBars.vue';
+import Icon from '@/Components/Icon.vue';
 
 const page = usePage();
 const sidebar = computed(() => page.props.sidebar ?? { nav_counts: {}, pinned: [], week_hours: [0,0,0,0,0,0,0], today_hours: 0 });
 
 const NAV = computed(() => [
-  { id: 'projects', href: '/projects', label: 'Projects', glyph: '▤', count: sidebar.value.nav_counts.projects },
-  { id: 'timer',    href: '/timer',    label: 'Timer',    glyph: '◐', count: sidebar.value.today_hours ? `${sidebar.value.today_hours.toFixed(1)}h` : null },
-  { id: 'clients',  href: '/clients',  label: 'Clients',  glyph: '◇', count: sidebar.value.nav_counts.clients },
-  { id: 'invoices', href: '/invoices', label: 'Invoices', glyph: '≡', count: null },
-  { id: 'estimates', href: '/estimates', label: 'Estimates', glyph: '✎', count: null },
-  { id: 'reports',  href: '/reports',  label: 'Reports',  glyph: '△', count: null },
+  { id: 'projects', href: '/projects', label: 'Projects', icon: 'briefcase', count: sidebar.value.nav_counts.projects },
+  { id: 'timer',    href: '/timer',    label: 'Timer',    icon: 'clock', count: sidebar.value.today_hours ? `${sidebar.value.today_hours.toFixed(1)}h` : null },
+  { id: 'clients',  href: '/clients',  label: 'Clients',  icon: 'users', count: sidebar.value.nav_counts.clients },
+  { id: 'invoices', href: '/invoices', label: 'Invoices', icon: 'receipt', count: null },
+  { id: 'estimates', href: '/estimates', label: 'Estimates', icon: 'edit', count: null },
+  { id: 'reports',  href: '/reports',  label: 'Reports',  icon: 'chart', count: null },
 ]);
 
 const current = computed(() => page.url);
@@ -42,7 +43,7 @@ const weekTotal = computed(() => sidebar.value.week_hours.reduce((a, h) => a + h
         class="nav-item"
         :aria-current="isActive(n.href) ? 'page' : undefined"
       >
-        <span class="glyph">{{ n.glyph }}</span>
+        <Icon :name="n.icon" class="glyph" />
         <span>{{ n.label }}</span>
         <span v-if="n.count !== null && n.count !== undefined" class="count">{{ n.count }}</span>
       </Link>

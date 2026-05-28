@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import Icon from '@/Components/Icon.vue';
 import Sparkline from '@/Components/Sparkline.vue';
 import { formatChf } from '@/formatters/money.js';
 import { glyphClass } from '@/formatters/glyph.js';
@@ -63,7 +64,7 @@ function fmtMoneyShort(v) { return formatChf(v); }
       Archived <span class="dim" style="margin-left: 4px">{{ clients.filter((c) => c.archived).length }}</span>
     </button>
     <div class="search">
-      <span style="color: var(--ink-4)">⌕</span>
+      <Icon name="search" style="color: var(--ink-4)" />
       <input v-model="search" placeholder="filter…" />
     </div>
   </div>

@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { router } from '@inertiajs/vue3';
+import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
   task: { type: Object, required: true },
@@ -18,7 +19,7 @@ function toggleDone() {
 
 <template>
   <div class="task-row">
-    <button class="task-check" :class="{ done: task.done }" @click="toggleDone">{{ task.done ? '✓' : '' }}</button>
+    <button class="task-check" :class="{ done: task.done }" @click="toggleDone"><Icon v-if="task.done" name="check" /></button>
     <div class="task-name" :class="{ done: task.done }">{{ task.name }}</div>
     <div class="task-num">{{ task.spent_hours.toFixed(1) }}h / {{ task.budget_hours }}h</div>
     <div class="task-num dim">{{ pct }}%</div>

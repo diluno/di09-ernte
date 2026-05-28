@@ -5,6 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import Heatmap from '@/Components/Heatmap.vue';
 import EntryRow from '@/Components/EntryRow.vue';
 import TaskRow from '@/Components/TaskRow.vue';
+import Icon from '@/Components/Icon.vue';
 import { pushRecent } from '@/composables/useRecent.js';
 import { formatChf } from '@/formatters/money.js';
 import { glyphClass } from '@/formatters/glyph.js';
@@ -79,8 +80,11 @@ const remaining = computed(() => Math.max(0, props.project.budget_hours - props.
         class="btn"
         :class="{ primary: project.is_pinned }"
         @click="togglePin"
-      >{{ project.is_pinned ? '★ Pinned' : '☆ Pin' }}</button>
-      <button class="btn" @click="startTimer">⏵ Start timer</button>
+      >
+        <Icon name="star" :style="{ color: project.is_pinned ? 'var(--gold)' : undefined }" />
+        {{ project.is_pinned ? 'Pinned' : 'Pin' }}
+      </button>
+      <button class="btn" @click="startTimer"><Icon name="play" /> Start timer</button>
       <Link :href="`/projects/${project.code}/edit`" class="btn">Edit</Link>
       <Link :href="`/invoices/new?client=${project.client.id}&project=${project.id}`" class="btn primary">+ Invoice</Link>
     </div>

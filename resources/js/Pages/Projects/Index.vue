@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import Icon from '@/Components/Icon.vue';
 import BudgetBar from '@/Components/BudgetBar.vue';
 import { formatChf } from '@/formatters/money.js';
 import { glyphClass } from '@/formatters/glyph.js';
@@ -83,7 +84,7 @@ function fmtMoneyShort(v) { return formatChf(v); }
 
     <span class="filter-divider" />
     <div class="search">
-      <span style="color: var(--ink-4)">⌕</span>
+      <Icon name="search" style="color: var(--ink-4)" />
       <input v-model="search" placeholder="filter…" @input="onSearch" />
       <span class="kbd">/</span>
     </div>
