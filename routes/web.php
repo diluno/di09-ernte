@@ -40,6 +40,12 @@ Route::middleware('auth')->group(function () {
     Route::get ('/invoices/new', [InvoiceController::class, 'create'])->name('invoices.create');
     Route::post('/invoices',     [InvoiceController::class, 'store'])->name('invoices.store');
 
+    Route::get  ('/invoices/{invoice:number}',          [InvoiceController::class, 'show'])->name('invoices.show');
+    Route::get  ('/invoices/{invoice:number}/preview',  [InvoiceController::class, 'preview'])->name('invoices.preview');
+    Route::patch('/invoices/{invoice}',                 [InvoiceController::class, 'update'])->name('invoices.update');
+    Route::post ('/invoices/{invoice}/paid',            [InvoiceController::class, 'markPaid'])->name('invoices.paid');
+    Route::post ('/invoices/{invoice}/void',            [InvoiceController::class, 'void'])->name('invoices.void');
+
     Route::get('/reports',  fn () => Inertia::render('Reports/Placeholder'))->name('reports.show');
 
     Route::patch('/settings/tweaks', [\App\Http\Controllers\SettingsController::class, 'updateTweaks'])

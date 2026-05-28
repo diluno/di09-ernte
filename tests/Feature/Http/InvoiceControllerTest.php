@@ -3,10 +3,12 @@
 use App\Models\BusinessProfile;
 use App\Models\Client;
 use App\Models\Invoice;
+use App\Models\InvoiceEvent;
 use App\Models\InvoiceLine;
 use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Models\User;
+use App\Services\Invoicing\InvoiceBuilder;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -161,4 +163,74 @@ test('POST /invoices rejects a project belonging to a different client', functio
             ['description' => 'Work', 'hours' => 1.0, 'rate_rappen' => 14500, 'vat_exempt' => false],
         ],
     ])->assertSessionHasErrors('project_id');
+});
+
+function makeDraft(): Invoice
+{
+    $start = now()->subDays(20);
+    $entry = TimeEntry::factory()->create([
+        'user_id' => test()->user->id, 'project_id' => test()->project->id, 'description' => 'Work',
+        'started_at' => $start, 'ended_at' => (clone $start)->addHours(2), 'billable' => true,
+    ]);
+    return app(InvoiceBuilder::class)->buildDraftFromEntries(
+        test()->client, test()->project, TimeEntry::all(),
+        now()->subMonth()->startOfMonth()->toDateString(), now()->subMonth()->endOfMonth()->toDateString()
+    );
+}
+
+test('GET /invoices/{number} renders Invoices/Show with invoice + lines + events', function () {
+    $inv = makeDraft();
+
+    $this->get("/invoices/{$inv->number}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Invoices/Show')
+            ->where('invoice.number', $inv->number)
+            ->where('invoice.status', 'draft')
+            ->has('invoice.lines', 1)
+            ->has('events', 1, fn (Assert $e) => $e->where('kind', 'created')->etc())
+            ->has('linked_entries')
+            ->where('preview_url', "/invoices/{$inv->number}/preview"));
+});
+
+test('GET /invoices/{number}/preview returns raw HTML (not Inertia)', function () {
+    $inv = makeDraft();
+    $res = $this->get("/invoices/{$inv->number}/preview");
+    $res->assertOk();
+    expect($res->headers->get('content-type'))->toContain('text/html');
+    $res->assertSee($inv->number, false);
+});
+
+test('PATCH /invoices/{id} edits a draft notes + lines and recomputes totals', function () {
+    $inv = makeDraft();
+    $this->patch("/invoices/{$inv->id}", [
+        'notes' => 'Thanks for your business.',
+        'lines' => [['description' => 'Edited', 'hours' => 1.0, 'rate_rappen' => 10000, 'vat_exempt' => false]],
+    ])->assertRedirect("/invoices/{$inv->number}");
+
+    $inv->refresh();
+    expect($inv->notes)->toBe('Thanks for your business.');
+    expect($inv->lines)->toHaveCount(1);
+    expect($inv->subtotal_rappen)->toBe(10000);
+    expect($inv->total_rappen)->toBe(10810);
+});
+
+test('PATCH is rejected once the invoice is not a draft', function () {
+    $inv = makeDraft();
+    $inv->update(['status' => 'sent']);
+    $this->patch("/invoices/{$inv->id}", ['notes' => 'x'])->assertStatus(403);
+});
+
+test('POST /invoices/{id}/paid marks a sent invoice paid', function () {
+    $inv = makeDraft();
+    $inv->update(['status' => 'sent', 'issued_on' => now()->subDay(), 'due_on' => now()->addDays(29)]);
+    $this->post("/invoices/{$inv->id}/paid")->assertRedirect();
+    expect($inv->fresh()->status)->toBe('paid');
+});
+
+test('POST /invoices/{id}/void voids and releases entries', function () {
+    $inv = makeDraft();
+    $this->post("/invoices/{$inv->id}/void")->assertRedirect();
+    expect($inv->fresh()->status)->toBe('void');
+    expect(TimeEntry::unbilled()->billable()->count())->toBe(1);
 });

@@ -3,14 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreInvoiceRequest;
+use App\Http\Requests\UpdateInvoiceRequest;
 use App\Models\Client;
 use App\Models\Invoice;
+use App\Models\InvoiceLine;
 use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Services\Invoicing\InvoiceBuilder;
+use App\Services\Invoicing\InvoiceLifecycle;
 use App\Support\InvoiceProjections;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -100,5 +104,110 @@ class InvoiceController extends Controller
         );
 
         return redirect("/invoices/{$invoice->number}")->with('success', "Draft {$invoice->number} created.");
+    }
+
+    public function show(Invoice $invoice): Response
+    {
+        $invoice->load(['client', 'project', 'lines' => fn ($q) => $q->orderBy('sort_order'), 'events' => fn ($q) => $q->orderByDesc('occurred_at')]);
+
+        $linked = $invoice->timeEntries()
+            ->selectRaw('COUNT(*) AS n, COALESCE(SUM(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, UTC_TIMESTAMP()))),0) AS secs')
+            ->first();
+
+        return Inertia::render('Invoices/Show', [
+            'invoice' => [
+                'id' => $invoice->id,
+                'number' => $invoice->number,
+                'status' => $invoice->status,
+                'overdue' => $invoice->overdue,
+                'client' => $invoice->client->only('id', 'name'),
+                'project_name' => $invoice->project?->name,
+                'issued_on' => $invoice->issued_on?->toDateString(),
+                'due_on' => $invoice->due_on?->toDateString(),
+                'subtotal' => round($invoice->subtotal_rappen / 100, 2),
+                'vat' => round($invoice->vat_rappen / 100, 2),
+                'total' => round($invoice->total_rappen / 100, 2),
+                'vat_rate' => (float) $invoice->vat_rate,
+                'notes' => $invoice->notes,
+                'lines' => $invoice->lines->map(fn (InvoiceLine $l) => [
+                    'id' => $l->id, 'description' => $l->description,
+                    'hours' => (float) $l->hours, 'rate' => (int) round($l->rate_rappen / 100),
+                    'amount' => round($l->amount_rappen / 100, 2), 'vat_exempt' => (bool) $l->vat_exempt,
+                ]),
+            ],
+            'events' => $invoice->events->map(fn ($e) => [
+                'kind' => $e->kind,
+                'occurred_at' => $e->occurred_at->toIso8601String(),
+                'payload' => $e->payload,
+            ]),
+            'linked_entries' => ['count' => (int) $linked->n, 'hours' => round(((int) $linked->secs) / 3600, 1)],
+            'preview_url' => "/invoices/{$invoice->number}/preview",
+            'pdf_url' => "/invoices/{$invoice->number}/pdf",
+        ]);
+    }
+
+    public function preview(Invoice $invoice): HttpResponse
+    {
+        $invoice->load(['client', 'project', 'lines' => fn ($q) => $q->orderBy('sort_order')]);
+        // Task 9 swaps this for the real `invoices.pdf` Blade once it exists.
+        return response()->view('invoices.pdf', [
+            'invoice' => $invoice,
+            'profile' => \App\Models\BusinessProfile::current(),
+            'qrBillHtml' => '', // filled by InvoicePdfRenderer in Task 9
+        ]);
+    }
+
+    public function update(UpdateInvoiceRequest $request, Invoice $invoice): RedirectResponse
+    {
+        $data = $request->validated();
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($data, $invoice) {
+            if (array_key_exists('notes', $data)) {
+                $invoice->notes = $data['notes'];
+            }
+            if (! empty($data['lines'])) {
+                $invoice->lines()->delete();
+                $lineAmounts = []; $vatExempts = []; $sort = 0;
+                foreach ($data['lines'] as $line) {
+                    $hours = round((float) $line['hours'], 2);
+                    $rate = (int) $line['rate_rappen'];
+                    $amount = (int) round($hours * $rate);
+                    $exempt = (bool) ($line['vat_exempt'] ?? false);
+                    $invoice->lines()->create([
+                        'description' => $line['description'], 'hours' => $hours,
+                        'rate_rappen' => $rate, 'amount_rappen' => $amount,
+                        'vat_exempt' => $exempt, 'sort_order' => $sort++,
+                    ]);
+                    $lineAmounts[] = $amount; $vatExempts[] = $exempt;
+                }
+                $totals = InvoiceBuilder::computeTotals($lineAmounts, $vatExempts, (float) $invoice->vat_rate);
+                $invoice->subtotal_rappen = $totals['subtotal_rappen'];
+                $invoice->vat_rappen = $totals['vat_rappen'];
+                $invoice->total_rappen = $totals['total_rappen'];
+            }
+            $invoice->save();
+        });
+
+        return redirect("/invoices/{$invoice->number}")->with('success', 'Draft updated.');
+    }
+
+    public function markPaid(Invoice $invoice, InvoiceLifecycle $lifecycle): RedirectResponse
+    {
+        try {
+            $lifecycle->markPaid($invoice);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        return back()->with('success', "Invoice {$invoice->number} marked paid.");
+    }
+
+    public function void(Invoice $invoice, InvoiceLifecycle $lifecycle): RedirectResponse
+    {
+        try {
+            $lifecycle->void($invoice);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        return back()->with('success', "Invoice {$invoice->number} voided.");
     }
 }
