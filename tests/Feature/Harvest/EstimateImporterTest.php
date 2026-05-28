@@ -16,7 +16,7 @@ function harvestEstimate(array $overrides = []): array
         'state' => 'accepted', 'currency' => 'CHF', 'issue_date' => '2025-02-01',
         'sent_at' => '2025-02-01T09:00:00Z', 'accepted_at' => '2025-02-05T10:00:00Z', 'declined_at' => null,
         'tax' => 8.1, 'tax_amount' => 8.1, 'tax2' => null, 'tax2_amount' => null,
-        'amount' => 108.1, 'notes' => null,
+        'amount' => 108.1, 'subject' => 'Partnerschaft auf Augenhöhe', 'notes' => null,
         'line_items' => [
             ['id' => 1, 'description' => 'Phase 1', 'quantity' => 1.0, 'unit_price' => 100.0, 'amount' => 100.0, 'taxed' => true],
         ],
@@ -29,6 +29,7 @@ test('preserves number, maps state 1:1, stamps decided_at, copies totals + lines
     expect($result['imported'])->toBe(1);
     $est = Estimate::first();
     expect($est->number)->toBe('EST-1001');
+    expect($est->title)->toBe('Partnerschaft auf Augenhöhe');
     expect($est->status)->toBe('accepted');
     expect($est->issued_on->toDateString())->toBe('2025-02-01');
     expect($est->valid_until)->toBeNull();

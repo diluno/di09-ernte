@@ -17,7 +17,7 @@ function harvestInvoice(array $overrides = []): array
         'issue_date' => '2025-03-01', 'due_date' => '2025-03-31',
         'sent_at' => '2025-03-01T09:00:00Z', 'paid_at' => null,
         'tax' => 8.1, 'tax_amount' => 8.1, 'tax2' => null, 'tax2_amount' => null,
-        'amount' => 108.1, 'notes' => 'Thanks',
+        'amount' => 108.1, 'subject' => 'Website relaunch', 'notes' => 'Thanks',
         'line_items' => [
             ['id' => 1, 'description' => 'Consulting', 'quantity' => 1.0, 'unit_price' => 100.0, 'amount' => 100.0, 'taxed' => true],
         ],
@@ -30,6 +30,7 @@ test('preserves number, maps open->sent, copies totals, writes lines + created e
     expect($result['imported'])->toBe(1);
     $inv = Invoice::first();
     expect($inv->number)->toBe('2025-014');
+    expect($inv->title)->toBe('Website relaunch');
     expect($inv->client_id)->toBe($this->client->id);
     expect($inv->project_id)->toBeNull();
     expect($inv->status)->toBe('sent');

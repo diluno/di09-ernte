@@ -3,6 +3,7 @@
 namespace App\Services\Harvest;
 
 use App\Models\Client;
+use App\Support\PostalAddress;
 
 class ClientImporter
 {
@@ -21,11 +22,15 @@ class ClientImporter
 
         foreach ($harvestClients as $row) {
             $contact = $contactByClient[$row['id']] ?? null;
+            $address = PostalAddress::parse($row['address'] ?? null);
 
             $map[$row['id']] = Client::create([
                 'name' => $row['name'],
                 'short_code' => $this->uniqueShortCode($row['name']),
-                'address_line_1' => isset($row['address']) ? mb_substr($row['address'], 0, 255) : null,
+                'address_line_1' => $address['address_line_1'],
+                'address_line_2' => $address['address_line_2'],
+                'postal_code' => $address['postal_code'],
+                'city' => $address['city'],
                 'country' => 'CH',
                 'contact_name' => $contact
                     ? (trim(($contact['first_name'] ?? '') . ' ' . ($contact['last_name'] ?? '')) ?: null)

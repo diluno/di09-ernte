@@ -18,7 +18,9 @@ test('maps fields, generates a short code, links the primary contact', function 
     expect($c)->toBeInstanceOf(Client::class);
     expect($c->name)->toBe('Atlas Robotics');
     expect($c->short_code)->toBe('ATLA');
-    expect($c->address_line_1)->toBe("Bahnhofstrasse 1\n8001 Zürich");
+    expect($c->address_line_1)->toBe('Bahnhofstrasse 1');
+    expect($c->postal_code)->toBe('8001');
+    expect($c->city)->toBe('Zürich');
     expect($c->country)->toBe('CH');
     expect($c->contact_name)->toBe('Mira Okafor');
     expect($c->email)->toBe('mira@atlas.test');

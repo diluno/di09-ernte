@@ -70,6 +70,7 @@ class InvoiceImporter
                 'subtotal_rappen' => max(0, $total - $vat),
                 'vat_rappen' => $vat,
                 'total_rappen' => $total,
+                'title' => $row['subject'] ?? null,
                 'notes' => $row['notes'] ?? null,
             ]);
 
