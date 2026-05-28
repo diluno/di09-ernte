@@ -58,7 +58,6 @@ function relativeTime(iso) {
       </h1>
     </div>
     <div style="display: flex; gap: 8px">
-      <button class="btn ghost" disabled title="Phase 2b">Import</button>
       <Link href="/projects/create" class="btn primary">+ New project</Link>
     </div>
   </div>
