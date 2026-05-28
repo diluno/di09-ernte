@@ -180,12 +180,13 @@ test('POST /estimates/{id}/convert creates a linked draft invoice and redirects 
     $est = makeDraftEstimate();
     $est->update(['status' => 'accepted', 'decided_at' => now()]);
 
-    $this->post("/estimates/{$est->id}/convert")
-        ->assertSessionMissing('error');
+    $res = $this->post("/estimates/{$est->id}/convert");
+    $res->assertSessionMissing('error');
 
     $invoice = Invoice::latest('id')->first();
     expect($invoice)->not->toBeNull();
     expect($est->fresh()->converted_invoice_id)->toBe($invoice->id);
+    $res->assertRedirect("/invoices/{$invoice->number}");
 });
 
 test('POST /estimates/{id}/send keeps draft when client email is missing', function () {

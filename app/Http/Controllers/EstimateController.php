@@ -49,7 +49,7 @@ class EstimateController extends Controller
         return Inertia::render('Estimates/Create', [
             'clients' => Client::active()->orderBy('name')->get(['id', 'name'])
                 ->map(fn (Client $c) => ['id' => $c->id, 'name' => $c->name])->values(),
-            'projects' => Project::orderBy('name')->get(['id', 'name', 'client_id', 'rate_rappen'])
+            'projects' => Project::active()->orderBy('name')->get(['id', 'name', 'client_id', 'rate_rappen'])
                 ->map(fn (Project $p) => [
                     'id' => $p->id, 'name' => $p->name, 'client_id' => $p->client_id,
                     'rate' => (int) round(($p->rate_rappen ?? 0) / 100),
