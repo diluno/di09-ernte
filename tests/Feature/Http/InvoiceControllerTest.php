@@ -239,6 +239,9 @@ test('POST /invoices/{id}/send issues the draft', function () {
     BusinessProfile::current()->update(['qr_iban' => 'CH4431999123000889012', 'address_line_1' => 'Bahnhofstrasse 1', 'postal_code' => '8001', 'city' => 'Zürich']);
     $this->client->update(['address_line_1' => 'Friedrichstrasse 47', 'postal_code' => '8004', 'city' => 'Zürich', 'country' => 'CH']);
     $inv = makeDraft();
-    $this->post("/invoices/{$inv->id}/send")->assertRedirect();
+    $this->post("/invoices/{$inv->id}/send")
+        ->assertRedirect()
+        ->assertSessionMissing('error')
+        ->assertSessionHasNoErrors();
     expect($inv->fresh()->status)->toBe('sent');
 })->group('browsershot');

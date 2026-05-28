@@ -11,6 +11,8 @@ use Sprain\SwissQrBill\PaymentPart\Output\DisplayOptions;
 
 class QrBillRenderer
 {
+    public function __construct(private QrReferenceGenerator $refGen) {}
+
     /** Build the QR payment part as an HTML/SVG string for embedding in the invoice document. */
     public function html(Invoice $invoice): string
     {
@@ -30,6 +32,16 @@ class QrBillRenderer
         // The reference type must match the IBAN type, so the fallback IBAN must match
         // the mode: QR mode uses the library's test QR-IBAN, NON mode a plain IBAN.
         $useQrIban = ! empty($profile->qr_iban);
+
+        // A QR-IBAN requires a QRR reference. Self-heal invoices that lack one
+        // (e.g. factory/seeded/imported) so the library does not reject them.
+        if ($useQrIban && empty($invoice->qr_reference)) {
+            $ref = $this->refGen->generate($invoice->id);
+            $invoice->update(['qr_reference' => $ref]);
+        } else {
+            $ref = $invoice->qr_reference;
+        }
+
         $iban = $useQrIban
             ? ($profile->qr_iban ?: 'CH4431999123000889012')
             : ($profile->iban ?: 'CH9300762011623852957');
@@ -40,7 +52,7 @@ class QrBillRenderer
         // Debtor (client).
         $client = $invoice->client;
         $qrBill->setUltimateDebtor($this->address(
-            $client->name,
+            $client->name ?: 'Debtor',
             trim(($client->address_line_1 ?? '') . ' ' . ($client->address_line_2 ?? '')),
             $client->postal_code,
             $client->city,
@@ -56,11 +68,11 @@ class QrBillRenderer
         );
 
         // Reference.
-        if ($useQrIban && $invoice->qr_reference) {
+        if ($useQrIban && $ref) {
             $qrBill->setPaymentReference(
                 QrBill\DataGroup\Element\PaymentReference::create(
                     QrBill\DataGroup\Element\PaymentReference::TYPE_QR,
-                    $invoice->qr_reference,
+                    $ref,
                 )
             );
         } else {

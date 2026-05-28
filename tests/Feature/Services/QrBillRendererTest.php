@@ -39,3 +39,19 @@ test('uses a plain IBAN with no reference when qr_iban is absent', function () {
     $html = app(QrBillRenderer::class)->html($invoice);
     expect($html)->toBeString()->not->toBe('');
 });
+
+test('self-heals a missing qr_reference under a QR-IBAN profile (no 500)', function () {
+    // Profile from beforeEach already has a qr_iban; invoice has no reference.
+    $invoice = Invoice::factory()->create([
+        'client_id' => $this->client->id, 'total_rappen' => 250_00, 'currency' => 'CHF',
+        'qr_reference' => null,
+    ]);
+
+    $html = app(QrBillRenderer::class)->html($invoice);
+
+    expect($html)->toBeString()->not->toBe('');
+    $invoice->refresh();
+    expect($invoice->qr_reference)->toBeString();
+    expect(strlen($invoice->qr_reference))->toBe(27);
+    expect($invoice->qr_reference)->toMatch('/^\d{27}$/');
+});

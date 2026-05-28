@@ -213,6 +213,9 @@ class InvoiceController extends Controller
             $lifecycle->issue($invoice);
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
+        } catch (\RuntimeException $e) {
+            // PDF/QR render failures (e.g. an invalid QR bill) should not 500.
+            return back()->with('error', "Could not issue invoice {$invoice->number}: {$e->getMessage()}");
         }
         return back()->with('success', "Invoice {$invoice->number} issued.");
     }

@@ -29,7 +29,9 @@ class InvoicePdfRenderer
     {
         $relative = "invoices/{$invoice->number}.pdf";
         $absolute = Storage::disk('local')->path($relative);
-        @mkdir(dirname($absolute), 0775, true);
+        if (! is_dir($dir = dirname($absolute))) {
+            mkdir($dir, 0775, true);
+        }
 
         $shot = Browsershot::html($this->html($invoice))
             ->format('A4')
@@ -38,7 +40,7 @@ class InvoicePdfRenderer
             // The DDEV/container Chromium has no usable sandbox; this is required to launch it.
             ->noSandbox();
 
-        if ($path = env('BROWSERSHOT_CHROME_PATH')) {
+        if ($path = config('services.browsershot.chrome_path')) {
             $shot->setChromePath($path);
         }
 
