@@ -69,17 +69,17 @@ function fmtMoneyShort(v) { return formatChf(v); }
   </div>
 
   <div class="table-wrap">
-    <table class="table">
+    <table class="table table--docs">
       <thead>
         <tr>
-          <th class="pad-l" style="width: 280px">Client</th>
+          <th class="pad-l">Client</th>
           <th>Contact</th>
-          <th class="num" style="width: 90px">Default rate</th>
+          <th class="num" style="width: 100px">Default rate</th>
           <th class="num" style="width: 90px">Projects</th>
           <th class="num" style="width: 110px">Hours YTD</th>
           <th class="num" style="width: 130px">Outstanding</th>
           <th class="pad-r" style="width: 150px">Activity</th>
-          <th class="pad-r" style="width: 90px"></th>
+          <th class="pad-r" style="width: 110px"></th>
         </tr>
       </thead>
       <tbody>
@@ -87,14 +87,16 @@ function fmtMoneyShort(v) { return formatChf(v); }
           <td class="pad-l strong">
             <Link :href="`/clients/${c.id}`" class="proj-cell" style="color: inherit">
               <span class="proj-glyph" :class="glyphClass(c.id)">{{ c.short_code[0] }}</span>
-              <span>{{ c.name }}</span>
+              <span class="cell-trunc" :title="c.name">{{ c.name }}</span>
             </Link>
           </td>
           <td>
-            <template v-if="c.contact_name">
-              {{ c.contact_name }} <span v-if="c.email" class="dim" style="margin-left: 4px">{{ c.email }}</span>
-            </template>
-            <span v-else class="dim">—</span>
+            <div class="cell-trunc" :title="[c.contact_name, c.email].filter(Boolean).join(' · ')">
+              <template v-if="c.contact_name">
+                {{ c.contact_name }}<span v-if="c.email" class="dim" style="margin-left: 6px">{{ c.email }}</span>
+              </template>
+              <span v-else class="dim">—</span>
+            </div>
           </td>
           <td class="num">
             <template v-if="c.default_rate">{{ fmtMoneyShort(c.default_rate) }}/h</template>
@@ -110,7 +112,7 @@ function fmtMoneyShort(v) { return formatChf(v); }
             <Sparkline :data="c.sparkline" :w="110" :h="20" color="var(--ink-3)" />
           </td>
           <td class="pad-r">
-            <Link :href="`/invoices/new?client=${c.id}`" class="btn ghost" style="padding: 2px 8px" @click.stop>+ Invoice</Link>
+            <Link :href="`/invoices/new?client=${c.id}`" class="btn ghost" style="padding: 2px 8px; white-space: nowrap" @click.stop>+ Invoice</Link>
           </td>
         </tr>
       </tbody>
