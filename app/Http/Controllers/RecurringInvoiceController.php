@@ -69,7 +69,7 @@ class RecurringInvoiceController extends Controller
                 'next_run_on' => $nextRun->toDateString(),
                 'auto_send' => $data['auto_send'] ?? false,
             ]);
-            $this->syncLines($schedule, $data['lines'], $nextRun);
+            $this->syncLines($schedule, $data['lines']);
         });
 
         return redirect('/recurring-invoices')->with('success', 'Recurring schedule created.');
@@ -120,7 +120,7 @@ class RecurringInvoiceController extends Controller
                 'auto_send' => $data['auto_send'] ?? false,
             ]);
             $recurringInvoice->lines()->delete();
-            $this->syncLines($recurringInvoice, $data['lines'], $nextRun);
+            $this->syncLines($recurringInvoice, $data['lines']);
         });
 
         return redirect('/recurring-invoices')->with('success', 'Recurring schedule updated.');
@@ -167,7 +167,7 @@ class RecurringInvoiceController extends Controller
     }
 
     /** @param array<int, array{description:string, hours:float|string, rate_rappen:int}> $lines */
-    private function syncLines(RecurringInvoice $schedule, array $lines, Carbon|string $taxDate): void
+    private function syncLines(RecurringInvoice $schedule, array $lines): void
     {
         $sort = 0;
         foreach ($lines as $line) {
