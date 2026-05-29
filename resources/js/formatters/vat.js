@@ -7,28 +7,12 @@ function validOn(rate, date) {
   return rate.valid_from <= day && (!rate.valid_until || rate.valid_until >= day);
 }
 
-export function activeVatRates(catalog, date) {
-  return [...(catalog || [])]
-    .filter((rate) => validOn(rate, date))
-    .sort((a, b) => {
-      if (a.is_default !== b.is_default) return a.is_default ? -1 : 1;
-      const order = ['standard', 'reduced', 'special', 'exempt'];
-      return order.indexOf(a.code) - order.indexOf(b.code);
-    });
-}
-
-export function defaultVatCode(catalog, date) {
-  return activeVatRates(catalog, date).find((rate) => rate.is_default)?.code ?? 'standard';
-}
-
-export function vatRateForCode(catalog, code, date, fallback = 0) {
-  const rate = activeVatRates(catalog, date).find((item) => item.code === code);
-  return rate ? Number(rate.rate) : Number(fallback);
-}
-
-export function vatLabelForCode(catalog, code, date) {
-  const rate = activeVatRates(catalog, date).find((item) => item.code === code);
-  return rate ? `${rate.label} · ${Number(rate.rate).toFixed(2).replace(/\.?0+$/, '')}%` : code;
+// The single VAT rate active on the given date (0 if the catalog has no cover).
+export function vatRateForDate(catalog, date) {
+  const rate = [...(catalog || [])]
+    .filter((r) => validOn(r, date))
+    .sort((a, b) => (a.valid_from < b.valid_from ? 1 : -1))[0];
+  return rate ? Number(rate.rate) : 0;
 }
 
 export function lineAmountRappen(line) {
@@ -36,28 +20,8 @@ export function lineAmountRappen(line) {
 }
 
 export function totalsForLines(lines, catalog, date) {
-  const bases = new Map();
-  let subtotal = 0;
-
-  for (const line of lines) {
-    const amount = lineAmountRappen(line);
-    const code = line.vat_code || (line.vat_exempt ? 'exempt' : defaultVatCode(catalog, date));
-    const rate = vatRateForCode(catalog, code, date, line.vat_rate ?? 0);
-    const key = rate.toFixed(2);
-
-    subtotal += amount;
-    bases.set(key, (bases.get(key) ?? 0) + amount);
-  }
-
-  const breakdown = [...bases.entries()]
-    .sort(([a], [b]) => Number(a) - Number(b))
-    .map(([rate, base]) => ({
-      rate: Number(rate),
-      base_rappen: base,
-      vat_rappen: Math.round(base * Number(rate) / 100),
-    }));
-
-  const vat = breakdown.reduce((sum, row) => sum + row.vat_rappen, 0);
-
-  return { subtotal, vat, total: subtotal + vat, breakdown };
+  const rate = vatRateForDate(catalog, date);
+  const subtotal = lines.reduce((sum, line) => sum + lineAmountRappen(line), 0);
+  const vat = Math.round((subtotal * rate) / 100);
+  return { subtotal, vat, total: subtotal + vat, rate };
 }
