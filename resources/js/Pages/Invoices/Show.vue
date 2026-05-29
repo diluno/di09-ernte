@@ -63,6 +63,12 @@ function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-d
         <span class="meta">{{ invoice.client.name }}<span class="ascii-dot">·</span><span class="badge dot" :class="statusLabel">{{ statusLabel }}</span></span>
       </h1>
       <div v-if="invoice.title" class="page-subtitle">{{ invoice.title }}</div>
+      <Link
+        v-if="invoice.recurring"
+        :href="`/recurring-invoices/${invoice.recurring.id}/edit`"
+        class="dim"
+        style="font-size: var(--fs-xs)"
+      >↻ Generated from recurring schedule</Link>
     </div>
     <div style="display: flex; gap: 8px">
       <a :href="pdf_url" class="btn">Download PDF</a>
