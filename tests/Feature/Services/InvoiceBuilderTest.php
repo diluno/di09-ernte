@@ -91,7 +91,6 @@ test('vat_rate is stamped from the dated VAT catalog at build time', function ()
     );
 
     expect((float) $invoice->vat_rate)->toBe(7.70);
-    expect((float) $invoice->lines->first()->vat_rate)->toBe(7.70);
     expect($invoice->vat_rappen)->toBe(1117); // 7.70% of 14500
 
     BusinessProfile::current()->update(['default_vat_rate' => 8.10]);
@@ -142,24 +141,16 @@ test('a number is allocated via InvoiceNumberer', function () {
     expect($invoice->number)->toMatch('/^\d{4}-\d{3}$/');
 });
 
-test('computeTotals respects vat_exempt lines', function () {
-    $totals = InvoiceBuilder::computeTotals(
-        lineAmounts: [10000, 5000],
-        vatExempts: [false, true],
-        vatRate: 8.10,
-    );
+test('computeTotals taxes every line at the document rate', function () {
+    $totals = InvoiceBuilder::computeTotals([10000, 5000], 8.10);
 
     expect($totals['subtotal_rappen'])->toBe(15000);
-    expect($totals['vat_rappen'])->toBe(810);    // 8.10% of 10000 only
-    expect($totals['total_rappen'])->toBe(15810);
+    expect($totals['vat_rappen'])->toBe(1215);   // 8.10% of 15000
+    expect($totals['total_rappen'])->toBe(16215);
 });
 
-test('computeTotals with all non-exempt matches original VAT formula', function () {
-    $totals = InvoiceBuilder::computeTotals(
-        lineAmounts: [29000],
-        vatExempts: [false],
-        vatRate: 8.10,
-    );
+test('computeTotals matches the original VAT formula', function () {
+    $totals = InvoiceBuilder::computeTotals([29000], 8.10);
 
     expect($totals)->toMatchArray([
         'subtotal_rappen' => 29000,
@@ -180,11 +171,10 @@ test('suggestLinesFromEntries groups by description and sums hours/amount', func
     expect($pr['hours'])->toBe(1.5);
     expect($pr['rate_rappen'])->toBe(14500);
     expect($pr['amount_rappen'])->toBe(21750);
-    expect($pr['vat_exempt'])->toBeFalse();
     expect($pr['entry_ids'])->toEqualCanonicalizing([$e1->id, $e2->id]);
 });
 
-test('createDraft persists submitted lines with per-line vat_exempt and recomputes amounts', function () {
+test('createDraft persists submitted lines and recomputes amounts', function () {
     $e = makeEntry($this->user, $this->project, 'Work', 120);
 
     $invoice = $this->svc->createDraft(
@@ -193,8 +183,8 @@ test('createDraft persists submitted lines with per-line vat_exempt and recomput
         periodStart: now()->subDays(7)->toDateString(),
         periodEnd: now()->toDateString(),
         lines: [
-            ['description' => 'Consulting',     'hours' => 2.0, 'rate_rappen' => 14500, 'vat_exempt' => false],
-            ['description' => 'Reimbursement',  'hours' => 1.0, 'rate_rappen' => 5000,  'vat_exempt' => true],
+            ['description' => 'Consulting',     'hours' => 2.0, 'rate_rappen' => 14500],
+            ['description' => 'Reimbursement',  'hours' => 1.0, 'rate_rappen' => 5000],
         ],
         entryIds: [$e->id],
     );
@@ -203,17 +193,15 @@ test('createDraft persists submitted lines with per-line vat_exempt and recomput
     expect($invoice->lines)->toHaveCount(2);
 
     $consulting = $invoice->lines->firstWhere('description', 'Consulting');
-    expect($consulting->amount_rappen)->toBe(29000);          // recomputed server-side: 2 * 14500
-    expect($consulting->vat_exempt)->toBeFalse();
+    expect($consulting->amount_rappen)->toBe(29000);          // recomputed: 2 * 14500
 
     $reimb = $invoice->lines->firstWhere('description', 'Reimbursement');
     expect($reimb->amount_rappen)->toBe(5000);
-    expect($reimb->vat_exempt)->toBeTrue();
 
-    // subtotal = 34000; vat = 8.10% of taxable 29000 = 2349; total = 36349
+    // subtotal = 34000; vat = 8.10% of 34000 = 2754; total = 36754
     expect($invoice->subtotal_rappen)->toBe(34000);
-    expect($invoice->vat_rappen)->toBe(2349);
-    expect($invoice->total_rappen)->toBe(36349);
+    expect($invoice->vat_rappen)->toBe(2754);
+    expect($invoice->total_rappen)->toBe(36754);
 
     expect($e->fresh()->invoice_id)->toBe($invoice->id);
     expect($invoice->qr_reference)->toMatch('/^\d{27}$/');
@@ -245,7 +233,7 @@ test('createDraft ignores client-submitted amount_rappen (anti-tamper)', functio
     $invoice = $this->svc->createDraft(
         client: $this->client, project: null,
         periodStart: now()->subDay()->toDateString(), periodEnd: now()->toDateString(),
-        lines: [['description' => 'X', 'hours' => 1.0, 'rate_rappen' => 10000, 'vat_exempt' => false, 'amount_rappen' => 999999]],
+        lines: [['description' => 'X', 'hours' => 1.0, 'rate_rappen' => 10000, 'amount_rappen' => 999999]],
         entryIds: [],
     );
     expect($invoice->lines->first()->amount_rappen)->toBe(10000);
@@ -257,7 +245,7 @@ test('createDraft stamps an explicit vat rate when provided', function () {
         project: null,
         periodStart: now()->subDay()->toDateString(),
         periodEnd: now()->toDateString(),
-        lines: [['description' => 'X', 'hours' => 1.0, 'rate_rappen' => 10000, 'vat_exempt' => false]],
+        lines: [['description' => 'X', 'hours' => 1.0, 'rate_rappen' => 10000]],
         entryIds: [],
         title: null,
         notes: null,

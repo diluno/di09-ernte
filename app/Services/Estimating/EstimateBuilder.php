@@ -22,7 +22,7 @@ class EstimateBuilder
      * Recomputes every line's amount and the estimate totals server-side
      * (never trusts client math).
      *
-     * @param  array<int, array{description:string, hours:float|string, rate_rappen:int, vat_exempt?:bool}>  $lines
+     * @param  array<int, array{description:string, hours:float|string, rate_rappen:int}>  $lines
      */
     public function createDraft(
         Client $client,
@@ -35,7 +35,7 @@ class EstimateBuilder
         return DB::transaction(function () use ($client, $project, $lines, $notes, $title, $taxDate) {
             $profile = BusinessProfile::current();
             $taxDate = $taxDate ?: now()->toDateString();
-            $documentVat = VatRate::snapshotFor('standard', $taxDate, (float) $profile->default_vat_rate);
+            $documentRate = VatRate::rateForDate($taxDate);
 
             $number = $this->numberer->nextFor((int) date('Y'));
 
@@ -45,7 +45,7 @@ class EstimateBuilder
                 'project_id' => $project?->id,
                 'status' => 'draft',
                 'currency' => $profile->default_currency ?? 'CHF',
-                'vat_rate' => $documentVat['vat_rate'],
+                'vat_rate' => $documentRate,
                 'subtotal_rappen' => 0,
                 'vat_rappen' => 0,
                 'total_rappen' => 0,
@@ -54,17 +54,11 @@ class EstimateBuilder
             ]);
 
             $lineAmounts = [];
-            $lineVatRates = [];
             $sort = 0;
             foreach ($lines as $line) {
                 $hours = round((float) $line['hours'], 2);
                 $rate = (int) $line['rate_rappen'];
                 $amount = (int) round($hours * $rate);           // recompute — ignore any submitted amount
-                $vat = VatRate::snapshotFor(
-                    $line['vat_code'] ?? (! empty($line['vat_exempt']) ? 'exempt' : 'standard'),
-                    $taxDate,
-                    (float) $estimate->vat_rate,
-                );
 
                 EstimateLine::create([
                     'estimate_id' => $estimate->id,
@@ -72,18 +66,13 @@ class EstimateBuilder
                     'hours' => $hours,
                     'rate_rappen' => $rate,
                     'amount_rappen' => $amount,
-                    'vat_exempt' => $vat['vat_exempt'],
-                    'vat_code' => $vat['vat_code'],
-                    'vat_label' => $vat['vat_label'],
-                    'vat_rate' => $vat['vat_rate'],
                     'sort_order' => $sort++,
                 ]);
 
                 $lineAmounts[] = $amount;
-                $lineVatRates[] = $vat['vat_rate'];
             }
 
-            $totals = LineTotals::computeFromRates($lineAmounts, $lineVatRates);
+            $totals = LineTotals::compute($lineAmounts, (float) $estimate->vat_rate);
             $estimate->subtotal_rappen = $totals['subtotal_rappen'];
             $estimate->vat_rappen = $totals['vat_rappen'];
             $estimate->total_rappen = $totals['total_rappen'];

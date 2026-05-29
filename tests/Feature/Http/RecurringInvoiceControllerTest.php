@@ -39,7 +39,7 @@ test('store creates a schedule with lines and snaps a past first-run forward', f
         'next_run_on' => '2026-01-10',     // in the past relative to 2026-05-29
         'vat_rate' => 8.10,
         'auto_send' => false,
-        'lines' => [['description' => 'Hosting', 'hours' => 1, 'rate_rappen' => 10000, 'vat_exempt' => false]],
+        'lines' => [['description' => 'Hosting', 'hours' => 1, 'rate_rappen' => 10000]],
     ])->assertRedirect('/recurring-invoices');
 
     $schedule = RecurringInvoice::first();
@@ -66,7 +66,7 @@ test('update replaces lines and reschedules', function () {
         'cadence' => 'quarterly',
         'next_run_on' => '2026-07-01',
         'vat_rate' => 8.10,
-        'lines' => [['description' => 'New line', 'hours' => 2, 'rate_rappen' => 5000, 'vat_exempt' => true]],
+        'lines' => [['description' => 'New line', 'hours' => 2, 'rate_rappen' => 5000]],
     ])->assertRedirect('/recurring-invoices');
 
     $schedule->refresh()->load('lines');

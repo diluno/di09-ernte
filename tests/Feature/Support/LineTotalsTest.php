@@ -2,24 +2,16 @@
 
 use App\Support\LineTotals;
 
-test('compute respects vat_exempt lines', function () {
-    $totals = LineTotals::compute(
-        lineAmounts: [10000, 5000],
-        vatExempts: [false, true],
-        vatRate: 8.10,
-    );
+test('compute taxes every line at the document rate', function () {
+    $totals = LineTotals::compute([10000, 5000], 8.10);
 
     expect($totals['subtotal_rappen'])->toBe(15000);
-    expect($totals['vat_rappen'])->toBe(810);   // 8.10% of the 10000 taxable line only
-    expect($totals['total_rappen'])->toBe(15810);
+    expect($totals['vat_rappen'])->toBe(1215);   // 8.10% of 15000
+    expect($totals['total_rappen'])->toBe(16215);
 });
 
-test('compute with all taxable lines matches the original VAT formula', function () {
-    $totals = LineTotals::compute(
-        lineAmounts: [29000],
-        vatExempts: [false],
-        vatRate: 8.10,
-    );
+test('compute matches the original VAT formula', function () {
+    $totals = LineTotals::compute([29000], 8.10);
 
     expect($totals)->toMatchArray([
         'subtotal_rappen' => 29000,
@@ -28,15 +20,12 @@ test('compute with all taxable lines matches the original VAT formula', function
     ]);
 });
 
-test('computeFromRates groups VAT by each snapped line rate', function () {
-    $totals = LineTotals::computeFromRates(
-        lineAmounts: [10000, 5000, 2000],
-        lineVatRates: [8.10, 2.60, 0.00],
-    );
+test('compute with a zero rate yields no VAT', function () {
+    $totals = LineTotals::compute([10000], 0.0);
 
     expect($totals)->toMatchArray([
-        'subtotal_rappen' => 17000,
-        'vat_rappen' => 940,
-        'total_rappen' => 17940,
+        'subtotal_rappen' => 10000,
+        'vat_rappen' => 0,
+        'total_rappen' => 10000,
     ]);
 });

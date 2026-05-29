@@ -25,7 +25,7 @@ function schedule(array $overrides = [], array $lineOverrides = []): RecurringIn
     unset($overrides['client']);
     $schedule = RecurringInvoice::factory()->for($client)->create($overrides);
     RecurringInvoiceLine::factory()->for($schedule, 'recurringInvoice')->create(array_merge([
-        'description' => 'Hosting', 'hours' => 1, 'rate_rappen' => 10000, 'vat_exempt' => false, 'sort_order' => 0,
+        'description' => 'Hosting', 'hours' => 1, 'rate_rappen' => 10000, 'sort_order' => 0,
     ], $lineOverrides));
 
     return $schedule->fresh('lines');

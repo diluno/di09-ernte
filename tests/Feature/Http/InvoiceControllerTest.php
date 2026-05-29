@@ -106,7 +106,7 @@ test('POST /invoices creates a draft from submitted lines and redirects to its d
         'period_end' => now()->subMonth()->endOfMonth()->toDateString(),
         'entry_ids' => [$entry->id],
         'lines' => [
-            ['description' => 'Work', 'hours' => 2.0, 'rate_rappen' => 14500, 'vat_exempt' => false],
+            ['description' => 'Work', 'hours' => 2.0, 'rate_rappen' => 14500],
         ],
     ]);
 
@@ -162,7 +162,7 @@ test('POST /invoices rejects a project belonging to a different client', functio
         'period_end' => now()->subMonth()->endOfMonth()->toDateString(),
         'entry_ids' => [],
         'lines' => [
-            ['description' => 'Work', 'hours' => 1.0, 'rate_rappen' => 14500, 'vat_exempt' => false],
+            ['description' => 'Work', 'hours' => 1.0, 'rate_rappen' => 14500],
         ],
     ])->assertSessionHasErrors('project_id');
 });
@@ -244,7 +244,7 @@ test('PATCH /invoices/{id} edits a draft notes + lines and recomputes totals', f
     $this->patch("/invoices/{$inv->id}", [
         'title' => 'Projekt Aurora',
         'notes' => 'Thanks for your business.',
-        'lines' => [['description' => 'Edited', 'hours' => 1.0, 'rate_rappen' => 10000, 'vat_exempt' => false]],
+        'lines' => [['description' => 'Edited', 'hours' => 1.0, 'rate_rappen' => 10000]],
     ])->assertRedirect("/invoices/{$inv->number}");
 
     $inv->refresh();

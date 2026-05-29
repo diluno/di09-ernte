@@ -4,7 +4,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import AutoTextarea from '@/Components/AutoTextarea.vue';
-import { activeVatRates, defaultVatCode, totalsForLines, vatLabelForCode } from '@/formatters/vat.js';
+import { totalsForLines } from '@/formatters/vat.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -35,7 +35,6 @@ function addLine() {
     description: '',
     hours: 0,
     rate: selectedProject.value?.rate ?? 0,
-    vat_code: defaultVatCode(props.vat_rates),
   });
 }
 function removeLine(key) { lines.value = lines.value.filter((l) => l.key !== key); }
@@ -47,10 +46,8 @@ addLine();
 function fmtMoney(rappen) { return 'CHF ' + (rappen / 100).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function fmtRate(rate) { return Number(rate).toFixed(2).replace(/\.?0+$/, ''); }
 
-const vatOptions = computed(() => activeVatRates(props.vat_rates));
 const totals = computed(() => totalsForLines(lines.value, props.vat_rates));
 const subtotalRappen = computed(() => totals.value.subtotal);
-const vatRappen = computed(() => totals.value.vat);
 const totalRappen = computed(() => totals.value.total);
 
 const canSave = computed(() => clientId.value && lines.value.length > 0);
@@ -66,7 +63,6 @@ function save() {
       description: l.description,
       hours: Number(l.hours),
       rate_rappen: Math.round(Number(l.rate) * 100),
-      vat_code: l.vat_code,
     })),
   })).post('/estimates');
 }
@@ -119,7 +115,6 @@ function save() {
             <th class="num" style="width: 80px">Hours</th>
             <th class="num" style="width: 100px">Rate</th>
             <th class="num" style="width: 120px">Amount</th>
-            <th style="width: 130px">MwSt</th>
             <th style="width: 70px"></th>
           </tr>
         </thead>
@@ -130,16 +125,11 @@ function save() {
             <td class="num"><input v-model="l.rate" type="number" min="0" class="cell-input num" /></td>
             <td class="num strong">{{ fmtMoney(Math.round(Number(l.hours) * Number(l.rate) * 100)) }}</td>
             <td>
-              <select v-model="l.vat_code" class="cell-input">
-                <option v-for="rate in vatOptions" :key="rate.code" :value="rate.code">{{ vatLabelForCode(vat_rates, rate.code) }}</option>
-              </select>
-            </td>
-            <td>
               <button class="icon-btn" title="move up" @click="moveUp(i)"><Icon name="chevron-up" /></button>
               <button class="icon-btn" title="remove" @click="removeLine(l.key)"><Icon name="close" /></button>
             </td>
           </tr>
-          <tr v-if="lines.length === 0"><td colspan="6" class="pad-l muted" style="padding: 16px">No lines. Add one to start.</td></tr>
+          <tr v-if="lines.length === 0"><td colspan="5" class="pad-l muted" style="padding: 16px">No lines. Add one to start.</td></tr>
         </tbody>
       </table>
       <button class="btn ghost" style="margin-top: 12px" @click="addLine">+ Add line</button>
@@ -152,9 +142,7 @@ function save() {
       <h3 class="section-title">Totals</h3>
       <div class="invoice-totals" style="display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: var(--fs-sm)">
         <div class="label">Subtotal</div><div class="v">{{ fmtMoney(subtotalRappen) }}</div>
-        <template v-for="row in totals.breakdown" :key="row.rate">
-          <div class="label">MwSt {{ fmtRate(row.rate) }}%</div><div class="v">{{ fmtMoney(row.vat_rappen) }}</div>
-        </template>
+        <div class="label">MwSt {{ fmtRate(totals.rate) }}%</div><div class="v">{{ fmtMoney(totals.vat) }}</div>
         <div class="grand-l">Total</div><div class="v grand">{{ fmtMoney(totalRappen) }}</div>
       </div>
       <p class="dim" style="font-size: var(--fs-xs); margin-top: 16px; line-height: 1.6">

@@ -101,10 +101,6 @@ class InvoiceController extends Controller
                     'hours' => $l['hours'],
                     'rate' => (int) round($l['rate_rappen'] / 100),
                     'rate_rappen' => $l['rate_rappen'],
-                    'vat_exempt' => $l['vat_exempt'],
-                    'vat_code' => $l['vat_code'],
-                    'vat_label' => $l['vat_label'],
-                    'vat_rate' => $l['vat_rate'],
                     'entry_ids' => $l['entry_ids'],
                 ])->values(),
             'vat_rates' => VatRate::catalogForFrontend(),
@@ -159,8 +155,7 @@ class InvoiceController extends Controller
                 'lines' => $invoice->lines->map(fn (InvoiceLine $l) => [
                     'id' => $l->id, 'description' => $l->description,
                     'hours' => (float) $l->hours, 'rate' => (int) round($l->rate_rappen / 100),
-                    'amount' => round($l->amount_rappen / 100, 2), 'vat_exempt' => (bool) $l->vat_exempt,
-                    'vat_code' => $l->vat_code, 'vat_label' => $l->vat_label, 'vat_rate' => (float) $l->vat_rate,
+                    'amount' => round($l->amount_rappen / 100, 2),
                 ]),
             ],
             'events' => $invoice->events->map(fn ($e) => [
@@ -193,31 +188,19 @@ class InvoiceController extends Controller
             if (! empty($data['lines'])) {
                 $invoice->lines()->delete();
                 $lineAmounts = [];
-                $lineVatRates = [];
                 $sort = 0;
-                $taxDate = $invoice->period_end?->toDateString() ?? now()->toDateString();
                 foreach ($data['lines'] as $line) {
                     $hours = round((float) $line['hours'], 2);
                     $rate = (int) $line['rate_rappen'];
                     $amount = (int) round($hours * $rate);
-                    $vat = VatRate::snapshotFor(
-                        $line['vat_code'] ?? (! empty($line['vat_exempt']) ? 'exempt' : 'standard'),
-                        $taxDate,
-                        (float) $invoice->vat_rate,
-                    );
                     $invoice->lines()->create([
                         'description' => $line['description'], 'hours' => $hours,
                         'rate_rappen' => $rate, 'amount_rappen' => $amount,
-                        'vat_exempt' => $vat['vat_exempt'],
-                        'vat_code' => $vat['vat_code'],
-                        'vat_label' => $vat['vat_label'],
-                        'vat_rate' => $vat['vat_rate'],
                         'sort_order' => $sort++,
                     ]);
                     $lineAmounts[] = $amount;
-                    $lineVatRates[] = $vat['vat_rate'];
                 }
-                $totals = InvoiceBuilder::computeTotalsFromRates($lineAmounts, $lineVatRates);
+                $totals = InvoiceBuilder::computeTotals($lineAmounts, (float) $invoice->vat_rate);
                 $invoice->subtotal_rappen = $totals['subtotal_rappen'];
                 $invoice->vat_rappen = $totals['vat_rappen'];
                 $invoice->total_rappen = $totals['total_rappen'];

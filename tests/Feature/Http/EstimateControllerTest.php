@@ -26,7 +26,7 @@ function makeDraftEstimate(): Estimate
     return app(EstimateBuilder::class)->createDraft(
         client: test()->client,
         project: test()->project,
-        lines: [['description' => 'Design phase', 'hours' => 2.0, 'rate_rappen' => 14500, 'vat_exempt' => false]],
+        lines: [['description' => 'Design phase', 'hours' => 2.0, 'rate_rappen' => 14500]],
     );
 }
 
@@ -75,7 +75,7 @@ test('POST /estimates creates a draft from submitted lines and redirects to its 
         'title' => 'Partnerschaft auf Augenhöhe',
         'notes' => 'Quote for Q3 work.',
         'lines' => [
-            ['description' => 'Design phase', 'hours' => 2.0, 'rate_rappen' => 14500, 'vat_exempt' => false],
+            ['description' => 'Design phase', 'hours' => 2.0, 'rate_rappen' => 14500],
         ],
     ]);
 
@@ -93,7 +93,7 @@ test('POST /estimates accepts a long notes field (full specification, over the o
     $res = $this->post('/estimates', [
         'client_id' => $this->client->id,
         'notes' => $notes,
-        'lines' => [['description' => 'X', 'hours' => 1.0, 'rate_rappen' => 10000, 'vat_exempt' => false]],
+        'lines' => [['description' => 'X', 'hours' => 1.0, 'rate_rappen' => 10000]],
     ]);
 
     $res->assertSessionHasNoErrors();
@@ -114,7 +114,7 @@ test('POST /estimates rejects a project belonging to a different client', functi
     $this->post('/estimates', [
         'client_id' => $this->client->id,
         'project_id' => $otherProject->id,
-        'lines' => [['description' => 'X', 'hours' => 1.0, 'rate_rappen' => 14500, 'vat_exempt' => false]],
+        'lines' => [['description' => 'X', 'hours' => 1.0, 'rate_rappen' => 14500]],
     ])->assertSessionHasErrors('project_id');
 });
 
@@ -164,7 +164,7 @@ test('PATCH /estimates/{id} can change the client and project of a draft', funct
     $this->patch("/estimates/{$est->id}", [
         'client_id' => $newClient->id,
         'project_id' => $newProject->id,
-        'lines' => [['description' => 'X', 'hours' => 1.0, 'rate_rappen' => 10000, 'vat_exempt' => false]],
+        'lines' => [['description' => 'X', 'hours' => 1.0, 'rate_rappen' => 10000]],
     ])->assertRedirect("/estimates/{$est->number}");
 
     $est->refresh();
@@ -179,7 +179,7 @@ test('PATCH /estimates/{id} rejects a project belonging to a different client', 
 
     $this->patch("/estimates/{$est->id}", [
         'project_id' => $otherProject->id,
-        'lines' => [['description' => 'X', 'hours' => 1.0, 'rate_rappen' => 10000, 'vat_exempt' => false]],
+        'lines' => [['description' => 'X', 'hours' => 1.0, 'rate_rappen' => 10000]],
     ])->assertSessionHasErrors('project_id');
 });
 
@@ -215,7 +215,7 @@ test('PATCH /estimates/{id} edits a draft notes + lines and recomputes totals', 
     $this->patch("/estimates/{$est->id}", [
         'title' => 'Neuer Titel',
         'notes' => 'Updated scope.',
-        'lines' => [['description' => 'Edited', 'hours' => 1.0, 'rate_rappen' => 10000, 'vat_exempt' => false]],
+        'lines' => [['description' => 'Edited', 'hours' => 1.0, 'rate_rappen' => 10000]],
     ])->assertRedirect("/estimates/{$est->number}");
 
     $est->refresh();

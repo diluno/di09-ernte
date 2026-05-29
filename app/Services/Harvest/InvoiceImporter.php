@@ -78,16 +78,14 @@ class InvoiceImporter
 
             $sort = 0;
             foreach ($row['line_items'] ?? [] as $line) {
-                $taxed = (bool) ($line['taxed'] ?? true);
+                if (! (bool) ($line['taxed'] ?? true)) {
+                    $warnings[] = "Invoice {$row['number']} has an untaxed line item; ernte applies the document VAT rate to every line.";
+                }
                 $invoice->lines()->create([
                     'description' => $line['description'] ?? '',
                     'hours' => (float) ($line['quantity'] ?? 0),
                     'rate_rappen' => (int) round(((float) ($line['unit_price'] ?? 0)) * 100),
                     'amount_rappen' => (int) round(((float) ($line['amount'] ?? 0)) * 100),
-                    'vat_exempt' => ! $taxed,
-                    'vat_code' => $taxed ? 'standard' : 'exempt',
-                    'vat_label' => $taxed ? 'Normalsatz' : 'MwSt-befreit',
-                    'vat_rate' => $taxed ? (float) ($row['tax'] ?? 0) : 0,
                     'sort_order' => $sort++,
                 ]);
             }

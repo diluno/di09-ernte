@@ -148,7 +148,7 @@ class DemoFixturesSeeder extends Seeder
                     $atlas, $fleet,
                     Carbon::now()->subMonths(2)->startOfMonth()->toDateString(),
                     Carbon::now()->subMonths(2)->endOfMonth()->toDateString(),
-                    [['description' => 'Sprint work', 'hours' => 40, 'rate_rappen' => 14500, 'vat_exempt' => false]],
+                    [['description' => 'Sprint work', 'hours' => 40, 'rate_rappen' => 14500]],
                     [],
                 );
                 $sent->update(['status' => 'sent', 'issued_on' => Carbon::now()->subDays(40)->toDateString(), 'due_on' => Carbon::now()->subDays(10)->toDateString(), 'sent_at' => Carbon::now()->subDays(40)]);
