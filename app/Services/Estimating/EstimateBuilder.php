@@ -22,7 +22,7 @@ class EstimateBuilder
      * Recomputes every line's amount and the estimate totals server-side
      * (never trusts client math).
      *
-     * @param  array<int, array{description:string, hours:float|string, rate_rappen:int, vat_exempt?:bool}>  $lines
+     * @param  array<int, array{description:string, hours:float|string, rate_rappen:int}>  $lines
      */
     public function createDraft(
         Client $client,

@@ -73,7 +73,7 @@ class InvoiceBuilder
      * Persist a draft invoice from the user's edited lines and the selected entry ids.
      * Recomputes every line's amount and the invoice totals server-side (never trusts client math).
      *
-     * @param  array<int, array{description:string, hours:float|string, rate_rappen:int, vat_exempt?:bool}>  $lines
+     * @param  array<int, array{description:string, hours:float|string, rate_rappen:int}>  $lines
      * @param  int[]  $entryIds
      */
     public function createDraft(
