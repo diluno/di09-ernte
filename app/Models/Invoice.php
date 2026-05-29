@@ -10,7 +10,7 @@ class Invoice extends Model
     use HasFactory;
 
     protected $fillable = [
-        'number', 'client_id', 'project_id',
+        'number', 'client_id', 'project_id', 'recurring_invoice_id',
         'period_start', 'period_end', 'issued_on', 'due_on',
         'status', 'currency', 'vat_rate',
         'subtotal_rappen', 'vat_rappen', 'total_rappen',
@@ -32,6 +32,7 @@ class Invoice extends Model
 
     public function client() { return $this->belongsTo(Client::class); }
     public function project() { return $this->belongsTo(Project::class); }
+    public function recurringInvoice() { return $this->belongsTo(RecurringInvoice::class); }
     public function lines() { return $this->hasMany(InvoiceLine::class); }
     public function events() { return $this->hasMany(InvoiceEvent::class); }
     public function timeEntries() { return $this->hasMany(TimeEntry::class); }
