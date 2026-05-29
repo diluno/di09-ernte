@@ -33,4 +33,9 @@ test('estimate mail renders details and attaches the pdf path', function () {
     $mail->assertSeeInText('OF-2026-014');
     $mail->assertSeeInText("CHF 1'234.50");
     expect($mail->pdfPath)->toBe('estimates/OF-2026-014.pdf');
+    $mail->assertHasAttachment(
+        \Illuminate\Mail\Mailables\Attachment::fromPath(Storage::disk('local')->path('estimates/OF-2026-014.pdf'))
+            ->as('Ernte-Test-Offerte-OF-2026-014.pdf')
+            ->withMime('application/pdf')
+    );
 });

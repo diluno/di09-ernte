@@ -32,4 +32,9 @@ test('invoice mail renders invoice details and attaches the pdf path', function 
     $mail->assertSeeInText('2026-014');
     $mail->assertSeeInText("CHF 1'234.50");
     expect($mail->pdfPath)->toBe('invoices/2026-014.pdf');
+    $mail->assertHasAttachment(
+        \Illuminate\Mail\Mailables\Attachment::fromPath(Storage::disk('local')->path('invoices/2026-014.pdf'))
+            ->as('Ernte-Test-Rechnung-2026-014.pdf')
+            ->withMime('application/pdf')
+    );
 });

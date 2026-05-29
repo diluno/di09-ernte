@@ -39,7 +39,7 @@ class EstimateMail extends Mailable
                 'profile' => $this->profile,
             ])
             ->attach(Storage::disk('local')->path($this->pdfPath), [
-                'as' => "Offerte-{$this->estimate->number}.pdf",
+                'as' => $this->estimate->pdfFilename(),
                 'mime' => 'application/pdf',
             ]);
     }

@@ -49,4 +49,10 @@ class Estimate extends Model
     public function scopeOpen($q)     { return $q->where('status', 'sent'); }
     public function scopeAccepted($q) { return $q->where('status', 'accepted'); }
     public function scopeDeclined($q) { return $q->where('status', 'declined'); }
+
+    /** Client-facing PDF filename, e.g. "Diluno-GmbH-Offerte-OF-2026-014.pdf". */
+    public function pdfFilename(): string
+    {
+        return BusinessProfile::current()->documentFilename('Offerte', $this->number);
+    }
 }

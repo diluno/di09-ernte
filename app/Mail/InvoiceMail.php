@@ -39,7 +39,7 @@ class InvoiceMail extends Mailable
                 'profile' => $this->profile,
             ])
             ->attach(Storage::disk('local')->path($this->pdfPath), [
-                'as' => "Rechnung-{$this->invoice->number}.pdf",
+                'as' => $this->invoice->pdfFilename(),
                 'mime' => 'application/pdf',
             ]);
     }

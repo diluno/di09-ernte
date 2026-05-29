@@ -285,7 +285,7 @@ class EstimateController extends Controller
                 function () use ($estimate, $renderer) {
                     echo $renderer->pdfBytes($estimate);
                 },
-                "Offerte-{$estimate->number}.pdf",
+                $estimate->pdfFilename(),
                 ['Content-Type' => 'application/pdf'],
             );
         }

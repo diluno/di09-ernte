@@ -51,4 +51,10 @@ class Invoice extends Model
     {
         return round((float) $this->lines->sum('hours'), 2);
     }
+
+    /** Client-facing PDF filename, e.g. "Diluno-GmbH-Rechnung-2026-014.pdf". */
+    public function pdfFilename(): string
+    {
+        return BusinessProfile::current()->documentFilename('Rechnung', $this->number);
+    }
 }

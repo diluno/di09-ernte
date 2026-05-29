@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class BusinessProfile extends Model
 {
@@ -22,5 +23,23 @@ class BusinessProfile extends Model
     public static function current(): self
     {
         return static::firstOrFail();
+    }
+
+    /** Filename-safe form of the business name, e.g. "Müller & Co." -> "Muller-Co". */
+    public function filenameSlug(): string
+    {
+        return trim((string) preg_replace('/[^A-Za-z0-9]+/', '-', Str::ascii((string) $this->name)), '-');
+    }
+
+    /**
+     * Build a client-facing PDF filename prefixed with the business name,
+     * e.g. documentFilename('Rechnung', '2026-014') -> "Diluno-GmbH-Rechnung-2026-014.pdf".
+     */
+    public function documentFilename(string $label, string $number): string
+    {
+        $slug = $this->filenameSlug();
+        $prefix = $slug !== '' ? "{$slug}-" : '';
+
+        return "{$prefix}{$label}-{$number}.pdf";
     }
 }

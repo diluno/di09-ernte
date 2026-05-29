@@ -284,7 +284,7 @@ class InvoiceController extends Controller
                 function () use ($invoice, $renderer) {
                     echo $renderer->pdfBytes($invoice);
                 },
-                "Rechnung-{$invoice->number}.pdf",
+                $invoice->pdfFilename(),
                 ['Content-Type' => 'application/pdf'],
             );
         }
