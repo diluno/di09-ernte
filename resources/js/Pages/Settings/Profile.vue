@@ -1,5 +1,5 @@
 <script setup>
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
@@ -136,7 +136,7 @@ function submit() {
           <small v-if="form.errors.default_currency" class="error">{{ form.errors.default_currency }}</small>
         </label>
         <label class="field">
-          <span>VAT rate</span>
+          <span>VAT rate (fallback) · <Link href="/settings/vat-rates">manage dated rates</Link></span>
           <input v-model="form.default_vat_rate" class="input" type="number" min="0" max="100" step="0.01" />
           <small v-if="form.errors.default_vat_rate" class="error">{{ form.errors.default_vat_rate }}</small>
         </label>
