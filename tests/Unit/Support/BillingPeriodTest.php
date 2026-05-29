@@ -52,3 +52,8 @@ test('nextRunOnOrAfter() snaps a past start forward without backfilling', functi
     // A future start is returned unchanged.
     expect(BillingPeriod::nextRunOnOrAfter('monthly', Carbon::parse('2026-07-01'), $from)->toDateString())->toBe('2026-07-01');
 });
+
+test('nextRunOnOrAfter() steps non-monthly cadences correctly', function () {
+    $next = \App\Support\BillingPeriod::nextRunOnOrAfter('quarterly', \Illuminate\Support\Carbon::parse('2026-01-15'), \Illuminate\Support\Carbon::parse('2026-08-01'));
+    expect($next->toDateString())->toBe('2026-10-15');
+});

@@ -36,7 +36,7 @@ class BillingPeriod
         };
     }
 
-    /** The next occurrence date after $date, preserving the anchor day (clamped to month length). */
+    /** Advance $date by one $cadence step (1/3/6/12 months), preserving $anchorDay clamped to the target month's length. */
     public static function advance(string $cadence, Carbon $date, int $anchorDay): Carbon
     {
         $months = self::months($cadence);
@@ -53,8 +53,12 @@ class BillingPeriod
         $floor = $from->copy()->startOfDay();
         $guard = 0;
 
-        while ($next->lt($floor) && $guard++ < 1200) {
+        while ($next->lt($floor) && $guard++ < 1200) { // 1200 monthly steps ≈ 100 years
             $next = self::advance($cadence, $next, $anchorDay);
+        }
+
+        if ($next->lt($floor)) {
+            throw new \RuntimeException('BillingPeriod::nextRunOnOrAfter exceeded its iteration guard.');
         }
 
         return $next;
