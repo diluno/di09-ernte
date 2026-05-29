@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { usePage, Link } from '@inertiajs/vue3';
 import RunningTimerChip from '@/Components/RunningTimerChip.vue';
+import Icon from '@/Components/Icon.vue';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
@@ -17,7 +18,7 @@ defineEmits(['open-command']);
 <template>
   <header class="topbar">
     <Link href="/projects" class="wordmark">
-      <span class="wordmark-mark" />
+      <Icon name="leaf" class="wordmark-mark" />
       <span>ernte</span>
     </Link>
     <div class="mono-tag" title="Business">{{ businessName }}</div>
