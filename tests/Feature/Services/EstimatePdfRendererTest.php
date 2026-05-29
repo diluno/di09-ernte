@@ -54,6 +54,20 @@ test('html renders markdown in the notes (lists, rules, emphasis, line breaks)',
     expect($html)->toContain('Liebe Aline<br>');
 });
 
+test('html renders markdown and line breaks in a line description', function () {
+    $estimate = Estimate::factory()->create();
+    EstimateLine::factory()->create([
+        'estimate_id' => $estimate->id,
+        'description' => "Design phase\nincluding:\n\n- wireframes\n- **hi-fi** mockups",
+    ]);
+
+    $html = app(EstimatePdfRenderer::class)->html($estimate);
+
+    expect($html)->toContain('Design phase<br>');
+    expect($html)->toContain('<li>wireframes</li>');
+    expect($html)->toContain('<strong>hi-fi</strong>');
+});
+
 test('pdf caches the file on disk and stamps pdf_path', function () {
     $estimate = Estimate::factory()->create(['number' => 'OF-2026-009']);
 

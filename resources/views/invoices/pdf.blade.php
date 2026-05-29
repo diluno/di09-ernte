@@ -15,6 +15,10 @@
     thead th { text-align: left; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: #6b6b6b; border-bottom: 1px solid #1a1a1a; padding: 8px 0; }
     thead th.num, tbody td.num { text-align: right; }
     tbody td { padding: 8px 0; border-bottom: 1px solid #e8e1d4; }
+    .line-desc p { margin: 0; }
+    .line-desc p + p { margin-top: 6px; }
+    .line-desc ul, .line-desc ol { margin: 4px 0 0; padding-left: 18px; }
+    .line-desc li { margin-bottom: 2px; }
     .totals { margin-top: 18px; width: 280px; margin-left: auto; display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; }
     .totals .v { text-align: right; }
     .totals .grand { font-weight: 700; font-size: 16px; border-top: 1px solid #1a1a1a; padding-top: 8px; }
@@ -83,7 +87,7 @@
     <tbody>
       @foreach ($invoice->lines as $line)
         <tr>
-          <td>{{ $line->description }}@if ($line->vat_exempt) <span style="color:#6b6b6b">(MwSt-befreit)</span>@endif</td>
+          <td class="line-desc">{!! \App\Support\Markdown::toHtml($line->description) !!}@if ($line->vat_exempt) <span style="color:#6b6b6b">(MwSt-befreit)</span>@endif</td>
           <td class="num">{{ number_format((float) $line->hours, 2) }}</td>
           <td class="num">{{ $money($line->rate_rappen) }}</td>
           <td class="num">{{ $money($line->amount_rappen) }}</td>
