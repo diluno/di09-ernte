@@ -128,6 +128,7 @@ class DashboardProjections
             'unbilled_amount' => round(((float) $unbilledRows->rappen) / 100, 2),
             'unbilled_hours' => round(((int) $unbilledRows->secs) / 3600, 1),
             'outstanding_amount' => \App\Support\InvoiceProjections::stats()['outstanding'],
+            'outstanding_count' => \App\Models\Invoice::outstanding()->count(),
         ];
     }
 }

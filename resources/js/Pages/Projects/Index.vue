@@ -66,7 +66,7 @@ function fmtMoneyShort(v) { return formatChf(v); }
     <div class="stat">
       <div class="label">Outstanding</div>
       <div class="val" style="color: var(--rust)">{{ fmtMoneyShort(stats.outstanding_amount) }}</div>
-      <div class="delta muted">(Phase 2b)</div>
+      <div class="delta muted">{{ stats.outstanding_count }} {{ stats.outstanding_count === 1 ? 'invoice' : 'invoices' }}</div>
     </div>
   </div>
 
