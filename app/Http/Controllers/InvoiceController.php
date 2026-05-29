@@ -125,7 +125,7 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice): Response
     {
-        $invoice->load(['client', 'project', 'lines' => fn ($q) => $q->orderBy('sort_order'), 'events' => fn ($q) => $q->orderByDesc('occurred_at')]);
+        $invoice->load(['client', 'project', 'recurringInvoice:id,title', 'lines' => fn ($q) => $q->orderBy('sort_order'), 'events' => fn ($q) => $q->orderByDesc('occurred_at')]);
 
         $linked = $invoice->timeEntries()
             ->selectRaw('COUNT(*) AS n, COALESCE(SUM(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, UTC_TIMESTAMP()))),0) AS secs')
@@ -147,6 +147,9 @@ class InvoiceController extends Controller
                 'total' => round($invoice->total_rappen / 100, 2),
                 'vat_rate' => (float) $invoice->vat_rate,
                 'notes' => $invoice->notes,
+                'recurring' => $invoice->recurringInvoice
+                    ? ['id' => $invoice->recurringInvoice->id, 'title' => $invoice->recurringInvoice->title]
+                    : null,
                 'lines' => $invoice->lines->map(fn (InvoiceLine $l) => [
                     'id' => $l->id, 'description' => $l->description,
                     'hours' => (float) $l->hours, 'rate' => (int) round($l->rate_rappen / 100),

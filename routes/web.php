@@ -6,6 +6,7 @@ use App\Http\Controllers\EstimateController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\RecurringInvoiceController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingsController;
@@ -73,6 +74,16 @@ Route::middleware('auth')->group(function () {
     Route::post('/estimates/{estimate}/decline', [EstimateController::class, 'decline'])->name('estimates.decline');
     Route::post('/estimates/{estimate}/convert', [EstimateController::class, 'convert'])->name('estimates.convert');
     Route::delete('/estimates/{estimate}', [EstimateController::class, 'destroy'])->name('estimates.destroy');
+
+    Route::get('/recurring-invoices', [RecurringInvoiceController::class, 'index'])->name('recurring.index');
+    Route::get('/recurring-invoices/new', [RecurringInvoiceController::class, 'create'])->name('recurring.create');
+    Route::post('/recurring-invoices', [RecurringInvoiceController::class, 'store'])->name('recurring.store');
+    Route::get('/recurring-invoices/{recurringInvoice}/edit', [RecurringInvoiceController::class, 'edit'])->name('recurring.edit');
+    Route::patch('/recurring-invoices/{recurringInvoice}', [RecurringInvoiceController::class, 'update'])->name('recurring.update');
+    Route::post('/recurring-invoices/{recurringInvoice}/pause', [RecurringInvoiceController::class, 'pause'])->name('recurring.pause');
+    Route::post('/recurring-invoices/{recurringInvoice}/resume', [RecurringInvoiceController::class, 'resume'])->name('recurring.resume');
+    Route::post('/recurring-invoices/{recurringInvoice}/run', [RecurringInvoiceController::class, 'run'])->name('recurring.run');
+    Route::delete('/recurring-invoices/{recurringInvoice}', [RecurringInvoiceController::class, 'destroy'])->name('recurring.destroy');
 
     Route::get('/reports', [ReportController::class, 'show'])->name('reports.show');
 

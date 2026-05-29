@@ -245,3 +245,20 @@ test('createDraft ignores client-submitted amount_rappen (anti-tamper)', functio
     );
     expect($invoice->lines->first()->amount_rappen)->toBe(10000);
 });
+
+test('createDraft stamps an explicit vat rate when provided', function () {
+    $invoice = $this->svc->createDraft(
+        client: $this->client,
+        project: null,
+        periodStart: now()->subDay()->toDateString(),
+        periodEnd: now()->toDateString(),
+        lines: [['description' => 'X', 'hours' => 1.0, 'rate_rappen' => 10000, 'vat_exempt' => false]],
+        entryIds: [],
+        title: null,
+        notes: null,
+        vatRate: 2.60,
+    );
+
+    expect((float) $invoice->vat_rate)->toBe(2.60);
+    expect($invoice->vat_rappen)->toBe(260); // 2.60% of 10000
+});

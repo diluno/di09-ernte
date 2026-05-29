@@ -86,8 +86,9 @@ class InvoiceBuilder
         array $entryIds,
         ?string $title = null,
         ?string $notes = null,
+        ?float $vatRate = null,
     ): Invoice {
-        return DB::transaction(function () use ($client, $project, $periodStart, $periodEnd, $lines, $entryIds, $title, $notes) {
+        return DB::transaction(function () use ($client, $project, $periodStart, $periodEnd, $lines, $entryIds, $title, $notes, $vatRate) {
             $profile = BusinessProfile::current();
 
             $number = $this->numberer->nextFor((int) date('Y'));
@@ -100,7 +101,7 @@ class InvoiceBuilder
                 'period_end' => $periodEnd,
                 'status' => 'draft',
                 'currency' => $profile->default_currency ?? 'CHF',
-                'vat_rate' => $profile->default_vat_rate,
+                'vat_rate' => $vatRate ?? $profile->default_vat_rate,
                 'subtotal_rappen' => 0,
                 'vat_rappen' => 0,
                 'total_rappen' => 0,
