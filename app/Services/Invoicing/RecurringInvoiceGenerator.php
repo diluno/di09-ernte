@@ -40,8 +40,6 @@ class RecurringInvoiceGenerator
             'description' => $l->description,
             'hours' => (float) $l->hours,
             'rate_rappen' => (int) $l->rate_rappen,
-            'vat_code' => $l->vat_code ?? ((bool) $l->vat_exempt ? 'exempt' : 'standard'),
-            'vat_exempt' => (bool) $l->vat_exempt,
         ])->all();
 
         $invoice = DB::transaction(function () use ($schedule, $period, $title, $lines, $runDate) {
