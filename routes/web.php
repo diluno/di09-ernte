@@ -91,6 +91,11 @@ Route::middleware('auth')->group(function () {
     Route::patch('/settings/profile', [SettingsController::class, 'updateProfile'])->name('settings.profile');
     Route::patch('/settings/tweaks', [SettingsController::class, 'updateTweaks'])->name('settings.tweaks');
 
+    Route::get('/settings/vat-rates', [\App\Http\Controllers\VatRateController::class, 'index'])->name('vat-rates.index');
+    Route::post('/settings/vat-rates', [\App\Http\Controllers\VatRateController::class, 'store'])->name('vat-rates.store');
+    Route::patch('/settings/vat-rates/{vatRate}', [\App\Http\Controllers\VatRateController::class, 'update'])->name('vat-rates.update');
+    Route::delete('/settings/vat-rates/{vatRate}', [\App\Http\Controllers\VatRateController::class, 'destroy'])->name('vat-rates.destroy');
+
     Route::get('/api/search', SearchController::class)->name('api.search');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
