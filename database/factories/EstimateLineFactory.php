@@ -21,10 +21,6 @@ class EstimateLineFactory extends Factory
             'hours' => $hours,
             'rate_rappen' => $rate,
             'amount_rappen' => (int) round($hours * $rate),
-            'vat_exempt' => false,
-            'vat_code' => 'standard',
-            'vat_label' => 'Normalsatz',
-            'vat_rate' => 8.10,
             'sort_order' => 0,
         ];
     }

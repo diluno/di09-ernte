@@ -17,10 +17,6 @@ class RecurringInvoiceLineFactory extends Factory
             'description' => 'Hosting',
             'hours' => 1,
             'rate_rappen' => 10000, // 100 CHF
-            'vat_exempt' => false,
-            'vat_code' => 'standard',
-            'vat_label' => 'Normalsatz',
-            'vat_rate' => 8.10,
             'sort_order' => 0,
         ];
     }
