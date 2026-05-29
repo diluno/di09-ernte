@@ -23,8 +23,6 @@ class StoreEstimateRequest extends FormRequest
             'lines.*.description' => 'required|string|max:1000',
             'lines.*.hours' => 'required|numeric|min:0',
             'lines.*.rate_rappen' => 'required|integer|min:0',
-            'lines.*.vat_exempt' => 'sometimes|boolean',
-            'lines.*.vat_code' => ['sometimes', 'nullable', 'string', Rule::exists('vat_rates', 'code')],
         ];
     }
 }
