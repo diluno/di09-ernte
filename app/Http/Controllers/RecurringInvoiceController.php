@@ -145,6 +145,10 @@ class RecurringInvoiceController extends Controller
 
     public function run(RecurringInvoice $recurringInvoice, RecurringInvoiceGenerator $generator): RedirectResponse
     {
+        if ($recurringInvoice->isPaused()) {
+            return back()->with('error', 'Cannot generate from a paused schedule. Resume it first.');
+        }
+
         $invoice = $generator->generate($recurringInvoice, Carbon::parse($recurringInvoice->next_run_on));
 
         return redirect("/invoices/{$invoice->number}")
