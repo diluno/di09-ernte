@@ -62,15 +62,18 @@ test('createDraft allocates a number via EstimateNumberer and writes a created e
     expect($estimate->events()->where('kind', 'created')->count())->toBe(1);
 });
 
-test('createDraft stamps vat_rate and currency from the business profile', function () {
+test('createDraft stamps vat_rate from the dated catalog and currency from the business profile', function () {
     BusinessProfile::current()->update(['default_vat_rate' => 7.70]);
 
     $estimate = $this->svc->createDraft(
         client: $this->client, project: null,
         lines: [['description' => 'Work', 'hours' => 1.0, 'rate_rappen' => 10000, 'vat_exempt' => false]],
+        taxDate: '2023-12-31',
     );
 
     expect((float) $estimate->vat_rate)->toBe(7.70);
+    expect((float) $estimate->lines->first()->vat_rate)->toBe(7.70);
+    expect($estimate->vat_rappen)->toBe(770);
     expect($estimate->currency)->toBe('CHF');
 });
 

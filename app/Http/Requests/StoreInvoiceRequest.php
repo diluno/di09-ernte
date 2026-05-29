@@ -3,16 +3,20 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreInvoiceRequest extends FormRequest
 {
-    public function authorize(): bool { return true; } // single-user app
+    public function authorize(): bool
+    {
+        return true;
+    } // single-user app
 
     public function rules(): array
     {
         return [
             'client_id' => 'required|exists:clients,id',
-            'project_id' => ['nullable', \Illuminate\Validation\Rule::exists('projects', 'id')->where(fn ($q) => $q->where('client_id', $this->input('client_id')))],
+            'project_id' => ['nullable', Rule::exists('projects', 'id')->where(fn ($q) => $q->where('client_id', $this->input('client_id')))],
             'period_start' => 'required|date',
             'period_end' => 'required|date|after_or_equal:period_start',
             'entry_ids' => 'array',
@@ -22,6 +26,7 @@ class StoreInvoiceRequest extends FormRequest
             'lines.*.hours' => 'required|numeric|min:0',
             'lines.*.rate_rappen' => 'required|integer|min:0',
             'lines.*.vat_exempt' => 'sometimes|boolean',
+            'lines.*.vat_code' => ['sometimes', 'nullable', 'string', Rule::exists('vat_rates', 'code')],
         ];
     }
 }

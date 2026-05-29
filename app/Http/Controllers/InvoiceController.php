@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Project;
 use App\Models\TimeEntry;
+use App\Models\VatRate;
 use App\Services\Invoicing\InvoiceBuilder;
 use App\Services\Invoicing\InvoiceLifecycle;
 use App\Services\Invoicing\InvoicePdfRenderer;
@@ -57,6 +58,7 @@ class InvoiceController extends Controller
                 'suggested_lines' => [],
                 'clients' => Client::active()->orderBy('name')->get(['id', 'name'])
                     ->map(fn (Client $c) => ['id' => $c->id, 'name' => $c->name])->values(),
+                'vat_rates' => VatRate::catalogForFrontend(),
             ]);
         }
 
@@ -93,15 +95,19 @@ class InvoiceController extends Controller
                 'started_at' => $e->started_at->toIso8601String(),
                 'rate' => (int) round(($e->project->rate_rappen ?? 0) / 100),
             ]),
-            'suggested_lines' => collect($builder->suggestLinesFromEntries($entries, $project))
+            'suggested_lines' => collect($builder->suggestLinesFromEntries($entries, $project, $end))
                 ->map(fn ($l) => [
                     'description' => $l['description'],
                     'hours' => $l['hours'],
                     'rate' => (int) round($l['rate_rappen'] / 100),
                     'rate_rappen' => $l['rate_rappen'],
                     'vat_exempt' => $l['vat_exempt'],
+                    'vat_code' => $l['vat_code'],
+                    'vat_label' => $l['vat_label'],
+                    'vat_rate' => $l['vat_rate'],
                     'entry_ids' => $l['entry_ids'],
                 ])->values(),
+            'vat_rates' => VatRate::catalogForFrontend(),
         ]);
     }
 
@@ -154,6 +160,7 @@ class InvoiceController extends Controller
                     'id' => $l->id, 'description' => $l->description,
                     'hours' => (float) $l->hours, 'rate' => (int) round($l->rate_rappen / 100),
                     'amount' => round($l->amount_rappen / 100, 2), 'vat_exempt' => (bool) $l->vat_exempt,
+                    'vat_code' => $l->vat_code, 'vat_label' => $l->vat_label, 'vat_rate' => (float) $l->vat_rate,
                 ]),
             ],
             'events' => $invoice->events->map(fn ($e) => [
@@ -186,22 +193,31 @@ class InvoiceController extends Controller
             if (! empty($data['lines'])) {
                 $invoice->lines()->delete();
                 $lineAmounts = [];
-                $vatExempts = [];
+                $lineVatRates = [];
                 $sort = 0;
+                $taxDate = $invoice->period_end?->toDateString() ?? now()->toDateString();
                 foreach ($data['lines'] as $line) {
                     $hours = round((float) $line['hours'], 2);
                     $rate = (int) $line['rate_rappen'];
                     $amount = (int) round($hours * $rate);
-                    $exempt = (bool) ($line['vat_exempt'] ?? false);
+                    $vat = VatRate::snapshotFor(
+                        $line['vat_code'] ?? (! empty($line['vat_exempt']) ? 'exempt' : 'standard'),
+                        $taxDate,
+                        (float) $invoice->vat_rate,
+                    );
                     $invoice->lines()->create([
                         'description' => $line['description'], 'hours' => $hours,
                         'rate_rappen' => $rate, 'amount_rappen' => $amount,
-                        'vat_exempt' => $exempt, 'sort_order' => $sort++,
+                        'vat_exempt' => $vat['vat_exempt'],
+                        'vat_code' => $vat['vat_code'],
+                        'vat_label' => $vat['vat_label'],
+                        'vat_rate' => $vat['vat_rate'],
+                        'sort_order' => $sort++,
                     ]);
                     $lineAmounts[] = $amount;
-                    $vatExempts[] = $exempt;
+                    $lineVatRates[] = $vat['vat_rate'];
                 }
-                $totals = InvoiceBuilder::computeTotals($lineAmounts, $vatExempts, (float) $invoice->vat_rate);
+                $totals = InvoiceBuilder::computeTotalsFromRates($lineAmounts, $lineVatRates);
                 $invoice->subtotal_rappen = $totals['subtotal_rappen'];
                 $invoice->vat_rappen = $totals['vat_rappen'];
                 $invoice->total_rappen = $totals['total_rappen'];

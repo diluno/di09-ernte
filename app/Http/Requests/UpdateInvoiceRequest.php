@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateInvoiceRequest extends FormRequest
 {
@@ -22,6 +23,7 @@ class UpdateInvoiceRequest extends FormRequest
             'lines.*.hours' => 'required_with:lines|numeric|min:0',
             'lines.*.rate_rappen' => 'required_with:lines|integer|min:0',
             'lines.*.vat_exempt' => 'sometimes|boolean',
+            'lines.*.vat_code' => ['sometimes', 'nullable', 'string', Rule::exists('vat_rates', 'code')],
         ];
     }
 }

@@ -2,7 +2,6 @@
 
 use App\Models\BusinessProfile;
 use App\Models\Client;
-use App\Models\Invoice;
 use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Models\User;
@@ -28,6 +27,7 @@ beforeEach(function () {
 function makeEntry(User $user, Project $project, string $desc, int $minutes, bool $billable = true): TimeEntry
 {
     $start = now()->subDays(2);
+
     return TimeEntry::factory()->create([
         'user_id' => $user->id,
         'project_id' => $project->id,
@@ -78,16 +78,21 @@ test('subtotal/vat/total are computed from line amounts', function () {
     expect($invoice->total_rappen)->toBe(31349);
 });
 
-test('vat_rate is stamped from business_profile at build time', function () {
+test('vat_rate is stamped from the dated VAT catalog at build time', function () {
     BusinessProfile::current()->update(['default_vat_rate' => 7.70]);
 
     makeEntry($this->user, $this->project, 'Work', 60);
     $invoice = $this->svc->buildDraftFromEntries(
-        $this->client, $this->project, TimeEntry::all(),
-        now()->subDays(1)->toDateString(), now()->toDateString()
+        $this->client,
+        $this->project,
+        TimeEntry::all(),
+        '2023-12-01',
+        '2023-12-31'
     );
 
     expect((float) $invoice->vat_rate)->toBe(7.70);
+    expect((float) $invoice->lines->first()->vat_rate)->toBe(7.70);
+    expect($invoice->vat_rappen)->toBe(1117); // 7.70% of 14500
 
     BusinessProfile::current()->update(['default_vat_rate' => 8.10]);
     expect((float) $invoice->fresh()->vat_rate)->toBe(7.70);
@@ -138,7 +143,7 @@ test('a number is allocated via InvoiceNumberer', function () {
 });
 
 test('computeTotals respects vat_exempt lines', function () {
-    $totals = \App\Services\Invoicing\InvoiceBuilder::computeTotals(
+    $totals = InvoiceBuilder::computeTotals(
         lineAmounts: [10000, 5000],
         vatExempts: [false, true],
         vatRate: 8.10,
@@ -150,7 +155,7 @@ test('computeTotals respects vat_exempt lines', function () {
 });
 
 test('computeTotals with all non-exempt matches original VAT formula', function () {
-    $totals = \App\Services\Invoicing\InvoiceBuilder::computeTotals(
+    $totals = InvoiceBuilder::computeTotals(
         lineAmounts: [29000],
         vatExempts: [false],
         vatRate: 8.10,
@@ -158,8 +163,8 @@ test('computeTotals with all non-exempt matches original VAT formula', function 
 
     expect($totals)->toMatchArray([
         'subtotal_rappen' => 29000,
-        'vat_rappen'      => 2349,
-        'total_rappen'    => 31349,
+        'vat_rappen' => 2349,
+        'total_rappen' => 31349,
     ]);
 });
 

@@ -9,6 +9,7 @@ use App\Models\Client;
 use App\Models\Project;
 use App\Models\RecurringInvoice;
 use App\Models\RecurringInvoiceLine;
+use App\Models\VatRate;
 use App\Services\Invoicing\RecurringInvoiceGenerator;
 use App\Support\BillingPeriod;
 use Illuminate\Http\RedirectResponse;
@@ -44,7 +45,8 @@ class RecurringInvoiceController extends Controller
     public function create(): Response
     {
         return Inertia::render('RecurringInvoices/Create', $this->formData() + [
-            'default_vat_rate' => (float) BusinessProfile::current()->default_vat_rate,
+            'default_vat_rate' => (float) VatRate::defaultForDate()->rate,
+            'vat_rates' => VatRate::catalogForFrontend(),
         ]);
     }
 
@@ -55,19 +57,20 @@ class RecurringInvoiceController extends Controller
         $nextRun = BillingPeriod::nextRunOnOrAfter($data['cadence'], $first, Carbon::today());
 
         DB::transaction(function () use ($data, $first, $nextRun) {
+            $documentVat = VatRate::snapshotFor('standard', $nextRun, (float) BusinessProfile::current()->default_vat_rate);
             $schedule = RecurringInvoice::create([
                 'client_id' => $data['client_id'],
                 'project_id' => $data['project_id'] ?? null,
                 'title' => $data['title'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'currency' => BusinessProfile::current()->default_currency ?? 'CHF',
-                'vat_rate' => $data['vat_rate'],
+                'vat_rate' => $data['vat_rate'] ?? $documentVat['vat_rate'],
                 'cadence' => $data['cadence'],
                 'anchor_day' => $first->day,
                 'next_run_on' => $nextRun->toDateString(),
                 'auto_send' => $data['auto_send'] ?? false,
             ]);
-            $this->syncLines($schedule, $data['lines']);
+            $this->syncLines($schedule, $data['lines'], $nextRun);
         });
 
         return redirect('/recurring-invoices')->with('success', 'Recurring schedule created.');
@@ -93,8 +96,12 @@ class RecurringInvoiceController extends Controller
                     'hours' => (float) $l->hours,
                     'rate' => (int) round($l->rate_rappen / 100),
                     'vat_exempt' => (bool) $l->vat_exempt,
+                    'vat_code' => $l->vat_code,
+                    'vat_label' => $l->vat_label,
+                    'vat_rate' => (float) $l->vat_rate,
                 ])->values(),
             ],
+            'vat_rates' => VatRate::catalogForFrontend(),
         ]);
     }
 
@@ -105,19 +112,20 @@ class RecurringInvoiceController extends Controller
         $nextRun = BillingPeriod::nextRunOnOrAfter($data['cadence'], $first, Carbon::today());
 
         DB::transaction(function () use ($data, $first, $nextRun, $recurringInvoice) {
+            $documentVat = VatRate::snapshotFor('standard', $nextRun, (float) $recurringInvoice->vat_rate);
             $recurringInvoice->update([
                 'client_id' => $data['client_id'],
                 'project_id' => $data['project_id'] ?? null,
                 'title' => $data['title'] ?? null,
                 'notes' => $data['notes'] ?? null,
-                'vat_rate' => $data['vat_rate'],
+                'vat_rate' => $data['vat_rate'] ?? $documentVat['vat_rate'],
                 'cadence' => $data['cadence'],
                 'anchor_day' => $first->day,
                 'next_run_on' => $nextRun->toDateString(),
                 'auto_send' => $data['auto_send'] ?? false,
             ]);
             $recurringInvoice->lines()->delete();
-            $this->syncLines($recurringInvoice, $data['lines']);
+            $this->syncLines($recurringInvoice, $data['lines'], $nextRun);
         });
 
         return redirect('/recurring-invoices')->with('success', 'Recurring schedule updated.');
@@ -163,16 +171,24 @@ class RecurringInvoiceController extends Controller
         return redirect('/recurring-invoices')->with('success', 'Recurring schedule deleted.');
     }
 
-    /** @param array<int, array{description:string, hours:float|string, rate_rappen:int, vat_exempt?:bool}> $lines */
-    private function syncLines(RecurringInvoice $schedule, array $lines): void
+    /** @param array<int, array{description:string, hours:float|string, rate_rappen:int, vat_exempt?:bool, vat_code?:string}> $lines */
+    private function syncLines(RecurringInvoice $schedule, array $lines, Carbon|string $taxDate): void
     {
         $sort = 0;
         foreach ($lines as $line) {
+            $vat = VatRate::snapshotFor(
+                $line['vat_code'] ?? (! empty($line['vat_exempt']) ? 'exempt' : 'standard'),
+                $taxDate,
+                (float) $schedule->vat_rate,
+            );
             $schedule->lines()->create([
                 'description' => (string) $line['description'],
                 'hours' => round((float) $line['hours'], 2),
                 'rate_rappen' => (int) $line['rate_rappen'],
-                'vat_exempt' => (bool) ($line['vat_exempt'] ?? false),
+                'vat_exempt' => $vat['vat_exempt'],
+                'vat_code' => $vat['vat_code'],
+                'vat_label' => $vat['vat_label'],
+                'vat_rate' => $vat['vat_rate'],
                 'sort_order' => $sort++,
             ]);
         }

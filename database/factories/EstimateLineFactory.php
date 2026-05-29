@@ -14,6 +14,7 @@ class EstimateLineFactory extends Factory
     {
         $hours = $this->faker->randomFloat(2, 1, 20);
         $rate = 14500; // 145 CHF/h
+
         return [
             'estimate_id' => Estimate::factory(),
             'description' => ucfirst($this->faker->bs()),
@@ -21,6 +22,9 @@ class EstimateLineFactory extends Factory
             'rate_rappen' => $rate,
             'amount_rappen' => (int) round($hours * $rate),
             'vat_exempt' => false,
+            'vat_code' => 'standard',
+            'vat_label' => 'Normalsatz',
+            'vat_rate' => 8.10,
             'sort_order' => 0,
         ];
     }

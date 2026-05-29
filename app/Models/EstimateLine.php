@@ -11,7 +11,7 @@ class EstimateLine extends Model
 
     protected $fillable = [
         'estimate_id', 'description', 'hours', 'rate_rappen', 'amount_rappen',
-        'vat_exempt', 'sort_order',
+        'vat_exempt', 'vat_code', 'vat_label', 'vat_rate', 'sort_order',
     ];
 
     protected $casts = [
@@ -19,8 +19,12 @@ class EstimateLine extends Model
         'rate_rappen' => 'integer',
         'amount_rappen' => 'integer',
         'vat_exempt' => 'boolean',
+        'vat_rate' => 'decimal:2',
         'sort_order' => 'integer',
     ];
 
-    public function estimate() { return $this->belongsTo(Estimate::class); }
+    public function estimate()
+    {
+        return $this->belongsTo(Estimate::class);
+    }
 }

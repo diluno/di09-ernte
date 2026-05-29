@@ -16,7 +16,7 @@ class EstimateImporter
     ];
 
     /**
-     * @param  array<int,array>   $harvestEstimates
+     * @param  array<int,array>  $harvestEstimates
      * @param  array<int,Client>  $clientMap
      * @return array{imported:int, warnings:string[]}
      */
@@ -29,6 +29,7 @@ class EstimateImporter
             $client = $clientMap[$row['client']['id'] ?? null] ?? null;
             if (! $client) {
                 $warnings[] = "Skipped estimate {$row['number']}: client not imported.";
+
                 continue;
             }
 
@@ -38,6 +39,7 @@ class EstimateImporter
             );
             if ($hasNegative) {
                 $warnings[] = "Skipped estimate {$row['number']}: negative amounts are not supported by ernte.";
+
                 continue;
             }
 
@@ -78,12 +80,16 @@ class EstimateImporter
 
             $sort = 0;
             foreach ($row['line_items'] ?? [] as $line) {
+                $taxed = (bool) ($line['taxed'] ?? true);
                 $estimate->lines()->create([
                     'description' => $line['description'] ?? '',
                     'hours' => (float) ($line['quantity'] ?? 0),
                     'rate_rappen' => (int) round(((float) ($line['unit_price'] ?? 0)) * 100),
                     'amount_rappen' => (int) round(((float) ($line['amount'] ?? 0)) * 100),
-                    'vat_exempt' => ! ($line['taxed'] ?? true),
+                    'vat_exempt' => ! $taxed,
+                    'vat_code' => $taxed ? 'standard' : 'exempt',
+                    'vat_label' => $taxed ? 'Normalsatz' : 'MwSt-befreit',
+                    'vat_rate' => $taxed ? (float) ($row['tax'] ?? 0) : 0,
                     'sort_order' => $sort++,
                 ]);
             }

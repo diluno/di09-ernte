@@ -31,10 +31,15 @@
     .notes h1, .notes h2, .notes h3 { font-size: 13px; margin: 16px 0 6px; }
     .foot { margin-top: 28px; font-size: 10px; color: #6b6b6b; }
   </style>
-</head>
-@php
-  $money = fn ($rappen) => 'CHF ' . number_format($rappen / 100, 2, '.', "'");
-@endphp
+	</head>
+	@php
+	  $money = fn ($rappen) => 'CHF ' . number_format($rappen / 100, 2, '.', "'");
+	  $rateLabel = fn ($rate) => rtrim(rtrim(number_format((float) $rate, 2), '0'), '.');
+	  $vatBreakdown = \App\Support\LineTotals::vatBreakdown(
+	      $estimate->lines->pluck('amount_rappen')->all(),
+	      $estimate->lines->pluck('vat_rate')->all(),
+	  );
+	@endphp
 <body>
   <div class="head">
     <div>
@@ -93,11 +98,13 @@
     </tbody>
   </table>
 
-  <div class="totals">
-    <div>Zwischensumme</div><div class="v">{{ $money($estimate->subtotal_rappen) }}</div>
-    <div>MwSt {{ rtrim(rtrim(number_format((float) $estimate->vat_rate, 2), '0'), '.') }}%</div><div class="v">{{ $money($estimate->vat_rappen) }}</div>
-    <div class="grand-l">Total</div><div class="v grand">{{ $money($estimate->total_rappen) }}</div>
-  </div>
+	  <div class="totals">
+	    <div>Zwischensumme</div><div class="v">{{ $money($estimate->subtotal_rappen) }}</div>
+	    @foreach ($vatBreakdown as $vat)
+	      <div>MwSt {{ $rateLabel($vat['rate']) }}%</div><div class="v">{{ $money($vat['vat_rappen']) }}</div>
+	    @endforeach
+	    <div class="grand-l">Total</div><div class="v grand">{{ $money($estimate->total_rappen) }}</div>
+	  </div>
 
   @if ($estimate->notes)
     <div class="notes">{!! \App\Support\Markdown::toHtml($estimate->notes) !!}</div>

@@ -81,7 +81,7 @@ class DoctorCommand extends Command
 
     private function tables(): array
     {
-        $required = ['jobs', 'failed_jobs', 'backups', 'business_profile'];
+        $required = ['jobs', 'failed_jobs', 'backups', 'business_profile', 'vat_rates'];
         $missing = array_values(array_filter($required, fn (string $table) => ! Schema::hasTable($table)));
 
         return $missing === []

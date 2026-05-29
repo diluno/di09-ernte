@@ -23,7 +23,20 @@ test('compute with all taxable lines matches the original VAT formula', function
 
     expect($totals)->toMatchArray([
         'subtotal_rappen' => 29000,
-        'vat_rappen'      => 2349,
-        'total_rappen'    => 31349,
+        'vat_rappen' => 2349,
+        'total_rappen' => 31349,
+    ]);
+});
+
+test('computeFromRates groups VAT by each snapped line rate', function () {
+    $totals = LineTotals::computeFromRates(
+        lineAmounts: [10000, 5000, 2000],
+        lineVatRates: [8.10, 2.60, 0.00],
+    );
+
+    expect($totals)->toMatchArray([
+        'subtotal_rappen' => 17000,
+        'vat_rappen' => 940,
+        'total_rappen' => 17940,
     ]);
 });

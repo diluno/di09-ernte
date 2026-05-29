@@ -117,6 +117,7 @@ class EstimateLifecycle
                 'description' => $l->description,
                 'hours' => (float) $l->hours,
                 'rate_rappen' => (int) $l->rate_rappen,
+                'vat_code' => $l->vat_code ?? ((bool) $l->vat_exempt ? 'exempt' : 'standard'),
                 'vat_exempt' => (bool) $l->vat_exempt,
             ])->all();
 
@@ -131,6 +132,7 @@ class EstimateLifecycle
                 entryIds: [],
                 title: $estimate->title,
                 notes: $estimate->notes,
+                taxDate: $today,
             );
 
             $estimate->update(['converted_invoice_id' => $invoice->id]);

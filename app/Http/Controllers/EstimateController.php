@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Estimate;
 use App\Models\EstimateLine;
 use App\Models\Project;
+use App\Models\VatRate;
 use App\Services\Estimating\EstimateBuilder;
 use App\Services\Estimating\EstimateLifecycle;
 use App\Services\Estimating\EstimatePdfRenderer;
@@ -54,6 +55,7 @@ class EstimateController extends Controller
                     'id' => $p->id, 'name' => $p->name, 'client_id' => $p->client_id,
                     'rate' => (int) round(($p->rate_rappen ?? 0) / 100),
                 ])->values(),
+            'vat_rates' => VatRate::catalogForFrontend(),
         ]);
     }
 
@@ -103,6 +105,7 @@ class EstimateController extends Controller
                     'id' => $l->id, 'description' => $l->description,
                     'hours' => (float) $l->hours, 'rate' => (int) round($l->rate_rappen / 100),
                     'amount' => round($l->amount_rappen / 100, 2), 'vat_exempt' => (bool) $l->vat_exempt,
+                    'vat_code' => $l->vat_code, 'vat_label' => $l->vat_label, 'vat_rate' => (float) $l->vat_rate,
                 ]),
                 'converted_invoice' => $estimate->convertedInvoice
                     ? ['id' => $estimate->convertedInvoice->id, 'number' => $estimate->convertedInvoice->number]
@@ -134,11 +137,15 @@ class EstimateController extends Controller
                 'project_id' => $estimate->project_id,
                 'title' => $estimate->title,
                 'notes' => $estimate->notes,
+                'tax_date' => ($estimate->issued_on ?? $estimate->created_at)?->toDateString(),
                 'lines' => $estimate->lines->map(fn (EstimateLine $l) => [
                     'description' => $l->description,
                     'hours' => (float) $l->hours,
                     'rate' => (int) round($l->rate_rappen / 100),
                     'vat_exempt' => (bool) $l->vat_exempt,
+                    'vat_code' => $l->vat_code,
+                    'vat_label' => $l->vat_label,
+                    'vat_rate' => (float) $l->vat_rate,
                 ])->values(),
             ],
             'clients' => Client::active()->orderBy('name')->get(['id', 'name'])
@@ -148,6 +155,7 @@ class EstimateController extends Controller
                     'id' => $p->id, 'name' => $p->name, 'client_id' => $p->client_id,
                     'rate' => (int) round(($p->rate_rappen ?? 0) / 100),
                 ])->values(),
+            'vat_rates' => VatRate::catalogForFrontend(),
         ]);
     }
 
@@ -176,22 +184,33 @@ class EstimateController extends Controller
             if (! empty($data['lines'])) {
                 $estimate->lines()->delete();
                 $lineAmounts = [];
-                $vatExempts = [];
+                $lineVatRates = [];
                 $sort = 0;
+                $taxDate = $estimate->issued_on?->toDateString()
+                    ?? $estimate->created_at?->toDateString()
+                    ?? now()->toDateString();
                 foreach ($data['lines'] as $line) {
                     $hours = round((float) $line['hours'], 2);
                     $rate = (int) $line['rate_rappen'];
                     $amount = (int) round($hours * $rate);
-                    $exempt = (bool) ($line['vat_exempt'] ?? false);
+                    $vat = VatRate::snapshotFor(
+                        $line['vat_code'] ?? (! empty($line['vat_exempt']) ? 'exempt' : 'standard'),
+                        $taxDate,
+                        (float) $estimate->vat_rate,
+                    );
                     $estimate->lines()->create([
                         'description' => $line['description'], 'hours' => $hours,
                         'rate_rappen' => $rate, 'amount_rappen' => $amount,
-                        'vat_exempt' => $exempt, 'sort_order' => $sort++,
+                        'vat_exempt' => $vat['vat_exempt'],
+                        'vat_code' => $vat['vat_code'],
+                        'vat_label' => $vat['vat_label'],
+                        'vat_rate' => $vat['vat_rate'],
+                        'sort_order' => $sort++,
                     ]);
                     $lineAmounts[] = $amount;
-                    $vatExempts[] = $exempt;
+                    $lineVatRates[] = $vat['vat_rate'];
                 }
-                $totals = LineTotals::compute($lineAmounts, $vatExempts, (float) $estimate->vat_rate);
+                $totals = LineTotals::computeFromRates($lineAmounts, $lineVatRates);
                 $estimate->subtotal_rappen = $totals['subtotal_rappen'];
                 $estimate->vat_rappen = $totals['vat_rappen'];
                 $estimate->total_rappen = $totals['total_rappen'];

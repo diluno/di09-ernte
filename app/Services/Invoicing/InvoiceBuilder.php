@@ -9,7 +9,10 @@ use App\Models\InvoiceEvent;
 use App\Models\InvoiceLine;
 use App\Models\Project;
 use App\Models\TimeEntry;
+use App\Models\VatRate;
+use App\Support\LineTotals;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -25,14 +28,24 @@ class InvoiceBuilder
      *
      * Exempt lines are included in the subtotal but excluded from the VAT base.
      *
-     * @param  int[]   $lineAmounts  Amount in rappen for each line.
-     * @param  bool[]  $vatExempts   Parallel exempt flag for each line.
-     * @param  float   $vatRate      VAT rate as a percentage (e.g. 8.10).
+     * @param  int[]  $lineAmounts  Amount in rappen for each line.
+     * @param  bool[]  $vatExempts  Parallel exempt flag for each line.
+     * @param  float  $vatRate  VAT rate as a percentage (e.g. 8.10).
      * @return array{subtotal_rappen: int, vat_rappen: int, total_rappen: int}
      */
     public static function computeTotals(array $lineAmounts, array $vatExempts, float $vatRate): array
     {
-        return \App\Support\LineTotals::compute($lineAmounts, $vatExempts, $vatRate);
+        return LineTotals::compute($lineAmounts, $vatExempts, $vatRate);
+    }
+
+    /**
+     * @param  int[]  $lineAmounts
+     * @param  array<int, float|int|string|null>  $lineVatRates
+     * @return array{subtotal_rappen: int, vat_rappen: int, total_rappen: int}
+     */
+    public static function computeTotalsFromRates(array $lineAmounts, array $lineVatRates): array
+    {
+        return LineTotals::computeFromRates($lineAmounts, $lineVatRates);
     }
 
     /**
@@ -41,8 +54,10 @@ class InvoiceBuilder
      *
      * @return array<int, array{description:string, hours:float, rate_rappen:int, amount_rappen:int, vat_exempt:bool, entry_ids:int[]}>
      */
-    public function suggestLinesFromEntries(Collection $entries, ?Project $project): array
+    public function suggestLinesFromEntries(Collection $entries, ?Project $project, Carbon|string|null $taxDate = null): array
     {
+        $vat = VatRate::defaultForDate($taxDate);
+
         $eligible = $entries
             ->filter(fn (TimeEntry $e) => $e->billable && $e->invoice_id === null)
             ->when($project, fn ($c) => $c->filter(fn (TimeEntry $e) => $e->project_id === $project->id))
@@ -50,7 +65,7 @@ class InvoiceBuilder
 
         $groups = $eligible->groupBy(fn (TimeEntry $e) => $e->description !== ''
             ? $e->description
-            : ($e->task_id ? ('Task #' . $e->task_id) : ('Entry #' . $e->id)));
+            : ($e->task_id ? ('Task #'.$e->task_id) : ('Entry #'.$e->id)));
 
         $lines = [];
         foreach ($groups as $description => $bucket) {
@@ -63,6 +78,9 @@ class InvoiceBuilder
                 'rate_rappen' => $rate,
                 'amount_rappen' => (int) round($hours * $rate),
                 'vat_exempt' => false,
+                'vat_code' => $vat->code,
+                'vat_label' => $vat->label,
+                'vat_rate' => (float) $vat->rate,
                 'entry_ids' => $bucket->pluck('id')->all(),
             ];
         }
@@ -87,9 +105,14 @@ class InvoiceBuilder
         ?string $title = null,
         ?string $notes = null,
         ?float $vatRate = null,
+        Carbon|string|null $taxDate = null,
     ): Invoice {
-        return DB::transaction(function () use ($client, $project, $periodStart, $periodEnd, $lines, $entryIds, $title, $notes, $vatRate) {
+        return DB::transaction(function () use ($client, $project, $periodStart, $periodEnd, $lines, $entryIds, $title, $notes, $vatRate, $taxDate) {
             $profile = BusinessProfile::current();
+            $taxDate = $taxDate ?: $periodEnd;
+            $documentVat = $vatRate !== null
+                ? ['vat_rate' => $vatRate]
+                : VatRate::snapshotFor('standard', $taxDate, (float) $profile->default_vat_rate);
 
             $number = $this->numberer->nextFor((int) date('Y'));
 
@@ -101,7 +124,7 @@ class InvoiceBuilder
                 'period_end' => $periodEnd,
                 'status' => 'draft',
                 'currency' => $profile->default_currency ?? 'CHF',
-                'vat_rate' => $vatRate ?? $profile->default_vat_rate,
+                'vat_rate' => $documentVat['vat_rate'],
                 'subtotal_rappen' => 0,
                 'vat_rappen' => 0,
                 'total_rappen' => 0,
@@ -112,13 +135,25 @@ class InvoiceBuilder
             $invoice->qr_reference = $this->qr->generate($invoice->id);
 
             $lineAmounts = [];
-            $vatExempts  = [];
+            $lineVatRates = [];
             $sort = 0;
             foreach ($lines as $line) {
                 $hours = round((float) $line['hours'], 2);
                 $rate = (int) $line['rate_rappen'];
                 $amount = (int) round($hours * $rate);           // recompute — ignore any submitted amount
-                $exempt = (bool) ($line['vat_exempt'] ?? false);
+                $lineVatCode = $line['vat_code'] ?? (! empty($line['vat_exempt']) ? 'exempt' : null);
+                $vat = $lineVatCode === null && $vatRate !== null
+                    ? [
+                        'vat_code' => 'standard',
+                        'vat_label' => 'Normalsatz',
+                        'vat_rate' => (float) $invoice->vat_rate,
+                        'vat_exempt' => (float) $invoice->vat_rate === 0.0,
+                    ]
+                    : VatRate::snapshotFor(
+                        $lineVatCode ?? 'standard',
+                        $taxDate,
+                        (float) $invoice->vat_rate,
+                    );
 
                 InvoiceLine::create([
                     'invoice_id' => $invoice->id,
@@ -126,18 +161,21 @@ class InvoiceBuilder
                     'hours' => $hours,
                     'rate_rappen' => $rate,
                     'amount_rappen' => $amount,
-                    'vat_exempt' => $exempt,
+                    'vat_exempt' => $vat['vat_exempt'],
+                    'vat_code' => $vat['vat_code'],
+                    'vat_label' => $vat['vat_label'],
+                    'vat_rate' => $vat['vat_rate'],
                     'sort_order' => $sort++,
                 ]);
 
                 $lineAmounts[] = $amount;
-                $vatExempts[]  = $exempt;
+                $lineVatRates[] = $vat['vat_rate'];
             }
 
-            $totals = self::computeTotals($lineAmounts, $vatExempts, (float) $invoice->vat_rate);
+            $totals = self::computeTotalsFromRates($lineAmounts, $lineVatRates);
             $invoice->subtotal_rappen = $totals['subtotal_rappen'];
-            $invoice->vat_rappen      = $totals['vat_rappen'];
-            $invoice->total_rappen    = $totals['total_rappen'];
+            $invoice->vat_rappen = $totals['vat_rappen'];
+            $invoice->total_rappen = $totals['total_rappen'];
             $invoice->save();
 
             if (! empty($entryIds)) {

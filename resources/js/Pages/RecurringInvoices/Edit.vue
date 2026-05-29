@@ -4,6 +4,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import AutoTextarea from '@/Components/AutoTextarea.vue';
+import { activeVatRates, defaultVatCode, totalsForLines, vatLabelForCode } from '@/formatters/vat.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -11,6 +12,7 @@ const props = defineProps({
   schedule: { type: Object, required: true },
   clients: { type: Array, default: () => [] },
   projects: { type: Array, default: () => [] },
+  vat_rates: { type: Array, default: () => [] },
 });
 
 const clientId = ref(props.schedule.client_id);
@@ -19,7 +21,6 @@ const title = ref(props.schedule.title ?? '');
 const notes = ref(props.schedule.notes ?? '');
 const cadence = ref(props.schedule.cadence);
 const nextRunOn = ref(props.schedule.next_run_on);
-const vatRate = ref(props.schedule.vat_rate);
 const autoSend = ref(props.schedule.auto_send);
 
 const clientProjects = computed(() => props.projects.filter((p) => p.client_id === clientId.value));
@@ -27,18 +28,34 @@ watch(clientId, (val, old) => { if (old !== undefined && val !== old) projectId.
 
 const lines = ref([]);
 let nextKey = 0;
-props.schedule.lines.forEach((l) => lines.value.push({ key: nextKey++, description: l.description, hours: l.hours, rate: l.rate, vat_exempt: l.vat_exempt }));
-function addLine() { lines.value.push({ key: nextKey++, description: '', hours: 1, rate: 0, vat_exempt: false }); }
+props.schedule.lines.forEach((l) => lines.value.push({
+  key: nextKey++,
+  description: l.description,
+  hours: l.hours,
+  rate: l.rate,
+  vat_code: l.vat_code || (l.vat_exempt ? 'exempt' : defaultVatCode(props.vat_rates, nextRunOn.value)),
+  vat_rate: l.vat_rate,
+}));
+function addLine() {
+  lines.value.push({
+    key: nextKey++,
+    description: '',
+    hours: 1,
+    rate: 0,
+    vat_code: defaultVatCode(props.vat_rates, nextRunOn.value),
+  });
+}
 function removeLine(key) { lines.value = lines.value.filter((l) => l.key !== key); }
 function moveUp(i) { if (i > 0) { const a = lines.value; [a[i - 1], a[i]] = [a[i], a[i - 1]]; } }
 
 function fmtMoney(rappen) { return 'CHF ' + (rappen / 100).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function fmtRate(rate) { return Number(rate).toFixed(2).replace(/\.?0+$/, ''); }
 
-const taxableRappen = computed(() => lines.value.filter((l) => !l.vat_exempt).reduce((a, l) => a + Math.round(Number(l.hours) * Number(l.rate) * 100), 0));
-const exemptRappen = computed(() => lines.value.filter((l) => l.vat_exempt).reduce((a, l) => a + Math.round(Number(l.hours) * Number(l.rate) * 100), 0));
-const subtotalRappen = computed(() => taxableRappen.value + exemptRappen.value);
-const vatRappen = computed(() => Math.round(taxableRappen.value * Number(vatRate.value) / 100));
-const totalRappen = computed(() => subtotalRappen.value + vatRappen.value);
+const vatOptions = computed(() => activeVatRates(props.vat_rates, nextRunOn.value));
+const totals = computed(() => totalsForLines(lines.value, props.vat_rates, nextRunOn.value));
+const subtotalRappen = computed(() => totals.value.subtotal);
+const vatRappen = computed(() => totals.value.vat);
+const totalRappen = computed(() => totals.value.total);
 
 const canSave = computed(() => clientId.value && lines.value.length > 0 && nextRunOn.value);
 
@@ -51,13 +68,12 @@ function save() {
     notes: notes.value || null,
     cadence: cadence.value,
     next_run_on: nextRunOn.value,
-    vat_rate: Number(vatRate.value),
     auto_send: autoSend.value,
     lines: lines.value.map((l) => ({
       description: l.description,
       hours: Number(l.hours),
       rate_rappen: Math.round(Number(l.rate) * 100),
-      vat_exempt: !!l.vat_exempt,
+      vat_code: l.vat_code,
     })),
   })).patch(`/recurring-invoices/${props.schedule.id}`);
 }
@@ -115,10 +131,6 @@ function save() {
           <span>Next run on</span>
           <input v-model="nextRunOn" type="date" />
         </label>
-        <label class="field" style="flex: 1">
-          <span>VAT rate %</span>
-          <input v-model="vatRate" type="number" min="0" max="100" step="0.01" />
-        </label>
       </div>
       <label style="display: flex; gap: 8px; align-items: center; margin-bottom: 20px">
         <input type="checkbox" v-model="autoSend" />
@@ -133,7 +145,7 @@ function save() {
             <th class="num" style="width: 80px">Hours</th>
             <th class="num" style="width: 100px">Rate</th>
             <th class="num" style="width: 120px">Amount</th>
-            <th style="width: 60px">MwSt</th>
+            <th style="width: 130px">MwSt</th>
             <th style="width: 70px"></th>
           </tr>
         </thead>
@@ -143,7 +155,11 @@ function save() {
             <td class="num"><input v-model="l.hours" type="number" min="0" step="0.25" class="cell-input num" /></td>
             <td class="num"><input v-model="l.rate" type="number" min="0" class="cell-input num" /></td>
             <td class="num strong">{{ fmtMoney(Math.round(Number(l.hours) * Number(l.rate) * 100)) }}</td>
-            <td><label style="display: flex; gap: 4px; align-items: center"><input type="checkbox" v-model="l.vat_exempt" /><span class="dim" style="font-size: var(--fs-xs)">exempt</span></label></td>
+            <td>
+              <select v-model="l.vat_code" class="cell-input">
+                <option v-for="rate in vatOptions" :key="rate.code" :value="rate.code">{{ vatLabelForCode(vat_rates, rate.code, nextRunOn) }}</option>
+              </select>
+            </td>
             <td>
               <button class="icon-btn" title="move up" @click="moveUp(i)"><Icon name="chevron-up" /></button>
               <button class="icon-btn" title="remove" @click="removeLine(l.key)"><Icon name="close" /></button>
@@ -162,7 +178,9 @@ function save() {
       <h3 class="section-title">Per-invoice totals</h3>
       <div class="invoice-totals" style="display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: var(--fs-sm)">
         <div class="label">Subtotal</div><div class="v">{{ fmtMoney(subtotalRappen) }}</div>
-        <div class="label">MwSt {{ vatRate }}%</div><div class="v">{{ fmtMoney(vatRappen) }}</div>
+        <template v-for="row in totals.breakdown" :key="row.rate">
+          <div class="label">MwSt {{ fmtRate(row.rate) }}%</div><div class="v">{{ fmtMoney(row.vat_rappen) }}</div>
+        </template>
         <div class="grand-l">Total</div><div class="v grand">{{ fmtMoney(totalRappen) }}</div>
       </div>
       <div v-if="Object.keys(form.errors).length" style="color: var(--red); font-size: var(--fs-sm); margin-top: 12px">

@@ -16,7 +16,7 @@ class InvoiceImporter
     ];
 
     /**
-     * @param  array<int,array>   $harvestInvoices
+     * @param  array<int,array>  $harvestInvoices
      * @param  array<int,Client>  $clientMap
      * @return array{imported:int, warnings:string[]}
      */
@@ -29,6 +29,7 @@ class InvoiceImporter
             $client = $clientMap[$row['client']['id'] ?? null] ?? null;
             if (! $client) {
                 $warnings[] = "Skipped invoice {$row['number']}: client not imported.";
+
                 continue;
             }
 
@@ -38,6 +39,7 @@ class InvoiceImporter
             );
             if ($hasNegative) {
                 $warnings[] = "Skipped invoice {$row['number']}: negative amounts (credit note/discount) are not supported by ernte.";
+
                 continue;
             }
 
@@ -76,12 +78,16 @@ class InvoiceImporter
 
             $sort = 0;
             foreach ($row['line_items'] ?? [] as $line) {
+                $taxed = (bool) ($line['taxed'] ?? true);
                 $invoice->lines()->create([
                     'description' => $line['description'] ?? '',
                     'hours' => (float) ($line['quantity'] ?? 0),
                     'rate_rappen' => (int) round(((float) ($line['unit_price'] ?? 0)) * 100),
                     'amount_rappen' => (int) round(((float) ($line['amount'] ?? 0)) * 100),
-                    'vat_exempt' => ! ($line['taxed'] ?? true),
+                    'vat_exempt' => ! $taxed,
+                    'vat_code' => $taxed ? 'standard' : 'exempt',
+                    'vat_label' => $taxed ? 'Normalsatz' : 'MwSt-befreit',
+                    'vat_rate' => $taxed ? (float) ($row['tax'] ?? 0) : 0,
                     'sort_order' => $sort++,
                 ]);
             }

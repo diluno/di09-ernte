@@ -4,6 +4,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import AutoTextarea from '@/Components/AutoTextarea.vue';
+import { activeVatRates, defaultVatCode, totalsForLines, vatLabelForCode } from '@/formatters/vat.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -11,6 +12,7 @@ const props = defineProps({
   estimate: { type: Object, required: true }, // { id, number, client_id, project_id, title, notes, lines }
   clients:  { type: Array, default: () => [] },
   projects: { type: Array, default: () => [] }, // { id, name, client_id, rate }
+  vat_rates: { type: Array, default: () => [] },
 });
 
 const clientId = ref(props.estimate.client_id);
@@ -29,7 +31,13 @@ watch(clientId, () => { projectId.value = null; });
 let nextKey = 0;
 const lines = ref(props.estimate.lines.map((l) => ({ key: nextKey++, ...l })));
 function addLine() {
-  lines.value.push({ key: nextKey++, description: '', hours: 0, rate: selectedProject.value?.rate ?? 0, vat_exempt: false });
+  lines.value.push({
+    key: nextKey++,
+    description: '',
+    hours: 0,
+    rate: selectedProject.value?.rate ?? 0,
+    vat_code: defaultVatCode(props.vat_rates, props.estimate.tax_date),
+  });
 }
 function removeLine(key) { lines.value = lines.value.filter((l) => l.key !== key); }
 function moveUp(i) { if (i > 0) { const a = lines.value; [a[i - 1], a[i]] = [a[i], a[i - 1]]; } }
@@ -37,13 +45,13 @@ function moveUp(i) { if (i > 0) { const a = lines.value; [a[i - 1], a[i]] = [a[i
 if (lines.value.length === 0) addLine();
 
 function fmtMoney(rappen) { return 'CHF ' + (rappen / 100).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function fmtRate(rate) { return Number(rate).toFixed(2).replace(/\.?0+$/, ''); }
 
-const VAT_RATE = 8.1;
-const taxableRappen = computed(() => lines.value.filter((l) => !l.vat_exempt).reduce((a, l) => a + Math.round(Number(l.hours) * Number(l.rate) * 100), 0));
-const exemptRappen = computed(() => lines.value.filter((l) => l.vat_exempt).reduce((a, l) => a + Math.round(Number(l.hours) * Number(l.rate) * 100), 0));
-const subtotalRappen = computed(() => taxableRappen.value + exemptRappen.value);
-const vatRappen = computed(() => Math.round(taxableRappen.value * VAT_RATE / 100));
-const totalRappen = computed(() => subtotalRappen.value + vatRappen.value);
+const vatOptions = computed(() => activeVatRates(props.vat_rates, props.estimate.tax_date));
+const totals = computed(() => totalsForLines(lines.value, props.vat_rates, props.estimate.tax_date));
+const subtotalRappen = computed(() => totals.value.subtotal);
+const vatRappen = computed(() => totals.value.vat);
+const totalRappen = computed(() => totals.value.total);
 
 const canSave = computed(() => clientId.value && lines.value.length > 0);
 
@@ -58,7 +66,7 @@ function save() {
       description: l.description,
       hours: Number(l.hours),
       rate_rappen: Math.round(Number(l.rate) * 100),
-      vat_exempt: !!l.vat_exempt,
+      vat_code: l.vat_code,
     })),
   })).patch(`/estimates/${props.estimate.id}`);
 }
@@ -111,7 +119,7 @@ function save() {
             <th class="num" style="width: 80px">Hours</th>
             <th class="num" style="width: 100px">Rate</th>
             <th class="num" style="width: 120px">Amount</th>
-            <th style="width: 60px">MwSt</th>
+            <th style="width: 130px">MwSt</th>
             <th style="width: 70px"></th>
           </tr>
         </thead>
@@ -121,7 +129,11 @@ function save() {
             <td class="num"><input v-model="l.hours" type="number" min="0" step="0.25" class="cell-input num" /></td>
             <td class="num"><input v-model="l.rate" type="number" min="0" class="cell-input num" /></td>
             <td class="num strong">{{ fmtMoney(Math.round(Number(l.hours) * Number(l.rate) * 100)) }}</td>
-            <td><label style="display: flex; gap: 4px; align-items: center"><input type="checkbox" v-model="l.vat_exempt" /><span class="dim" style="font-size: var(--fs-xs)">exempt</span></label></td>
+            <td>
+              <select v-model="l.vat_code" class="cell-input">
+                <option v-for="rate in vatOptions" :key="rate.code" :value="rate.code">{{ vatLabelForCode(vat_rates, rate.code, estimate.tax_date) }}</option>
+              </select>
+            </td>
             <td>
               <button class="icon-btn" title="move up" @click="moveUp(i)"><Icon name="chevron-up" /></button>
               <button class="icon-btn" title="remove" @click="removeLine(l.key)"><Icon name="close" /></button>
@@ -140,7 +152,9 @@ function save() {
       <h3 class="section-title">Totals</h3>
       <div class="invoice-totals" style="display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: var(--fs-sm)">
         <div class="label">Subtotal</div><div class="v">{{ fmtMoney(subtotalRappen) }}</div>
-        <div class="label">MwSt {{ VAT_RATE }}%</div><div class="v">{{ fmtMoney(vatRappen) }}</div>
+        <template v-for="row in totals.breakdown" :key="row.rate">
+          <div class="label">MwSt {{ fmtRate(row.rate) }}%</div><div class="v">{{ fmtMoney(row.vat_rappen) }}</div>
+        </template>
         <div class="grand-l">Total</div><div class="v grand">{{ fmtMoney(totalRappen) }}</div>
       </div>
       <p class="dim" style="font-size: var(--fs-xs); margin-top: 16px; line-height: 1.6">

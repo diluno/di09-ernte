@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\BusinessProfile;
 use App\Models\User;
+use App\Models\VatRate;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -47,5 +48,25 @@ class BootstrapSeeder extends Seeder
                 'reminder_days_after_due' => (int) env('BUSINESS_REMINDER_DAYS_AFTER_DUE', 7),
             ]
         );
+
+        foreach ($this->vatRates() as $rate) {
+            VatRate::updateOrCreate(
+                ['code' => $rate['code'], 'valid_from' => $rate['valid_from']],
+                $rate,
+            );
+        }
+    }
+
+    private function vatRates(): array
+    {
+        return [
+            ['code' => 'exempt', 'label' => 'MwSt-befreit', 'rate' => 0.00, 'valid_from' => '1900-01-01', 'valid_until' => null, 'is_default' => false],
+            ['code' => 'standard', 'label' => 'Normalsatz', 'rate' => 7.70, 'valid_from' => '2018-01-01', 'valid_until' => '2023-12-31', 'is_default' => true],
+            ['code' => 'reduced', 'label' => 'Reduzierter Satz', 'rate' => 2.50, 'valid_from' => '2018-01-01', 'valid_until' => '2023-12-31', 'is_default' => false],
+            ['code' => 'special', 'label' => 'Sondersatz Beherbergung', 'rate' => 3.70, 'valid_from' => '2018-01-01', 'valid_until' => '2023-12-31', 'is_default' => false],
+            ['code' => 'standard', 'label' => 'Normalsatz', 'rate' => 8.10, 'valid_from' => '2024-01-01', 'valid_until' => null, 'is_default' => true],
+            ['code' => 'reduced', 'label' => 'Reduzierter Satz', 'rate' => 2.60, 'valid_from' => '2024-01-01', 'valid_until' => null, 'is_default' => false],
+            ['code' => 'special', 'label' => 'Sondersatz Beherbergung', 'rate' => 3.80, 'valid_from' => '2024-01-01', 'valid_until' => null, 'is_default' => false],
+        ];
     }
 }
