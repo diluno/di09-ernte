@@ -1,4 +1,4 @@
-# ⟁ ernte
+# 𖧧 ernte
 
 Self-hosted time tracking and Swiss invoicing for one operator.
 
