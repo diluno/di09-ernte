@@ -23,7 +23,7 @@ function draftEstimate(): \App\Models\Estimate
     return test()->builder->createDraft(
         client: test()->client,
         project: test()->project,
-        lines: [['description' => 'Design phase', 'hours' => 2.0, 'rate_rappen' => 14500, 'vat_exempt' => false]],
+        lines: [['description' => 'Design phase', 'hours' => 2.0, 'rate_rappen' => 14500]],
         notes: 'Scope notes.',
         title: 'Partnerschaft auf Augenhöhe',
     );

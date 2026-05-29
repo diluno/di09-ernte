@@ -36,10 +36,6 @@
 	@php
 	  $money = fn ($rappen) => 'CHF ' . number_format($rappen / 100, 2, '.', "'");
 	  $rateLabel = fn ($rate) => rtrim(rtrim(number_format((float) $rate, 2), '0'), '.');
-	  $vatBreakdown = \App\Support\LineTotals::vatBreakdown(
-	      $invoice->lines->pluck('amount_rappen')->all(),
-	      $invoice->lines->pluck('vat_rate')->all(),
-	  );
 	@endphp
 <body>
   <div class="head">
@@ -92,7 +88,7 @@
 	    <tbody>
 	      @foreach ($invoice->lines as $line)
 	        <tr>
-	          <td class="line-desc">{!! \App\Support\Markdown::toHtml($line->description) !!}@if ($line->vat_exempt) <span style="color:#6b6b6b">(MwSt-befreit)</span>@endif</td>
+	          <td class="line-desc">{!! \App\Support\Markdown::toHtml($line->description) !!}</td>
 	          <td class="num">{{ number_format((float) $line->hours, 2) }}</td>
 	          <td class="num">{{ $money($line->rate_rappen) }}</td>
 	          <td class="num">{{ $money($line->amount_rappen) }}</td>
@@ -103,9 +99,7 @@
 
 	  <div class="totals">
 	    <div>Zwischensumme</div><div class="v">{{ $money($invoice->subtotal_rappen) }}</div>
-	    @foreach ($vatBreakdown as $vat)
-	      <div>MwSt {{ $rateLabel($vat['rate']) }}%</div><div class="v">{{ $money($vat['vat_rappen']) }}</div>
-	    @endforeach
+	    <div>MwSt {{ $rateLabel($invoice->vat_rate) }}%</div><div class="v">{{ $money($invoice->vat_rappen) }}</div>
 	    <div class="grand-l">Total</div><div class="v grand">{{ $money($invoice->total_rappen) }}</div>
 	  </div>
 

@@ -42,7 +42,6 @@ test('preserves number, maps open->sent, copies totals, writes lines + created e
     expect($inv->subtotal_rappen)->toBe(10000); // total - vat
     expect($inv->lines)->toHaveCount(1);
     expect($inv->lines->first()->rate_rappen)->toBe(10000);
-    expect($inv->lines->first()->vat_exempt)->toBeFalse();
     expect($inv->events()->where('kind', 'created')->count())->toBe(1);
 });
 
@@ -61,14 +60,15 @@ test('maps every Harvest state to an ernte status', function () {
     expect(Invoice::where('number', 'C1')->value('status'))->toBe('void');
 });
 
-test('untaxed line items become vat_exempt', function () {
+test('untaxed line items produce a warning', function () {
     $inv = harvestInvoice(['line_items' => [
         ['id' => 1, 'description' => 'Reimbursement', 'quantity' => 1.0, 'unit_price' => 50.0, 'amount' => 50.0, 'taxed' => false],
     ]]);
 
-    (new InvoiceImporter())->import([$inv], $this->clientMap);
+    $result = (new InvoiceImporter())->import([$inv], $this->clientMap);
 
-    expect(Invoice::first()->lines->first()->vat_exempt)->toBeTrue();
+    expect(Invoice::first()->lines)->toHaveCount(1);
+    expect($result['warnings'])->not->toBeEmpty();
 });
 
 test('non-CHF invoices are imported with a warning', function () {
