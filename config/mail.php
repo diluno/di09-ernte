@@ -115,4 +115,17 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Non-Production Redirect Address
+    |--------------------------------------------------------------------------
+    |
+    | Outside production, AppServiceProvider redirects ALL outgoing mail to this
+    | address so a real recipient (a client) can never be emailed from local dev
+    | — even if the mailer is misconfigured. Defaults to the "from" address.
+    |
+    */
+
+    'dev_redirect_to' => env('MAIL_DEV_REDIRECT_TO'),
+
 ];
