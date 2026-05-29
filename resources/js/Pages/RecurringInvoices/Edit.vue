@@ -50,7 +50,6 @@ function fmtRate(rate) { return Number(rate).toFixed(2).replace(/\.?0+$/, ''); }
 
 const totals = computed(() => totalsForLines(lines.value, props.vat_rates, nextRunOn.value));
 const subtotalRappen = computed(() => totals.value.subtotal);
-const vatRappen = computed(() => totals.value.vat);
 const totalRappen = computed(() => totals.value.total);
 
 const canSave = computed(() => clientId.value && lines.value.length > 0 && nextRunOn.value);
