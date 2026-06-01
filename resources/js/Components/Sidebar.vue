@@ -14,7 +14,6 @@ const NAV = computed(() => [
   { id: 'invoices', href: '/invoices', label: 'Invoices', icon: 'receipt', count: null },
   { id: 'estimates', href: '/estimates', label: 'Estimates', icon: 'edit', count: null },
   { id: 'recurring', href: '/recurring-invoices', label: 'Recurring', icon: 'repeat', count: null },
-  { id: 'reports',  href: '/reports',  label: 'Reports',  icon: 'chart', count: null },
 ]);
 
 const current = computed(() => page.url);
