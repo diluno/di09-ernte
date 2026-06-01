@@ -51,6 +51,58 @@ test('GET /projects renders Projects/Index with the project list', function () {
         );
 });
 
+test('GET /projects clamps future running entries to zero duration', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create([
+        'rate_rappen' => 14500,
+    ]);
+
+    TimeEntry::create([
+        'user_id' => $user->id,
+        'project_id' => $project->id,
+        'description' => 'scheduled work',
+        'started_at' => now()->addDay(),
+        'ended_at' => null,
+        'billable' => true,
+    ]);
+
+    $this->actingAs($user)->get('/projects')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('stats.week_hours', fn ($value) => (float) $value === 0.0)
+            ->where('stats.unbilled_hours', fn ($value) => (float) $value === 0.0)
+            ->where('stats.unbilled_amount', fn ($value) => (float) $value === 0.0)
+            ->where('projects.0.spent_hours', fn ($value) => (float) $value === 0.0)
+            ->where('projects.0.spent_amount', fn ($value) => (float) $value === 0.0)
+        );
+});
+
+test('GET /projects counts current running entries against the app clock', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create([
+        'rate_rappen' => 14500,
+    ]);
+
+    TimeEntry::create([
+        'user_id' => $user->id,
+        'project_id' => $project->id,
+        'description' => 'active work',
+        'started_at' => now()->subMinutes(30),
+        'ended_at' => null,
+        'billable' => true,
+    ]);
+
+    $this->actingAs($user)->get('/projects')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('stats.week_hours', fn ($value) => (float) $value > 0.0)
+            ->where('stats.unbilled_hours', fn ($value) => (float) $value > 0.0)
+            ->where('stats.unbilled_amount', fn ($value) => (float) $value > 0.0)
+            ->where('projects.0.spent_hours', fn ($value) => (float) $value > 0.0)
+            ->where('projects.0.spent_amount', fn ($value) => (float) $value > 0.0)
+        );
+});
+
 test('GET /projects filter=archived excludes active projects', function () {
     $user = User::factory()->create();
     Project::factory()->create(['status' => 'active']);
