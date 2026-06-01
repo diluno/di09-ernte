@@ -112,7 +112,6 @@ class DashboardProjections
     {
         $timer = TimerToday::payload($user);
         $stats = self::stats($user);
-        $invoice = InvoiceProjections::stats();
 
         return [
             'timer' => [
@@ -124,8 +123,8 @@ class DashboardProjections
                 'sparkline' => self::dailyHoursSparkline($user, 7),
             ],
             'money' => [
-                'outstanding' => $invoice['outstanding'],
-                'overdue' => $invoice['overdue'],
+                'outstanding' => $stats['outstanding_amount'],
+                'overdue' => $stats['overdue_amount'],
                 'unbilled' => $stats['unbilled_amount'],
             ],
         ];
@@ -171,7 +170,7 @@ class DashboardProjections
         $out = [];
         for ($i = 0; $i < $days; $i++) {
             $key = $start->copy()->addDays($i)->toDateString();
-            $out[] = round((($byDay->get($key)->secs ?? 0)) / 3600, 1);
+            $out[] = round(($byDay->get($key)->secs ?? 0) / 3600, 1);
         }
 
         return $out;
@@ -201,12 +200,15 @@ class DashboardProjections
             ', [$now, $now])
             ->first();
 
+        $invoice = InvoiceProjections::stats();
+
         return [
             'active' => Project::active()->count(),
             'week_hours' => round($weekSecs / 3600, 1),
             'unbilled_amount' => round(((float) $unbilledRows->rappen) / 100, 2),
             'unbilled_hours' => round(((int) $unbilledRows->secs) / 3600, 1),
-            'outstanding_amount' => InvoiceProjections::stats()['outstanding'],
+            'outstanding_amount' => $invoice['outstanding'],
+            'overdue_amount' => $invoice['overdue'],
             'outstanding_count' => Invoice::outstanding()->count(),
         ];
     }

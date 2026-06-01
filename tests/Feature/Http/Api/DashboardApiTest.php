@@ -47,3 +47,24 @@ test('GET /api/dashboard surfaces the running entry', function () {
         ->assertOk()
         ->assertJsonPath('timer.running.project.code', $project->code);
 });
+
+test('GET /api/dashboard sparkline buckets hours by day (oldest→newest)', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    // 1h today, 2h six days ago (the oldest bucket of the 7-day window)
+    TimeEntry::factory()->create([
+        'user_id' => $user->id, 'project_id' => $project->id,
+        'started_at' => today()->setTime(8, 0), 'ended_at' => today()->setTime(9, 0),
+    ]);
+    TimeEntry::factory()->create([
+        'user_id' => $user->id, 'project_id' => $project->id,
+        'started_at' => today()->subDays(6)->setTime(8, 0), 'ended_at' => today()->subDays(6)->setTime(10, 0),
+    ]);
+    Sanctum::actingAs($user);
+
+    $spark = $this->getJson('/api/dashboard')->assertOk()->json('hours.sparkline');
+
+    expect($spark)->toHaveCount(7);
+    expect((float) $spark[0])->toBe(2.0); // six days ago = oldest bucket
+    expect((float) $spark[6])->toBe(1.0); // today = newest bucket
+});
