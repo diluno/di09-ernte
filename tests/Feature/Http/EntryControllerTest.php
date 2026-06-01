@@ -75,6 +75,22 @@ test('PATCH /entries/{id} updates fields', function () {
     expect($e->fresh()->description)->toBe('updated');
 });
 
+test('PATCH /entries/{id} with a blank description stores an empty string (not null)', function () {
+    // ConvertEmptyStringsToNull turns a cleared field into null; the column is
+    // NOT NULL, so update() must coalesce to '' like store() does.
+    $e = TimeEntry::create([
+        'user_id' => $this->user->id, 'project_id' => $this->project->id,
+        'started_at' => now()->subHour(), 'ended_at' => now(),
+        'billable' => true, 'description' => 'had text',
+    ]);
+
+    $this->patch("/entries/{$e->id}", ['description' => null])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($e->fresh()->description)->toBe('');
+});
+
 test('DELETE /entries/{id} removes the entry', function () {
     $e = TimeEntry::create([
         'user_id' => $this->user->id, 'project_id' => $this->project->id,
