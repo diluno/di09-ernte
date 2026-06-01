@@ -5,7 +5,7 @@ use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\TimerController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/auth/token', [AuthController::class, 'store']);
+Route::post('/auth/token', [AuthController::class, 'store'])->middleware('throttle:5,1');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/auth/token', [AuthController::class, 'destroy']);

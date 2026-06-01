@@ -62,12 +62,13 @@ class TimerController extends Controller
 
         $running = TimeEntry::running()
             ->where('user_id', $user->id)
-            ->with('project:id,name,code')
+            ->with(['project:id,name,code', 'task:id,name'])
             ->first();
 
         $data['running'] = $running ? [
             'id' => $running->id,
             'description' => $running->description,
+            'task_name' => $running->task?->name,
             'started_at' => $running->started_at->toIso8601String(),
             'duration_seconds' => $running->duration_seconds,
             'billable' => (bool) $running->billable,

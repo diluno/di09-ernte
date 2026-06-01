@@ -30,11 +30,13 @@ test('GET /api/timer returns today payload with a running key', function () {
         ->assertJson(['running' => null]);
 });
 
-test('GET /api/timer reports the running entry', function () {
+test('GET /api/timer reports the running entry with its task name', function () {
     Sanctum::actingAs($this->user);
+    $task = \App\Models\Task::create(['project_id' => $this->project->id, 'name' => 'Design', 'sort_order' => 0]);
     TimeEntry::create([
         'user_id' => $this->user->id,
         'project_id' => $this->project->id,
+        'task_id' => $task->id,
         'description' => 'in progress',
         'started_at' => now()->subMinutes(10),
         'ended_at' => null,
@@ -46,6 +48,7 @@ test('GET /api/timer reports the running entry', function () {
         ->assertJson([
             'running' => [
                 'description' => 'in progress',
+                'task_name' => 'Design',
                 'project' => ['id' => $this->project->id],
             ],
         ]);

@@ -54,3 +54,37 @@ test('DELETE /api/auth/token revokes the current token', function () {
 
     expect($user->fresh()->tokens()->count())->toBe(0);
 });
+
+test('a token issued by /api/auth/token grants Bearer access to a protected route', function () {
+    User::factory()->create(['email' => 'cycle@ernte.local']);
+
+    $token = $this->postJson('/api/auth/token', [
+        'email' => 'cycle@ernte.local',
+        'password' => 'password',
+        'device_name' => 'iPhone',
+    ])->json('token');
+
+    $this->withHeader('Authorization', "Bearer {$token}")
+        ->getJson('/api/me')
+        ->assertOk()
+        ->assertJsonPath('user.email', 'cycle@ernte.local');
+});
+
+test('POST /api/auth/token is rate limited', function () {
+    User::factory()->create(['email' => 'me@ernte.local']);
+
+    foreach (range(1, 5) as $i) {
+        $this->postJson('/api/auth/token', [
+            'email' => 'me@ernte.local',
+            'password' => 'wrong-password',
+            'device_name' => 'iPhone',
+        ])->assertStatus(422);
+    }
+
+    // 6th attempt within the window is throttled (throttle:5,1).
+    $this->postJson('/api/auth/token', [
+        'email' => 'me@ernte.local',
+        'password' => 'wrong-password',
+        'device_name' => 'iPhone',
+    ])->assertStatus(429);
+});
