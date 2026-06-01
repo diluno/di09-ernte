@@ -50,3 +50,76 @@ test('GET /api/timer reports the running entry', function () {
             ],
         ]);
 });
+
+test('POST /api/timer/start creates a running entry and returns it', function () {
+    Sanctum::actingAs($this->user);
+
+    $this->postJson('/api/timer/start', [
+        'project_id' => $this->project->id,
+        'description' => 'kick off',
+    ])
+        ->assertOk()
+        ->assertJson(['running' => ['description' => 'kick off']]);
+
+    expect(TimeEntry::running()->where('user_id', $this->user->id)->count())->toBe(1);
+});
+
+test('POST /api/timer/start auto-stops the previous entry', function () {
+    Sanctum::actingAs($this->user);
+    $other = Project::factory()->create();
+
+    $this->postJson('/api/timer/start', ['project_id' => $other->id]);
+    $first = TimeEntry::running()->first();
+
+    $this->postJson('/api/timer/start', ['project_id' => $this->project->id])->assertOk();
+
+    expect(TimeEntry::running()->count())->toBe(1);
+    expect($first->fresh()->ended_at)->not->toBeNull();
+});
+
+test('POST /api/timer/start validates task ownership', function () {
+    Sanctum::actingAs($this->user);
+    $otherProject = Project::factory()->create();
+    $task = \App\Models\Task::create(['project_id' => $otherProject->id, 'name' => 'x', 'sort_order' => 0]);
+
+    $this->postJson('/api/timer/start', [
+        'project_id' => $this->project->id,
+        'task_id' => $task->id,
+    ])->assertStatus(422)->assertJsonValidationErrors('task_id');
+});
+
+test('POST /api/timer/switch behaves like start', function () {
+    Sanctum::actingAs($this->user);
+    $other = Project::factory()->create();
+    $this->postJson('/api/timer/start', ['project_id' => $other->id]);
+
+    $this->postJson('/api/timer/switch', [
+        'project_id' => $this->project->id,
+        'description' => 'new context',
+    ])->assertOk()->assertJson(['running' => ['description' => 'new context']]);
+
+    expect(TimeEntry::running()->first()->project_id)->toBe($this->project->id);
+});
+
+test('POST /api/timer/stop ends the running entry', function () {
+    Sanctum::actingAs($this->user);
+    $this->postJson('/api/timer/start', ['project_id' => $this->project->id]);
+
+    $this->postJson('/api/timer/stop')
+        ->assertOk()
+        ->assertJson(['running' => null]);
+
+    expect(TimeEntry::running()->count())->toBe(0);
+});
+
+test('POST /api/timer/discard deletes the running entry', function () {
+    Sanctum::actingAs($this->user);
+    $this->postJson('/api/timer/start', ['project_id' => $this->project->id]);
+    $id = TimeEntry::running()->first()->id;
+
+    $this->postJson('/api/timer/discard')
+        ->assertOk()
+        ->assertJson(['running' => null]);
+
+    expect(TimeEntry::find($id))->toBeNull();
+});
