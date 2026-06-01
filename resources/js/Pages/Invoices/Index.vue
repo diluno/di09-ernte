@@ -4,15 +4,17 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import Pagination from '@/Components/Pagination.vue';
+import InvoiceBarChart from '@/Components/InvoiceBarChart.vue';
 import { fmtDate } from '@/formatters/date.js';
 
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-  invoices: { type: Object, required: true },
-  stats:    { type: Object, required: true },
-  counts:   { type: Object, required: true },
-  filters:  { type: Object, required: true },
+  invoices:     { type: Object, required: true },
+  stats:        { type: Object, required: true },
+  counts:       { type: Object, required: true },
+  filters:      { type: Object, required: true },
+  invoiceChart: { type: Object, required: true },
 });
 
 const search = ref(props.filters.q ?? '');
@@ -25,6 +27,15 @@ let t = null;
 function onSearch() {
   if (t) clearTimeout(t);
   t = setTimeout(() => router.get('/invoices', { filter: filter.value, q: search.value || undefined }, { preserveState: true, preserveScroll: true }), 250);
+}
+
+function changeChartYear(year) {
+  router.reload({
+    only: ['invoiceChart'],
+    data: { chart_year: year },
+    preserveState: true,
+    preserveScroll: true,
+  });
 }
 
 function fmtMoney(v)      { return 'CHF ' + Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -75,6 +86,14 @@ const TABS = computed(() => [
       <div class="val">{{ stats.avg_days_to_pay ?? '—' }}<span class="unit">days</span></div>
     </div>
   </div>
+
+  <InvoiceBarChart
+    :year="invoiceChart.year"
+    :min-year="invoiceChart.min_year"
+    :max-year="invoiceChart.max_year"
+    :months="invoiceChart.months"
+    @update:year="changeChartYear"
+  />
 
   <div class="filter-row">
     <button v-for="tab in TABS" :key="tab.id" class="chip" :aria-pressed="filter === tab.id" @click="setFilter(tab.id)">
