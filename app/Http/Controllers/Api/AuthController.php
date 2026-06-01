@@ -14,15 +14,17 @@ class AuthController extends Controller
 {
     public function store(TokenRequest $request): JsonResponse
     {
-        $user = User::where('email', $request->string('email'))->first();
+        $data = $request->validated();
 
-        if (! $user || ! Hash::check($request->string('password'), $user->password)) {
+        $user = User::where('email', $data['email'])->first();
+
+        if (! $user || ! Hash::check($data['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
         }
 
-        $token = $user->createToken($request->string('device_name'))->plainTextToken;
+        $token = $user->createToken($data['device_name'])->plainTextToken;
 
         return response()->json([
             'token' => $token,
