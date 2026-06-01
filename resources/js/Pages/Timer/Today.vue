@@ -125,7 +125,10 @@ function startEdit(entry) {
   editingId.value = entry.id;
   originalProjectId.value = entry.project.id;
   showManual.value = true;
-  nextTick(() => formEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  // Scroll the page region fully to the top: the form sits just under the sticky
+  // page-head, so scrollIntoView would tuck it behind that header. Scrolling the
+  // .content scroller to 0 reveals the header and the whole form.
+  nextTick(() => formEl.value?.closest('.content')?.scrollTo({ top: 0, behavior: 'smooth' }));
 }
 
 function deleteEntry(entry) {

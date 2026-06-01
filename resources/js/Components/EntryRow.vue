@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
   entry: { type: Object, required: true },
@@ -54,8 +55,8 @@ function fmtHM(sec) {
     <div class="billable" :class="{ no: !entry.billable }">{{ entry.billable ? 'billable' : '—' }}</div>
     <div class="actions">
       <template v-if="!entry.running">
-        <button type="button" class="row-action" title="Edit entry" aria-label="Edit entry" @click="emit('edit', entry)">✎</button>
-        <button type="button" class="row-action row-action--danger" title="Delete entry" aria-label="Delete entry" @click="emit('delete', entry)">✕</button>
+        <button type="button" class="row-action" title="Edit entry" aria-label="Edit entry" @click="emit('edit', entry)"><Icon name="edit" /></button>
+        <button type="button" class="row-action row-action--danger" title="Delete entry" aria-label="Delete entry" @click="emit('delete', entry)"><Icon name="trash" /></button>
       </template>
     </div>
   </div>
@@ -69,7 +70,7 @@ function fmtHM(sec) {
   background: none;
   cursor: pointer;
   color: var(--ink-3);
-  font-size: var(--fs-sm);
+  font-size: 16px; /* crisp pixel-art icons render best at a clean 16px */
   line-height: 1;
   padding: 2px 4px;
 }
