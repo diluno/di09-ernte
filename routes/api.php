@@ -7,4 +7,5 @@ Route::post('/auth/token', [AuthController::class, 'store']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/auth/token', [AuthController::class, 'destroy']);
+    Route::get('/me', [\App\Http\Controllers\Api\MeController::class, 'show']);
 });
