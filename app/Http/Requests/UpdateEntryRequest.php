@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 
 class UpdateEntryRequest extends FormRequest
@@ -10,6 +11,22 @@ class UpdateEntryRequest extends FormRequest
     public function authorize(): bool
     {
         return $this->route('entry')->user_id === $this->user()->id;
+    }
+
+    // Convert incoming UTC instants to the app timezone before storing — see the note
+    // on StoreEntryRequest. Without this, editing an entry shifts its time back by the
+    // UTC offset on every save.
+    protected function prepareForValidation(): void
+    {
+        foreach (['started_at', 'ended_at'] as $field) {
+            if ($this->filled($field)) {
+                $this->merge([
+                    $field => Carbon::parse($this->input($field))
+                        ->setTimezone(config('app.timezone'))
+                        ->format('Y-m-d H:i:s'),
+                ]);
+            }
+        }
     }
 
     public function rules(): array

@@ -40,6 +40,41 @@ test('POST /entries with no description stores an empty string (not null)', func
     expect(TimeEntry::first()->description)->toBe('');
 });
 
+test('POST /entries preserves the submitted instant across the app timezone', function () {
+    // The browser sends a true UTC instant (toISOString → ...Z). The DATETIME column
+    // stores app-local (Europe/Zurich) wall-clock, so the request must convert the
+    // instant to app tz before storing — otherwise the offset is silently stripped and
+    // every edit-save shifts the time back by the UTC offset.
+    $this->post('/entries', [
+        'project_id' => $this->project->id,
+        'started_at' => '2026-05-27T09:00:00Z',
+        'ended_at'   => '2026-05-27T10:30:00Z',
+        'billable'   => true,
+    ])->assertRedirect();
+
+    $entry = TimeEntry::first();
+    expect($entry->started_at->equalTo('2026-05-27T09:00:00Z'))->toBeTrue();
+    expect($entry->ended_at->equalTo('2026-05-27T10:30:00Z'))->toBeTrue();
+    // 09:00Z is 11:00 in Zurich summer time (CEST, +02:00).
+    expect($entry->started_at->format('H:i'))->toBe('11:00');
+});
+
+test('PATCH /entries/{id} preserves the submitted instant (no round-trip drift)', function () {
+    $e = TimeEntry::create([
+        'user_id' => $this->user->id, 'project_id' => $this->project->id,
+        'started_at' => now()->subHour(), 'ended_at' => now(),
+        'billable' => true, 'description' => 'old',
+    ]);
+
+    $this->patch("/entries/{$e->id}", [
+        'started_at' => '2026-05-27T09:00:00Z',
+        'ended_at'   => '2026-05-27T10:30:00Z',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+
+    expect($e->fresh()->started_at->equalTo('2026-05-27T09:00:00Z'))->toBeTrue();
+    expect($e->fresh()->ended_at->equalTo('2026-05-27T10:30:00Z'))->toBeTrue();
+});
+
 test('POST /entries rejects ended_at before started_at', function () {
     $this->post('/entries', [
         'project_id' => $this->project->id,
