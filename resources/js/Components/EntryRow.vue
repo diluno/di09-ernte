@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import Icon from '@/Components/Icon.vue';
+import { formatDuration } from '@/formatters/duration.js';
 
 const props = defineProps({
   entry: { type: Object, required: true },
@@ -27,15 +28,7 @@ const context = computed(() => {
   return project || '';
 });
 
-function fmtTime(iso) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-}
-function fmtHM(sec) {
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-}
+const durationLabel = computed(() => formatDuration(Math.round(props.entry.duration_seconds / 60)));
 </script>
 
 <template>
@@ -46,12 +39,7 @@ function fmtHM(sec) {
       <span v-else class="no-desc">no description</span>
       <span v-if="context" class="sub">{{ context }}</span>
     </div>
-    <div class="time">
-      {{ fmtTime(entry.started_at) }} –
-      <span v-if="entry.running" style="color: var(--rust)">now</span>
-      <span v-else>{{ fmtTime(entry.ended_at) }}</span>
-    </div>
-    <div class="dur">{{ fmtHM(entry.duration_seconds) }}</div>
+    <div class="dur">{{ durationLabel }}</div>
     <div class="billable" :class="{ no: !entry.billable }">{{ entry.billable ? 'billable' : '—' }}</div>
     <div class="actions">
       <template v-if="!entry.running">

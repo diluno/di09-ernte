@@ -767,7 +767,7 @@ a { color: inherit; text-decoration: none; }
 
 .entry-row {
   display: grid;
-  grid-template-columns: 12px 1fr 90px 80px 80px 56px;
+  grid-template-columns: 12px 1fr 80px 80px 56px;
   gap: 12px;
   align-items: center;
   padding: 10px 0;
@@ -780,7 +780,6 @@ a { color: inherit; text-decoration: none; }
 }
 .entry-row .desc { color: var(--ink); }
 .entry-row .desc .sub { color: var(--ink-3); font-size: var(--fs-xs); display: block; margin-top: 2px; }
-.entry-row .time { color: var(--ink-2); font-variant-numeric: tabular-nums; text-align: right; }
 .entry-row .dur { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
 .entry-row .billable { color: var(--forest); text-align: right; font-variant-numeric: tabular-nums; }
 .entry-row .billable.no { color: var(--ink-4); }
