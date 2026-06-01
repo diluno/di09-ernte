@@ -30,7 +30,7 @@ class RecurringInvoiceGenerator
             'project',
         ]);
 
-        $period = BillingPeriod::for($schedule->cadence, $runDate);
+        $period = BillingPeriod::for($schedule->cadence, $runDate, $schedule->anchor_day);
 
         $title = $schedule->title !== null
             ? str_replace('{period}', $period['label'], $schedule->title)

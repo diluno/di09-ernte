@@ -7,33 +7,22 @@ use Illuminate\Support\Carbon;
 class BillingPeriod
 {
     /**
-     * The calendar period containing $date (advance billing).
+     * The anchor-aligned period an invoice covers: from its run date forward one
+     * full cadence, i.e. [run date, day before the next run]. This is advance
+     * billing — billing on the anchor for the upcoming cadence window.
      *
      * @return array{start: Carbon, end: Carbon, label: string}
      */
-    public static function for(string $cadence, Carbon $date): array
+    public static function for(string $cadence, Carbon $runDate, int $anchorDay): array
     {
-        $d = $date->copy()->startOfDay();
+        $start = $runDate->copy()->startOfDay();
+        $end = self::advance($cadence, $start, $anchorDay)->subDay();
 
-        return match ($cadence) {
-            'monthly' => [
-                'start' => $d->copy()->startOfMonth(),
-                'end' => $d->copy()->endOfMonth()->startOfDay(),
-                'label' => $d->format('F Y'),
-            ],
-            'quarterly' => [
-                'start' => $d->copy()->startOfQuarter(),
-                'end' => $d->copy()->endOfQuarter()->startOfDay(),
-                'label' => 'Q' . $d->quarter . ' ' . $d->year,
-            ],
-            'half-yearly' => self::half($d),
-            'yearly' => [
-                'start' => $d->copy()->startOfYear(),
-                'end' => $d->copy()->endOfYear()->startOfDay(),
-                'label' => (string) $d->year,
-            ],
-            default => throw new \InvalidArgumentException("Unknown cadence: {$cadence}"),
-        };
+        return [
+            'start' => $start,
+            'end' => $end,
+            'label' => self::label($start, $end),
+        ];
     }
 
     /** Advance $date by one $cadence step (1/3/6/12 months), preserving $anchorDay clamped to the target month's length. */
@@ -75,14 +64,18 @@ class BillingPeriod
         };
     }
 
-    private static function half(Carbon $d): array
+    /**
+     * A German month-year label for the period: a single "MMMM YYYY" when the span
+     * stays within one calendar month, otherwise "MMMM YYYY – MMMM YYYY".
+     */
+    private static function label(Carbon $start, Carbon $end): string
     {
-        $firstHalf = $d->month <= 6;
+        $startLabel = $start->copy()->locale('de')->translatedFormat('F Y');
 
-        return [
-            'start' => $firstHalf ? $d->copy()->startOfYear() : $d->copy()->setDate($d->year, 7, 1)->startOfDay(),
-            'end' => $firstHalf ? $d->copy()->setDate($d->year, 6, 30)->startOfDay() : $d->copy()->endOfYear()->startOfDay(),
-            'label' => ($firstHalf ? 'H1 ' : 'H2 ') . $d->year,
-        ];
+        if ($start->isSameMonth($end)) {
+            return $startLabel;
+        }
+
+        return $startLabel . ' – ' . $end->copy()->locale('de')->translatedFormat('F Y');
     }
 }

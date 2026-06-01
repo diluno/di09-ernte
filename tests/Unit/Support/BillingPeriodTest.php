@@ -3,33 +3,43 @@
 use App\Support\BillingPeriod;
 use Illuminate\Support\Carbon;
 
-test('for() returns calendar period and label per cadence', function () {
-    $d = Carbon::parse('2026-06-15');
-
-    $m = BillingPeriod::for('monthly', $d);
+test('for() returns the anchor-aligned forward period per cadence', function () {
+    // Period runs from the run date (anchor) to the day before the next run.
+    $m = BillingPeriod::for('monthly', Carbon::parse('2026-06-01'), 1);
     expect($m['start']->toDateString())->toBe('2026-06-01');
     expect($m['end']->toDateString())->toBe('2026-06-30');
-    expect($m['label'])->toBe('June 2026');
 
-    $q = BillingPeriod::for('quarterly', $d);
+    $q = BillingPeriod::for('quarterly', Carbon::parse('2026-04-01'), 1);
     expect($q['start']->toDateString())->toBe('2026-04-01');
     expect($q['end']->toDateString())->toBe('2026-06-30');
-    expect($q['label'])->toBe('Q2 2026');
 
-    $h = BillingPeriod::for('half-yearly', $d);
-    expect($h['start']->toDateString())->toBe('2026-01-01');
-    expect($h['end']->toDateString())->toBe('2026-06-30');
-    expect($h['label'])->toBe('H1 2026');
+    $h = BillingPeriod::for('half-yearly', Carbon::parse('2026-06-01'), 1);
+    expect($h['start']->toDateString())->toBe('2026-06-01');
+    expect($h['end']->toDateString())->toBe('2026-11-30');
 
-    $h2 = BillingPeriod::for('half-yearly', Carbon::parse('2026-09-10'));
-    expect($h2['start']->toDateString())->toBe('2026-07-01');
-    expect($h2['end']->toDateString())->toBe('2026-12-31');
-    expect($h2['label'])->toBe('H2 2026');
+    $y = BillingPeriod::for('yearly', Carbon::parse('2026-06-01'), 1);
+    expect($y['start']->toDateString())->toBe('2026-06-01');
+    expect($y['end']->toDateString())->toBe('2027-05-31');
+});
 
-    $y = BillingPeriod::for('yearly', $d);
-    expect($y['start']->toDateString())->toBe('2026-01-01');
-    expect($y['end']->toDateString())->toBe('2026-12-31');
-    expect($y['label'])->toBe('2026');
+test('for() labels a single-month period with one month, a multi-month span as a German range', function () {
+    // Monthly anchored on the 1st spans a single calendar month → one label.
+    expect(BillingPeriod::for('monthly', Carbon::parse('2026-06-01'), 1)['label'])->toBe('Juni 2026');
+
+    // Monthly anchored mid-month spans two months → range.
+    expect(BillingPeriod::for('monthly', Carbon::parse('2026-06-15'), 15)['label'])->toBe('Juni 2026 – Juli 2026');
+
+    // Quarterly / yearly always span multiple months → range, crossing the year for yearly.
+    expect(BillingPeriod::for('quarterly', Carbon::parse('2026-04-01'), 1)['label'])->toBe('April 2026 – Juni 2026');
+    expect(BillingPeriod::for('yearly', Carbon::parse('2026-06-01'), 1)['label'])->toBe('Juni 2026 – Mai 2027');
+});
+
+test('for() clamps the period end via the anchor day on short months', function () {
+    // Anchor 31, run on Jan 31: next run clamps to Feb 28, so the period ends Feb 27.
+    $p = BillingPeriod::for('monthly', Carbon::parse('2026-01-31'), 31);
+    expect($p['start']->toDateString())->toBe('2026-01-31');
+    expect($p['end']->toDateString())->toBe('2026-02-27');
+    expect($p['label'])->toBe('Januar 2026 – Februar 2026');
 });
 
 test('advance() steps by cadence and clamps the anchor day to short months', function () {

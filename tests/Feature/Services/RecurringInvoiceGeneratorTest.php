@@ -47,12 +47,24 @@ test('generate() creates a draft invoice from template lines with the schedule v
     expect($invoice->total_rappen)->toBe(10810);
 });
 
-test('generate() interpolates {period} into the title', function () {
+test('generate() interpolates {period} into the title as a month-year range', function () {
     $s = schedule(['title' => 'Hosting — {period}', 'cadence' => 'quarterly', 'anchor_day' => 1]);
 
     $invoice = $this->gen->generate($s, Carbon::parse('2026-04-01'));
 
-    expect($invoice->title)->toBe('Hosting — Q2 2026');
+    expect($invoice->title)->toBe('Hosting — April 2026 – Juni 2026');
+});
+
+test('generate() covers the upcoming year for a yearly schedule anchored mid-year', function () {
+    // Regression: a yearly schedule anchored 1 June must bill the upcoming year
+    // (01.06.2026 – 31.05.2027), not the calendar year containing the run date.
+    $s = schedule(['title' => 'Lizenz — {period}', 'cadence' => 'yearly', 'anchor_day' => 1, 'next_run_on' => '2026-06-01']);
+
+    $invoice = $this->gen->generate($s, Carbon::parse('2026-06-01'));
+
+    expect($invoice->period_start->toDateString())->toBe('2026-06-01');
+    expect($invoice->period_end->toDateString())->toBe('2027-05-31');
+    expect($invoice->title)->toBe('Lizenz — Juni 2026 – Mai 2027');
 });
 
 test('generate() advances next_run_on and stamps last_generated_on', function () {
