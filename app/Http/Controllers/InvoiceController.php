@@ -30,6 +30,7 @@ class InvoiceController extends Controller
     {
         $filter = $request->string('filter', 'all')->toString();
         $search = $request->string('q')->toString() ?: null;
+        $chartYear = $request->integer('chart_year', now()->year);
 
         return Inertia::render('Invoices/Index', [
             'invoices' => InvoiceProjections::index($filter, $search),
@@ -43,6 +44,7 @@ class InvoiceController extends Controller
                 'void' => Invoice::where('status', 'void')->count(),
             ],
             'filters' => ['filter' => $filter, 'q' => $search],
+            'invoiceChart' => InvoiceProjections::monthlyIssued($chartYear),
         ]);
     }
 

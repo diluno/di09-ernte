@@ -49,6 +49,31 @@ test('GET /invoices renders Invoices/Index with rows + stats + counts', function
             ->where('filters.filter', 'all'));
 });
 
+test('GET /invoices passes an invoiceChart prop for the current year', function () {
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'paid',
+        'issued_on' => now()->startOfYear()->toDateString(), 'total_rappen' => 12_000_00]);
+
+    $this->get('/invoices')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Invoices/Index')
+            ->where('invoiceChart.year', (int) now()->year)
+            ->where('invoiceChart.max_year', (int) now()->year)
+            ->has('invoiceChart.months', 12)
+            ->etc()
+        );
+});
+
+test('GET /invoices?chart_year=2025 returns chart data for that year', function () {
+    $this->get('/invoices?chart_year=2025')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Invoices/Index')
+            ->where('invoiceChart.year', 2025)
+            ->etc()
+        );
+});
+
 test('GET /invoices?filter=overdue narrows to past-due sent invoices', function () {
     Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent', 'due_on' => now()->subDay()->toDateString()]);
     Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent', 'due_on' => now()->addDay()->toDateString()]);
