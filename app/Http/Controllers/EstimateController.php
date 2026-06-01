@@ -86,7 +86,7 @@ class EstimateController extends Controller
         ]);
 
         return Inertia::render('Estimates/Show', [
-            'estimate' => \App\Support\EstimateProjections::detail($estimate),
+            'estimate' => EstimateProjections::detail($estimate),
             'events' => $estimate->events->map(fn ($e) => [
                 'kind' => $e->kind,
                 'occurred_at' => $e->occurred_at->toIso8601String(),

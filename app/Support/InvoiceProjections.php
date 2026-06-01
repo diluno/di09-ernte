@@ -106,9 +106,9 @@ class InvoiceProjections
             'project_name' => $invoice->project?->name,
             'issued_on' => $invoice->issued_on?->toDateString(),
             'due_on' => $invoice->due_on?->toDateString(),
-            'subtotal' => (float) round($invoice->subtotal_rappen / 100, 2),
-            'vat' => (float) round($invoice->vat_rappen / 100, 2),
-            'total' => (float) round($invoice->total_rappen / 100, 2),
+            'subtotal' => round($invoice->subtotal_rappen / 100, 2),
+            'vat' => round($invoice->vat_rappen / 100, 2),
+            'total' => round($invoice->total_rappen / 100, 2),
             'vat_rate' => (float) $invoice->vat_rate,
             'notes' => $invoice->notes,
             'recurring' => $invoice->recurringInvoice

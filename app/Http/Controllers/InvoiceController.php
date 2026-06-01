@@ -134,7 +134,7 @@ class InvoiceController extends Controller
             ->first();
 
         return Inertia::render('Invoices/Show', [
-            'invoice' => \App\Support\InvoiceProjections::detail($invoice),
+            'invoice' => InvoiceProjections::detail($invoice),
             'events' => $invoice->events->map(fn ($e) => [
                 'kind' => $e->kind,
                 'occurred_at' => $e->occurred_at->toIso8601String(),
