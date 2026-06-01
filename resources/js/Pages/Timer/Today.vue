@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TimerHero from '@/Components/TimerHero.vue';
@@ -32,6 +32,9 @@ function startProject(projectId) {
 const totalShare = (sec) => props.totals.total_seconds ? (sec / props.totals.total_seconds) * 100 : 0;
 
 const showManual = ref(false);
+const editingId = ref(null);
+const originalProjectId = ref(null);
+const formEl = ref(null);
 const page = usePage();
 
 if (page.url.includes('manual=1')) {
@@ -79,23 +82,61 @@ const durationLabel = computed(() => {
 });
 
 function submitManual() {
+  const editing = editingId.value;
   manualForm.transform((data) => {
     const r = composeRange();
-    return {
+    const payload = {
       project_id: data.project_id,
       description: data.description,
       billable: data.billable,
       started_at: r ? r.start.toISOString() : null,
       ended_at: r ? r.end.toISOString() : null,
     };
-  }).post('/entries', {
-    onSuccess: () => { showManual.value = false; manualForm.reset(); },
-    preserveScroll: true,
+    // When editing and the project changed, drop the task so we never leave an
+    // entry whose task belongs to a different project.
+    if (editing && data.project_id !== originalProjectId.value) {
+      payload.task_id = null;
+    }
+    return payload;
   });
+
+  const opts = {
+    onSuccess: () => { showManual.value = false; editingId.value = null; manualForm.reset(); },
+    preserveScroll: true,
+  };
+
+  if (editing) {
+    manualForm.patch(`/entries/${editing}`, opts);
+  } else {
+    manualForm.post('/entries', opts);
+  }
+}
+
+function startEdit(entry) {
+  const start = new Date(entry.started_at);
+  const end = entry.ended_at ? new Date(entry.ended_at) : new Date();
+  manualForm.clearErrors();
+  manualForm.project_id = entry.project.id;
+  manualForm.description = entry.description || '';
+  manualForm.date = dateStr(start);
+  manualForm.start_time = timeStr(start);
+  manualForm.end_time = timeStr(end);
+  manualForm.billable = entry.billable;
+  editingId.value = entry.id;
+  originalProjectId.value = entry.project.id;
+  showManual.value = true;
+  nextTick(() => formEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+}
+
+function deleteEntry(entry) {
+  if (window.confirm('Delete this entry?')) {
+    router.delete(`/entries/${entry.id}`, { preserveScroll: true });
+  }
 }
 
 function cancelManual() {
   showManual.value = false;
+  editingId.value = null;
   manualForm.clearErrors();
   manualForm.reset();
 }
@@ -113,12 +154,12 @@ function cancelManual() {
       </h1>
     </div>
     <div style="display: flex; gap: 8px">
-      <button class="btn" @click="showManual = !showManual">{{ showManual ? '× cancel' : '+ Manual entry' }}</button>
+      <button class="btn" @click="showManual ? cancelManual() : (showManual = true)">{{ showManual ? '× cancel' : '+ Manual entry' }}</button>
     </div>
   </div>
 
-  <form v-if="showManual" @submit.prevent="submitManual" class="manual-entry">
-    <div class="manual-entry__title">Manual entry</div>
+  <form v-if="showManual" ref="formEl" @submit.prevent="submitManual" class="manual-entry">
+    <div class="manual-entry__title">{{ editingId ? 'Edit entry' : 'Manual entry' }}</div>
 
     <div class="me-grid me-grid--main">
       <label class="field">
@@ -160,7 +201,7 @@ function cancelManual() {
       </label>
       <div style="display: flex; gap: 8px">
         <button type="button" class="btn ghost" @click="cancelManual">Cancel</button>
-        <button type="submit" class="btn primary" :disabled="manualForm.processing">Save entry</button>
+        <button type="submit" class="btn primary" :disabled="manualForm.processing">{{ editingId ? 'Save changes' : 'Save entry' }}</button>
       </div>
     </div>
 
@@ -174,7 +215,7 @@ function cancelManual() {
       <TimerHero />
 
       <div class="divider-row">Today's entries · {{ entries.length }}</div>
-      <EntryRow v-for="(e, i) in entries" :key="e.id" :entry="e" :color-index="i" />
+      <EntryRow v-for="(e, i) in entries" :key="e.id" :entry="e" :color-index="i" @edit="startEdit" @delete="deleteEntry" />
       <div v-if="entries.length === 0" class="muted" style="padding: 12px">No entries today yet</div>
     </div>
 
