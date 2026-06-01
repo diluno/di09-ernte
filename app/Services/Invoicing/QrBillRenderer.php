@@ -112,11 +112,18 @@ class QrBillRenderer
      * Build a structured address. A free-form street line is passed verbatim as the
      * street (the library allows the building number to be embedded in the street);
      * an empty street falls back to the street-less constructor.
+     *
+     * Each field is clamped to the Swiss QR-bill spec limits so that an over-long
+     * value degrades to a valid (if truncated) slip instead of throwing and 500ing
+     * the whole PDF. The debtor address is informational on a QR bill, so clamping
+     * it has no effect on payment routing (IBAN + reference).
      */
     private function address(string $name, string $street, ?string $postalCode, ?string $city, ?string $country): AddressInterface
     {
-        $postalCode = ($postalCode ?? '') !== '' ? $postalCode : '-';
-        $city = ($city ?? '') !== '' ? $city : '-';
+        $name = $this->clamp($name, 70);
+        $street = $this->clamp($street, 70);
+        $postalCode = ($postalCode ?? '') !== '' ? $this->clamp($postalCode, 16) : '-';
+        $city = ($city ?? '') !== '' ? $this->clamp($city, 35) : '-';
         $country = ($country ?? '') !== '' ? $country : 'CH';
 
         if ($street !== '') {
@@ -124,5 +131,11 @@ class QrBillRenderer
         }
 
         return StructuredAddress::createWithoutStreet($name, $postalCode, $city, $country);
+    }
+
+    /** Trim a value to at most $max characters (multibyte-safe) for QR-bill field limits. */
+    private function clamp(string $value, int $max): string
+    {
+        return mb_strlen($value) > $max ? rtrim(mb_substr($value, 0, $max)) : $value;
     }
 }

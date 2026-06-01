@@ -48,6 +48,24 @@ test('treats a plain IBAN in the qr_iban field as plain IBAN mode', function () 
     expect($html)->toBeString()->not->toBe('');
 });
 
+test('renders without a 500 when a debtor address overflows the structured field limits', function () {
+    // Real prod case: two address lines combine to 77 chars, exceeding the
+    // structured `street` field's 70-char cap (Kanton Schaffhausen, client #126).
+    $this->client->update([
+        'name' => 'Kanton Schaffhausen',
+        'address_line_1' => 'Dienststelle Familie und Jugend',
+        'address_line_2' => 'Abteilung Kind Jugend Familie, Frauengasse 12',
+    ]);
+    $invoice = Invoice::factory()->create([
+        'client_id' => $this->client->id, 'total_rappen' => 100_00, 'currency' => 'CHF',
+        'qr_reference' => null,
+    ]);
+
+    $html = app(QrBillRenderer::class)->html($invoice);
+
+    expect($html)->toBeString()->not->toBe('');
+});
+
 test('self-heals a missing qr_reference under a QR-IBAN profile (no 500)', function () {
     // Profile from beforeEach already has a qr_iban; invoice has no reference.
     $invoice = Invoice::factory()->create([
