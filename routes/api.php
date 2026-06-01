@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\EstimateController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\ProjectController;
@@ -21,4 +22,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/projects/{project:code}', [ProjectController::class, 'show']);
     Route::get('/invoices', [InvoiceController::class, 'index']);
     Route::get('/invoices/{invoice:number}', [InvoiceController::class, 'show']);
+    Route::get('/estimates', [EstimateController::class, 'index']);
+    Route::get('/estimates/{estimate:number}', [EstimateController::class, 'show']);
 });
