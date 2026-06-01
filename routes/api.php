@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MeController;
+use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\TimerController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,4 +16,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/timer/switch', [TimerController::class, 'switch']);
     Route::post('/timer/stop', [TimerController::class, 'stop']);
     Route::post('/timer/discard', [TimerController::class, 'discard']);
+    Route::get('/projects', [ProjectController::class, 'index']);
+    Route::get('/projects/{project:code}', [ProjectController::class, 'show']);
 });
