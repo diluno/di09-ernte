@@ -20,9 +20,8 @@
 
 ## Conventions for this plan
 
-- **Product/target name is `ErnteCompanion`.** Name it exactly this when creating the project so the `@main` file and bundle layout match. All other files are name-agnostic (the app target does not import its own module).
-- **Repo:** `/Users/sam/Documents/_projects/ernte-ios`, a new standalone git repo (sibling of `di09-ernte`).
-- **File groups** live under the `ErnteCompanion/` source folder Xcode creates: `Support/`, `Models/`, `Networking/`, `Auth/`, `Features/Login/`, `Features/Timer/`.
+- **ACTUAL PROJECT (as created):** product/target/module name is **`ernte`**, `@main` struct is `ernteApp`, repo is the existing git repo at `/Users/sam/Documents/_projects/ernte`, source folder is `ernte/ernte/`. The project was generated from the **SwiftData** template, so it also contains `Item.swift` + a `ModelContainer` in `ernteApp.swift` — both unused by this app and removed/neutralized in Task 6. (The text below sometimes says `ErnteCompanion`; read it as `ernte`.)
+- **File groups** live under the `ernte/` source folder Xcode created: `Support/`, `Models/`, `Networking/`, `Auth/`, `Features/Login/`, `Features/Timer/`.
 - Claude commits after each task with the shown message. The user does not need to commit.
 
 ---
@@ -377,7 +376,7 @@ struct KeychainStore {
     let service: String
     let account: String
 
-    init(service: String = "com.diluno.ErnteCompanion", account: String = "api-token") {
+    init(service: String = "com.diluno.ernte", account: String = "api-token") {
         self.service = service
         self.account = account
     }
@@ -825,9 +824,9 @@ git commit -m "feat(ios): timer tab — running card, start/switch/stop/discard,
 - Modify (Claude): `ErnteCompanion/ContentView.swift` → becomes `RootView`
 - Modify (Claude): `ErnteCompanion/ErnteCompanionApp.swift`
 
-- [ ] **Step 1: Replace the contents of `ContentView.swift` with `RootView`**
+- [ ] **Step 1: Replace the contents of `ContentView.swift` with `RootView`** (also neutralize `Item.swift`)
 
-(We reuse the existing file rather than deleting it, to avoid hand-editing `project.pbxproj`.)
+(We reuse the existing files rather than deleting them, to avoid hand-editing `project.pbxproj`. `Item.swift` is replaced with a harmless empty placeholder so the SwiftData model is dropped.)
 ```swift
 import SwiftUI
 
@@ -886,13 +885,13 @@ struct AccountView: View {
 }
 ```
 
-- [ ] **Step 2: Replace the contents of `ErnteCompanionApp.swift`**
+- [ ] **Step 2: Replace the contents of `ernteApp.swift`** (drops SwiftData/ModelContainer)
 
 ```swift
 import SwiftUI
 
 @main
-struct ErnteCompanionApp: App {
+struct ernteApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -903,7 +902,7 @@ struct ErnteCompanionApp: App {
 
 - [ ] **Step 3: Commit**
 ```bash
-git add ErnteCompanion/ContentView.swift ErnteCompanion/ErnteCompanionApp.swift
+git add ernte/ContentView.swift ernte/ernteApp.swift ernte/Item.swift
 git commit -m "feat(ios): root view wiring — login/main switch, timer + account tabs"
 ```
 
@@ -923,7 +922,7 @@ git commit -m "feat(ios): root view wiring — login/main switch, timer + accoun
 
 ```swift
 import XCTest
-@testable import ErnteCompanion
+@testable import ernte
 
 final class DTODecodingTests: XCTestCase {
     private func decoder() -> JSONDecoder {
@@ -970,11 +969,11 @@ final class DTODecodingTests: XCTestCase {
 
 ```swift
 import XCTest
-@testable import ErnteCompanion
+@testable import ernte
 
 final class KeychainStoreTests: XCTestCase {
     func testSaveReadClear() {
-        let store = KeychainStore(service: "com.diluno.ErnteCompanion.tests", account: "unit")
+        let store = KeychainStore(service: "com.diluno.ernte.tests", account: "unit")
         store.clear()
         XCTAssertNil(store.read())
 
