@@ -134,30 +134,7 @@ class InvoiceController extends Controller
             ->first();
 
         return Inertia::render('Invoices/Show', [
-            'invoice' => [
-                'id' => $invoice->id,
-                'number' => $invoice->number,
-                'status' => $invoice->status,
-                'overdue' => $invoice->overdue,
-                'title' => $invoice->title,
-                'client' => $invoice->client->only('id', 'name'),
-                'project_name' => $invoice->project?->name,
-                'issued_on' => $invoice->issued_on?->toDateString(),
-                'due_on' => $invoice->due_on?->toDateString(),
-                'subtotal' => round($invoice->subtotal_rappen / 100, 2),
-                'vat' => round($invoice->vat_rappen / 100, 2),
-                'total' => round($invoice->total_rappen / 100, 2),
-                'vat_rate' => (float) $invoice->vat_rate,
-                'notes' => $invoice->notes,
-                'recurring' => $invoice->recurringInvoice
-                    ? ['id' => $invoice->recurringInvoice->id, 'title' => $invoice->recurringInvoice->title]
-                    : null,
-                'lines' => $invoice->lines->map(fn (InvoiceLine $l) => [
-                    'id' => $l->id, 'description' => $l->description,
-                    'hours' => (float) $l->hours, 'rate' => (int) round($l->rate_rappen / 100),
-                    'amount' => round($l->amount_rappen / 100, 2),
-                ]),
-            ],
+            'invoice' => InvoiceProjections::detail($invoice),
             'events' => $invoice->events->map(fn ($e) => [
                 'kind' => $e->kind,
                 'occurred_at' => $e->occurred_at->toIso8601String(),

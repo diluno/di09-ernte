@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Estimate;
+use App\Models\EstimateLine;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 
@@ -53,6 +54,37 @@ class EstimateProjections
             'client' => ['id' => $e->client->id, 'name' => $e->client->name],
             'project_name' => $e->project?->name,
         ]);
+    }
+
+    /** Full single-estimate detail array (shared by the web show page and the API). */
+    public static function detail(Estimate $estimate): array
+    {
+        $estimate->loadMissing(['client', 'project', 'convertedInvoice:id,number', 'lines']);
+
+        return [
+            'id' => $estimate->id,
+            'number' => $estimate->number,
+            'status' => $estimate->status,
+            'expired' => $estimate->expired,
+            'title' => $estimate->title,
+            'client' => $estimate->client->only('id', 'name'),
+            'project_name' => $estimate->project?->name,
+            'issued_on' => $estimate->issued_on?->toDateString(),
+            'valid_until' => $estimate->valid_until?->toDateString(),
+            'subtotal' => round($estimate->subtotal_rappen / 100, 2),
+            'vat' => round($estimate->vat_rappen / 100, 2),
+            'total' => round($estimate->total_rappen / 100, 2),
+            'vat_rate' => (float) $estimate->vat_rate,
+            'notes' => $estimate->notes,
+            'lines' => $estimate->lines->sortBy('sort_order')->values()->map(fn (EstimateLine $l) => [
+                'id' => $l->id, 'description' => $l->description,
+                'hours' => (float) $l->hours, 'rate' => (int) round($l->rate_rappen / 100),
+                'amount' => round($l->amount_rappen / 100, 2),
+            ])->all(),
+            'converted_invoice' => $estimate->convertedInvoice
+                ? ['id' => $estimate->convertedInvoice->id, 'number' => $estimate->convertedInvoice->number]
+                : null,
+        ];
     }
 
     /** Top-of-page summary numbers in CHF (plus an acceptance-rate percentage). */

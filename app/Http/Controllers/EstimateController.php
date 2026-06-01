@@ -86,30 +86,7 @@ class EstimateController extends Controller
         ]);
 
         return Inertia::render('Estimates/Show', [
-            'estimate' => [
-                'id' => $estimate->id,
-                'number' => $estimate->number,
-                'status' => $estimate->status,
-                'expired' => $estimate->expired,
-                'title' => $estimate->title,
-                'client' => $estimate->client->only('id', 'name'),
-                'project_name' => $estimate->project?->name,
-                'issued_on' => $estimate->issued_on?->toDateString(),
-                'valid_until' => $estimate->valid_until?->toDateString(),
-                'subtotal' => round($estimate->subtotal_rappen / 100, 2),
-                'vat' => round($estimate->vat_rappen / 100, 2),
-                'total' => round($estimate->total_rappen / 100, 2),
-                'vat_rate' => (float) $estimate->vat_rate,
-                'notes' => $estimate->notes,
-                'lines' => $estimate->lines->map(fn (EstimateLine $l) => [
-                    'id' => $l->id, 'description' => $l->description,
-                    'hours' => (float) $l->hours, 'rate' => (int) round($l->rate_rappen / 100),
-                    'amount' => round($l->amount_rappen / 100, 2),
-                ]),
-                'converted_invoice' => $estimate->convertedInvoice
-                    ? ['id' => $estimate->convertedInvoice->id, 'number' => $estimate->convertedInvoice->number]
-                    : null,
-            ],
+            'estimate' => EstimateProjections::detail($estimate),
             'events' => $estimate->events->map(fn ($e) => [
                 'kind' => $e->kind,
                 'occurred_at' => $e->occurred_at->toIso8601String(),
