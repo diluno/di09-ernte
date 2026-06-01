@@ -1,8 +1,10 @@
 <?php
 
-use Illuminate\Http\Request;
+use App\Http\Controllers\Api\AuthController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+Route::post('/auth/token', [AuthController::class, 'store']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::delete('/auth/token', [AuthController::class, 'destroy']);
+});
