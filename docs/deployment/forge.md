@@ -6,7 +6,7 @@ This is the Phase 3 production path for Ernte. It supersedes the older docker-co
 
 - Laravel Forge provisions the server, Nginx site, SSL certificate, PHP-FPM, database, scheduler, and queue daemon.
 - PHP 8.3 or newer, Node 20, Composer 2, and MariaDB/MySQL are available on the Forge server.
-- The app runs from a normal Forge site directory such as `/home/forge/ernte.example.com`.
+- Deploys are **zero-downtime** (the deploy script uses Forge release macros), so the live code is served from the `current` release symlink — e.g. `/home/forge/ernte.example.com/current` — not directly from the site root `/home/forge/ernte.example.com`. Any daemon or scheduled job must target the `current` path, otherwise it runs in a directory with no `artisan` and fails with `Could not open input file: artisan`.
 - `QUEUE_CONNECTION=database` is used; the reminder job queue is `emails`.
 - Generated invoice PDFs and backups stay on the local Forge server under `storage/app/private`.
 
@@ -63,7 +63,7 @@ php artisan queue:work database --queue=default,emails --sleep=3 --tries=3 --tim
 Recommended Forge settings:
 
 - User: `forge`
-- Directory: the site path, for example `/home/forge/ernte.example.com`
+- Directory: the **current release** path, for example `/home/forge/ernte.example.com/current` (not the site root — zero-downtime deploys keep the code under `current`)
 - Processes: `1`
 - Stop seconds: `10`
 
@@ -71,14 +71,17 @@ The deploy script calls `php artisan queue:restart`, so Forge's daemon will pick
 
 ## Scheduler
 
-Create one Forge scheduled job that runs every minute:
+Create one Forge scheduled job that runs every minute. Forge scheduled jobs run from the user's home directory (`/home/forge`), which has no `artisan`, so the command **must** `cd` into the current release first:
 
 ```bash
-php artisan schedule:run
+cd /home/forge/ernte.example.com/current && php artisan schedule:run
 ```
+
+A bare `php artisan schedule:run` fails silently every minute with `Could not open input file: artisan`, which stops *all* of the jobs below from ever running.
 
 Laravel's scheduler then handles:
 
+- `ernte:invoices:generate-recurring` daily at 06:00
 - `ernte:backup` daily at 03:00
 - `ernte:invoices:remind` daily at 09:00
 - `ernte:invoices:stamp-overdue` daily
