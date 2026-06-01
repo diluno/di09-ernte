@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\TimerController;
@@ -18,4 +19,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/timer/discard', [TimerController::class, 'discard']);
     Route::get('/projects', [ProjectController::class, 'index']);
     Route::get('/projects/{project:code}', [ProjectController::class, 'show']);
+    Route::get('/invoices', [InvoiceController::class, 'index']);
+    Route::get('/invoices/{invoice:number}', [InvoiceController::class, 'show']);
 });
