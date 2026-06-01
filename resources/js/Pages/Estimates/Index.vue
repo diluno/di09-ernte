@@ -3,12 +3,13 @@ import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import Pagination from '@/Components/Pagination.vue';
 import { fmtDate } from '@/formatters/date.js';
 
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-  estimates: { type: Array, required: true },
+  estimates: { type: Object, required: true },
   stats:     { type: Object, required: true },
   counts:    { type: Object, required: true },
   filters:   { type: Object, required: true },
@@ -105,7 +106,7 @@ const TABS = computed(() => [
         </tr>
       </thead>
       <tbody>
-        <tr v-for="est in estimates" :key="est.id"
+        <tr v-for="est in estimates.data" :key="est.id"
             :class="{ 'is-overdue': est.expired, 'is-open': est.status === 'sent' && !est.expired }"
             @click="router.visit(`/estimates/${est.number}`)">
           <td class="pad-l strong">
@@ -121,10 +122,12 @@ const TABS = computed(() => [
           <td class="num strong">{{ fmtMoney(est.total) }}</td>
           <td><span class="badge dot" :class="badge(est).cls">{{ badge(est).label }}</span></td>
         </tr>
-        <tr v-if="estimates.length === 0">
+        <tr v-if="estimates.data.length === 0">
           <td colspan="7" class="pad-l muted" style="padding: 24px">No estimates match this filter.</td>
         </tr>
       </tbody>
     </table>
   </div>
+
+  <Pagination :paginator="estimates" />
 </template>

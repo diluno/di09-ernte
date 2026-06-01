@@ -31,7 +31,9 @@ test('GET /invoices renders Invoices/Index with rows + stats + counts', function
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Invoices/Index')
-            ->has('invoices', 1, fn (Assert $r) => $r
+            ->where('invoices.total', 1)
+            ->where('invoices.per_page', 50)
+            ->has('invoices.data', 1, fn (Assert $r) => $r
                 ->where('number', '2026-001')
                 ->where('client.name', 'Atlas Robotics')
                 ->where('total', 100.5)
@@ -52,7 +54,23 @@ test('GET /invoices?filter=overdue narrows to past-due sent invoices', function 
     Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent', 'due_on' => now()->addDay()->toDateString()]);
 
     $this->get('/invoices?filter=overdue')
-        ->assertInertia(fn (Assert $page) => $page->has('invoices', 1));
+        ->assertInertia(fn (Assert $page) => $page->has('invoices.data', 1));
+});
+
+test('GET /invoices paginates at 50 rows per page', function () {
+    Invoice::factory()->count(51)->create(['client_id' => $this->client->id]);
+
+    $this->get('/invoices')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('invoices.total', 51)
+            ->where('invoices.per_page', 50)
+            ->where('invoices.current_page', 1)
+            ->has('invoices.data', 50));
+
+    $this->get('/invoices?page=2')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('invoices.current_page', 2)
+            ->has('invoices.data', 1));
 });
 
 test('unauthenticated /invoices redirects to login', function () {

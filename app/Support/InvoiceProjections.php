@@ -3,20 +3,23 @@
 namespace App\Support;
 
 use App\Models\Invoice;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 class InvoiceProjections
 {
+    public const PER_PAGE = 50;
+
     /**
-     * Invoice list rows for /invoices.
+     * Paginated invoice list rows for /invoices, 50 per page.
      *
      * $filter: 'all' | 'draft' | 'sent' | 'overdue' | 'paid' | 'void'.
      * 'overdue' is virtual: status='sent' AND due_on < today.
      *
-     * @return Collection<int, array>
+     * @return LengthAwarePaginator<array>
      */
-    public static function index(string $filter = 'all', ?string $search = null): Collection
+    public static function index(string $filter = 'all', ?string $search = null): LengthAwarePaginator
     {
         $q = Invoice::query()
             ->with(['client:id,name', 'project:id,name', 'lines:id,invoice_id,hours']);
@@ -36,7 +39,9 @@ class InvoiceProjections
 
         return $q->orderByRaw('COALESCE(issued_on, created_at) DESC')
             ->orderByDesc('id')
-            ->get()->map(fn (Invoice $i) => [
+            ->paginate(self::PER_PAGE)
+            ->withQueryString()
+            ->through(fn (Invoice $i) => [
             'id' => $i->id,
             'number' => $i->number,
             'title' => $i->title,

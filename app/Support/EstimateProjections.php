@@ -3,20 +3,22 @@
 namespace App\Support;
 
 use App\Models\Estimate;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 
 class EstimateProjections
 {
+    public const PER_PAGE = 50;
+
     /**
-     * Estimate list rows for /estimates.
+     * Paginated estimate list rows for /estimates, 50 per page.
      *
      * $filter: 'all' | 'draft' | 'sent' | 'accepted' | 'declined' | 'expired'.
      * 'expired' is virtual: status='sent' AND valid_until < today.
      *
-     * @return Collection<int, array>
+     * @return LengthAwarePaginator<array>
      */
-    public static function index(string $filter = 'all', ?string $search = null): Collection
+    public static function index(string $filter = 'all', ?string $search = null): LengthAwarePaginator
     {
         $q = Estimate::query()
             ->with(['client:id,name', 'project:id,name', 'lines:id,estimate_id,hours']);
@@ -36,7 +38,9 @@ class EstimateProjections
 
         return $q->orderByRaw('COALESCE(issued_on, created_at) DESC')
             ->orderByDesc('id')
-            ->get()->map(fn (Estimate $e) => [
+            ->paginate(self::PER_PAGE)
+            ->withQueryString()
+            ->through(fn (Estimate $e) => [
             'id' => $e->id,
             'number' => $e->number,
             'title' => $e->title,

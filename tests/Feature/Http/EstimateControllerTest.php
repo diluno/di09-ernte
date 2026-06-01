@@ -41,7 +41,9 @@ test('GET /estimates renders Estimates/Index with rows + stats + counts', functi
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Estimates/Index')
-            ->has('estimates', 1, fn (Assert $r) => $r
+            ->where('estimates.total', 1)
+            ->where('estimates.per_page', 50)
+            ->has('estimates.data', 1, fn (Assert $r) => $r
                 ->where('number', 'OF-2026-001')
                 ->where('client.name', 'Atlas Robotics')
                 ->where('total', 100.5)
@@ -52,6 +54,22 @@ test('GET /estimates renders Estimates/Index with rows + stats + counts', functi
             ->has('stats', fn (Assert $s) => $s->has('open')->has('accepted_ytd')->has('acceptance_rate')->etc())
             ->has('counts', fn (Assert $c) => $c->where('all', 1)->has('draft')->has('sent')->has('accepted')->has('declined')->has('expired')->etc())
             ->where('filters.filter', 'all'));
+});
+
+test('GET /estimates paginates at 50 rows per page', function () {
+    Estimate::factory()->count(51)->create(['client_id' => $this->client->id]);
+
+    $this->get('/estimates')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('estimates.total', 51)
+            ->where('estimates.per_page', 50)
+            ->where('estimates.current_page', 1)
+            ->has('estimates.data', 50));
+
+    $this->get('/estimates?page=2')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('estimates.current_page', 2)
+            ->has('estimates.data', 1));
 });
 
 test('unauthenticated /estimates redirects to login', function () {

@@ -31,7 +31,7 @@ class EstimateController extends Controller
         $search = $request->string('q')->toString() ?: null;
 
         return Inertia::render('Estimates/Index', [
-            'estimates' => EstimateProjections::index($filter, $search)->values(),
+            'estimates' => EstimateProjections::index($filter, $search),
             'stats' => EstimateProjections::stats(),
             'counts' => [
                 'all' => Estimate::count(),

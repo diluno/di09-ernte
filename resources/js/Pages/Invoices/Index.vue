@@ -3,12 +3,13 @@ import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import Pagination from '@/Components/Pagination.vue';
 import { fmtDate } from '@/formatters/date.js';
 
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-  invoices: { type: Array, required: true },
+  invoices: { type: Object, required: true },
   stats:    { type: Object, required: true },
   counts:   { type: Object, required: true },
   filters:  { type: Object, required: true },
@@ -99,7 +100,7 @@ const TABS = computed(() => [
         </tr>
       </thead>
       <tbody>
-        <tr v-for="inv in invoices" :key="inv.id"
+        <tr v-for="inv in invoices.data" :key="inv.id"
             :class="{ 'is-overdue': inv.overdue, 'is-open': inv.status === 'sent' && !inv.overdue }"
             @click="router.visit(`/invoices/${inv.number}`)">
           <td class="pad-l strong">
@@ -115,10 +116,12 @@ const TABS = computed(() => [
           <td class="num strong">{{ fmtMoney(inv.total) }}</td>
           <td><span class="badge dot" :class="inv.overdue ? 'overdue' : inv.status">{{ inv.overdue ? 'overdue' : inv.status }}</span></td>
         </tr>
-        <tr v-if="invoices.length === 0">
+        <tr v-if="invoices.data.length === 0">
           <td colspan="7" class="pad-l muted" style="padding: 24px">No invoices match this filter.</td>
         </tr>
       </tbody>
     </table>
   </div>
+
+  <Pagination :paginator="invoices" />
 </template>

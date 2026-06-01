@@ -32,7 +32,7 @@ class InvoiceController extends Controller
         $search = $request->string('q')->toString() ?: null;
 
         return Inertia::render('Invoices/Index', [
-            'invoices' => InvoiceProjections::index($filter, $search)->values(),
+            'invoices' => InvoiceProjections::index($filter, $search),
             'stats' => InvoiceProjections::stats(),
             'counts' => [
                 'all' => Invoice::count(),
