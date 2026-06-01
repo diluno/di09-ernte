@@ -97,3 +97,55 @@ test('index orders by document date (issued_on; drafts by created_at) newest fir
     // draft (created now) first, then 2026-issued, then 2025-issued.
     expect($rows->pluck('number')->all())->toBe(['2026-900', '2026-001', '2025-001']);
 });
+
+test('monthlyIssued buckets sent into open and paid into paid by issue month, in CHF', function () {
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'paid',
+        'issued_on' => '2026-01-10', 'total_rappen' => 24_000_00]);
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent',
+        'issued_on' => '2026-01-20', 'due_on' => '2026-02-19', 'total_rappen' => 5_000_00]);
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent',
+        'issued_on' => '2026-04-03', 'due_on' => '2026-05-03', 'total_rappen' => 13_000_00]);
+
+    $chart = InvoiceProjections::monthlyIssued(2026);
+
+    expect($chart['months'])->toHaveCount(12);
+    expect($chart['months'][0])->toBe(['label' => 'Jan', 'open' => 5000.0, 'paid' => 24000.0]);
+    expect($chart['months'][1])->toBe(['label' => 'Feb', 'open' => 0.0, 'paid' => 0.0]);
+    expect($chart['months'][3])->toBe(['label' => 'Apr', 'open' => 13000.0, 'paid' => 0.0]);
+});
+
+test('monthlyIssued excludes draft and void, and buckets by issued_on not paid_at', function () {
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'paid',
+        'issued_on' => '2026-01-15', 'paid_at' => '2026-02-15', 'total_rappen' => 9_000_00]);
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'draft',
+        'issued_on' => '2026-03-01', 'total_rappen' => 1_000_00]);
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'void',
+        'issued_on' => '2026-03-01', 'total_rappen' => 1_000_00]);
+
+    $chart = InvoiceProjections::monthlyIssued(2026);
+
+    expect($chart['months'][0]['paid'])->toBe(9000.0);
+    expect($chart['months'][2])->toBe(['label' => 'Mar', 'open' => 0.0, 'paid' => 0.0]);
+});
+
+test('monthlyIssued respects the requested year and reports min/max year bounds', function () {
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'paid',
+        'issued_on' => '2024-06-01', 'total_rappen' => 1_000_00]);
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent',
+        'issued_on' => '2026-06-01', 'due_on' => '2026-07-01', 'total_rappen' => 2_000_00]);
+
+    $chart = InvoiceProjections::monthlyIssued(2026);
+    expect($chart['months'][5])->toBe(['label' => 'Jun', 'open' => 2000.0, 'paid' => 0.0]);
+    expect($chart['min_year'])->toBe(2024);
+    expect($chart['max_year'])->toBe((int) now()->year);
+
+    $empty = InvoiceProjections::monthlyIssued(2025);
+    expect(collect($empty['months'])->sum('open'))->toBe(0.0);
+    expect(collect($empty['months'])->sum('paid'))->toBe(0.0);
+});
+
+test('monthlyIssued falls min_year back to the requested year when there are no invoices', function () {
+    $chart = InvoiceProjections::monthlyIssued(2026);
+    expect($chart['min_year'])->toBe(2026);
+    expect($chart['max_year'])->toBe((int) now()->year);
+});

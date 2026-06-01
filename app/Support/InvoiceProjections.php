@@ -122,6 +122,59 @@ class InvoiceProjections
         ];
     }
 
+    /**
+     * Stacked monthly totals (CHF) for invoices issued in $year, split open vs paid,
+     * plus the navigable year bounds. Used by the Invoices index chart.
+     *
+     * open = status 'sent' (unpaid; overdue folds in); paid = status 'paid'.
+     * draft/void are excluded. Bucketed by issued_on month.
+     */
+    public static function monthlyIssued(int $year): array
+    {
+        $rows = Invoice::query()
+            ->whereIn('status', ['sent', 'paid'])
+            ->whereYear('issued_on', $year)
+            ->selectRaw('MONTH(issued_on) AS m, status, SUM(total_rappen) AS cents')
+            ->groupBy('m', 'status')
+            ->get();
+
+        $open = array_fill(1, 12, 0);
+        $paid = array_fill(1, 12, 0);
+        foreach ($rows as $r) {
+            $month = (int) $r->m;
+            if ($r->status === 'paid') {
+                $paid[$month] += (int) $r->cents;
+            } else {
+                $open[$month] += (int) $r->cents;
+            }
+        }
+
+        $labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        $months = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $months[] = [
+                'label' => $labels[$m - 1],
+                'open' => round($open[$m] / 100, 2),
+                'paid' => round($paid[$m] / 100, 2),
+            ];
+        }
+
+        $minIssuedYear = Invoice::query()
+            ->whereIn('status', ['sent', 'paid'])
+            ->whereNotNull('issued_on')
+            ->selectRaw('MIN(YEAR(issued_on)) AS y')
+            ->value('y');
+
+        $currentYear = (int) Carbon::now()->year;
+
+        return [
+            'year' => $year,
+            'min_year' => $minIssuedYear !== null ? (int) $minIssuedYear : $year,
+            'max_year' => $currentYear,
+            'months' => $months,
+        ];
+    }
+
     /** Outstanding (sent) total in rappen, keyed by client_id. */
     public static function outstandingByClient(): Collection
     {
