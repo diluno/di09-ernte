@@ -35,6 +35,49 @@ test('GET /timer renders Timer/Today with today payload', function () {
         );
 });
 
+test('today entries carry the project name even when description is blank, so the row stays identifiable', function () {
+    TimeEntry::create([
+        'user_id' => $this->user->id, 'project_id' => $this->project->id,
+        'description' => '',
+        'started_at' => today()->setHour(9), 'ended_at' => today()->setHour(10),
+        'billable' => true,
+    ]);
+
+    $this->get('/timer')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Timer/Today')
+            ->has('entries.0', fn (Assert $e) => $e
+                ->where('description', '')
+                ->where('project.name', $this->project->name)
+                ->etc()
+            )
+        );
+});
+
+test('today payload flags the running entry so the row can hide edit/delete controls', function () {
+    TimeEntry::create([
+        'user_id' => $this->user->id, 'project_id' => $this->project->id,
+        'description' => 'finished', 'billable' => true,
+        'started_at' => today()->setHour(9), 'ended_at' => today()->setHour(10),
+    ]);
+    TimeEntry::create([
+        'user_id' => $this->user->id, 'project_id' => $this->project->id,
+        'description' => 'in progress', 'billable' => true,
+        'started_at' => today()->setHour(11), 'ended_at' => null,
+    ]);
+
+    $this->get('/timer')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Timer/Today')
+            ->has('entries', 2)
+            ->where('entries.0.running', false)
+            ->where('entries.1.running', true)
+            ->etc()
+        );
+});
+
 test('GET /timer exposes all active projects for manual entry, including budget-less ones beyond the recent 4', function () {
     Project::factory()->count(4)->create(); // pushes the others out of the recent-4 quick_start
     Project::factory()->create([
