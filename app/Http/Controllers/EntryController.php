@@ -25,7 +25,12 @@ class EntryController extends Controller
 
     public function update(UpdateEntryRequest $request, TimeEntry $entry): RedirectResponse
     {
-        $entry->update($request->validated());
+        $data = $request->validated();
+        // description is NOT NULL; a blank field arrives as null via ConvertEmptyStringsToNull.
+        if (array_key_exists('description', $data)) {
+            $data['description'] = $data['description'] ?? '';
+        }
+        $entry->update($data);
         return back();
     }
 

@@ -13,6 +13,7 @@ import IconClock from '~icons/pixelarticons/clock';
 import IconUsers from '~icons/pixelarticons/users';
 import IconReceipt from '~icons/pixelarticons/receipt';
 import IconEdit from '~icons/pixelarticons/edit';
+import IconTrash from '~icons/pixelarticons/trash';
 import IconChart from '~icons/pixelarticons/chart';
 import IconRepeat from '~icons/pixelarticons/repeat';
 import IconLeaf from '~icons/pixelarticons/leaf';
@@ -29,6 +30,7 @@ const MAP = {
   users: IconUsers,
   receipt: IconReceipt,
   edit: IconEdit,
+  trash: IconTrash,
   chart: IconChart,
   repeat: IconRepeat,
   leaf: IconLeaf,
