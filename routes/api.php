@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\EntryController;
 use App\Http\Controllers\Api\EstimateController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\MeController;
@@ -20,6 +21,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/timer/switch', [TimerController::class, 'switch']);
     Route::post('/timer/stop', [TimerController::class, 'stop']);
     Route::post('/timer/discard', [TimerController::class, 'discard']);
+    Route::post('/entries', [EntryController::class, 'store']);
     Route::get('/projects', [ProjectController::class, 'index']);
     Route::get('/projects/{project:code}', [ProjectController::class, 'show']);
     Route::get('/invoices', [InvoiceController::class, 'index']);
