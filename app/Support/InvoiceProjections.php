@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Invoice;
+use App\Models\InvoiceLine;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -87,6 +88,37 @@ class InvoiceProjections
             'paid_ytd' => round($paidYtd / 100, 2),
             'avg_days_to_pay' => $avg !== null ? (int) round((float) $avg) : null,
             'count' => Invoice::count(),
+        ];
+    }
+
+    /** Full single-invoice detail array (shared by the web show page and the API). */
+    public static function detail(Invoice $invoice): array
+    {
+        $invoice->loadMissing(['client', 'project', 'recurringInvoice:id,title', 'lines']);
+
+        return [
+            'id' => $invoice->id,
+            'number' => $invoice->number,
+            'status' => $invoice->status,
+            'overdue' => $invoice->overdue,
+            'title' => $invoice->title,
+            'client' => $invoice->client->only('id', 'name'),
+            'project_name' => $invoice->project?->name,
+            'issued_on' => $invoice->issued_on?->toDateString(),
+            'due_on' => $invoice->due_on?->toDateString(),
+            'subtotal' => round($invoice->subtotal_rappen / 100, 2),
+            'vat' => round($invoice->vat_rappen / 100, 2),
+            'total' => round($invoice->total_rappen / 100, 2),
+            'vat_rate' => (float) $invoice->vat_rate,
+            'notes' => $invoice->notes,
+            'recurring' => $invoice->recurringInvoice
+                ? ['id' => $invoice->recurringInvoice->id, 'title' => $invoice->recurringInvoice->title]
+                : null,
+            'lines' => $invoice->lines->sortBy('sort_order')->values()->map(fn (InvoiceLine $l) => [
+                'id' => $l->id, 'description' => $l->description,
+                'hours' => (float) $l->hours, 'rate' => (int) round($l->rate_rappen / 100),
+                'amount' => round($l->amount_rappen / 100, 2),
+            ])->all(),
         ];
     }
 
