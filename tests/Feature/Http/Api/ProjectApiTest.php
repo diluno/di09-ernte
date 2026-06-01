@@ -47,3 +47,30 @@ test('GET /api/projects?q= filters by name', function () {
         ->assertJsonCount(1, 'projects')
         ->assertJsonPath('projects.0.name', 'Findable');
 });
+
+test('GET /api/projects/{code} requires authentication', function () {
+    $project = Project::factory()->create(['code' => 'ACME-001']);
+    $this->getJson("/api/projects/{$project->code}")->assertUnauthorized();
+});
+
+test('GET /api/projects/{code} returns the project detail payload', function () {
+    Sanctum::actingAs(User::factory()->create());
+    $project = Project::factory()->create(['name' => 'Acme Site', 'code' => 'ACME-001']);
+
+    $this->getJson("/api/projects/{$project->code}")
+        ->assertOk()
+        ->assertJsonStructure([
+            'project' => ['id', 'name', 'code', 'status', 'spent_hours', 'pct_hours', 'band', 'client' => ['id', 'name']],
+            'tasks',
+            'recent_entries',
+            'heatmap',
+            'counts' => ['entries', 'tasks'],
+        ])
+        ->assertJsonPath('project.code', 'ACME-001')
+        ->assertJsonPath('project.name', 'Acme Site');
+});
+
+test('GET /api/projects/{code} returns 404 for an unknown code', function () {
+    Sanctum::actingAs(User::factory()->create());
+    $this->getJson('/api/projects/NOPE-999')->assertNotFound();
+});

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Support\DashboardProjections;
+use App\Support\ProjectDetail;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -24,5 +25,10 @@ class ProjectController extends Controller
                 'archived' => Project::archived()->count(),
             ],
         ]);
+    }
+
+    public function show(Project $project): JsonResponse
+    {
+        return response()->json(ProjectDetail::payload($project));
     }
 }

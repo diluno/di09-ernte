@@ -17,4 +17,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/timer/stop', [TimerController::class, 'stop']);
     Route::post('/timer/discard', [TimerController::class, 'discard']);
     Route::get('/projects', [ProjectController::class, 'index']);
+    Route::get('/projects/{project:code}', [ProjectController::class, 'show']);
 });
