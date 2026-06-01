@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import Icon from '@/Components/Icon.vue';
 import { formatChf } from '@/formatters/money.js';
 
@@ -11,12 +11,28 @@ const props = defineProps({
 });
 const emit = defineEmits(['update:year']);
 
-// SVG coordinate space (scaled responsively via viewBox).
-const W = 1000, H = 260;
+// Fixed pixel height; the viewBox WIDTH tracks the rendered width (see the
+// ResizeObserver below) so the chart re-flows to fill the page without growing
+// taller on wide screens. Because the viewBox dimensions equal the on-screen
+// pixels, preserveAspectRatio="none" scales 1:1 — no distortion of bars or text.
+const H = 230;
 const PAD_L = 82, PAD_R = 16, PAD_T = 12, PAD_B = 26;
-const plotW = W - PAD_L - PAD_R;
 const plotH = H - PAD_T - PAD_B;
 const baseline = H - PAD_B;
+
+const svgRef = ref(null);
+const W = ref(1000);
+let ro = null;
+onMounted(() => {
+  if (!svgRef.value) return;
+  const measure = () => { W.value = Math.max(360, Math.round(svgRef.value.clientWidth)); };
+  measure();
+  ro = new ResizeObserver(measure);
+  ro.observe(svgRef.value);
+});
+onBeforeUnmount(() => ro?.disconnect());
+
+const plotW = computed(() => W.value - PAD_L - PAD_R);
 
 // Round an axis max up to a "nice" value giving ~targetLines gridlines.
 function niceScale(value, targetLines = 5) {
@@ -42,7 +58,7 @@ const gridlines = computed(() => {
   return out;
 });
 
-const slot = computed(() => plotW / 12);
+const slot = computed(() => plotW.value / 12);
 const barW = computed(() => Math.min(46, slot.value * 0.5));
 
 const bars = computed(() => props.months.map((m, i) => {
@@ -78,7 +94,7 @@ function next() { if (canNext.value) emit('update:year', props.year + 1); }
       </div>
     </header>
 
-    <svg class="ibc__svg" :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="xMidYMid meet"
+    <svg ref="svgRef" class="ibc__svg" :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="none"
          role="img" :aria-label="`Monthly invoiced amounts for ${year}`">
       <g class="ibc__grid">
         <line :x1="PAD_L" :x2="W - PAD_R" :y1="baseline" :y2="baseline" />
@@ -108,7 +124,7 @@ function next() { if (canNext.value) emit('update:year', props.year + 1); }
 .ibc__sw { width: 12px; height: 12px; display: inline-block; }
 .ibc__sw--paid { background: var(--forest); }
 .ibc__sw--open { background: color-mix(in srgb, var(--forest) 45%, var(--paper)); }
-.ibc__svg { width: 100%; height: auto; display: block; }
+.ibc__svg { width: 100%; height: 230px; display: block; }
 .ibc__grid line { stroke: var(--border); stroke-width: 1; }
 .ibc__grid text { fill: var(--ink-3); font-size: 11px; font-variant-numeric: tabular-nums; }
 .ibc__mlabel { fill: var(--ink-3); font-size: 12px; }
