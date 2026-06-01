@@ -23,7 +23,6 @@ dataset('pages', [
     ['/timer',    'Today',     'Timer/Today'],
     ['/clients',  'Clients',   'Clients/Index'],
     ['/invoices', 'Invoices',  'Invoices/Index'],
-    ['/reports',  'Reports',   'Reports/Placeholder'],
     ['/settings', 'Settings',  'Settings/Profile'],
 ]);
 
