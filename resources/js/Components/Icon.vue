@@ -17,6 +17,8 @@ import IconTrash from '~icons/pixelarticons/trash';
 import IconChart from '~icons/pixelarticons/chart';
 import IconRepeat from '~icons/pixelarticons/repeat';
 import IconLeaf from '~icons/pixelarticons/leaf';
+import IconArrowLeft from '~icons/pixelarticons/arrow-left';
+import IconArrowRight from '~icons/pixelarticons/arrow-right';
 
 const MAP = {
   search: IconSearch,
@@ -34,6 +36,8 @@ const MAP = {
   chart: IconChart,
   repeat: IconRepeat,
   leaf: IconLeaf,
+  'arrow-left': IconArrowLeft,
+  'arrow-right': IconArrowRight,
 };
 
 defineProps({ name: { type: String, required: true } });
