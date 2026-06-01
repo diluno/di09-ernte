@@ -5,6 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import TimerHero from '@/Components/TimerHero.vue';
 import EntryRow from '@/Components/EntryRow.vue';
 import { formatChf } from '@/formatters/money.js';
+import { parseDuration, formatDuration } from '@/formatters/duration.js';
 import { glyphClass } from '@/formatters/glyph.js';
 
 defineOptions({ layout: AppLayout });
@@ -34,6 +35,8 @@ const totalShare = (sec) => props.totals.total_seconds ? (sec / props.totals.tot
 const showManual = ref(false);
 const editingId = ref(null);
 const originalProjectId = ref(null);
+const originalStartedAt = ref(null);
+const durationText = ref('1:00');
 const formEl = ref(null);
 const page = usePage();
 
@@ -53,47 +56,42 @@ const dateStr = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getD
 const timeStr = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
 const nowDate = new Date();
-const oneHourAgo = new Date(nowDate.getTime() - 60 * 60 * 1000);
 
 const manualForm = useForm({
   project_id: '',
   description: '',
   date: dateStr(nowDate),
-  start_time: timeStr(oneHourAgo),
-  end_time: timeStr(nowDate),
   billable: true,
 });
 
-// Compose start/end Dates from the form's date + HH:MM times; an end at or before
-// the start is treated as crossing midnight.
-function composeRange() {
-  const start = new Date(`${manualForm.date}T${manualForm.start_time}`);
-  let end = new Date(`${manualForm.date}T${manualForm.end_time}`);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
-  if (end <= start) end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
-  return { start, end };
-}
-
-const durationLabel = computed(() => {
-  const r = composeRange();
-  if (!r) return '—';
-  const mins = Math.round((r.end - r.start) / 60000);
-  return `${Math.floor(mins / 60)}h ${pad(mins % 60)}m`;
-});
+const durationMinutes = computed(() => parseDuration(durationText.value));
+const durationPreview = computed(() =>
+  durationMinutes.value ? `= ${formatDuration(durationMinutes.value)}` : 'e.g. 1:30, 90m, 1.5');
 
 function submitManual() {
+  const mins = durationMinutes.value;
+  if (!mins) {
+    manualForm.setError('duration', 'Enter a valid duration, e.g. 1:30, 90m, or 1.5');
+    return;
+  }
+  manualForm.clearErrors();
+
   const editing = editingId.value;
   manualForm.transform((data) => {
-    const r = composeRange();
+    // Create: anchor the start on the chosen date at the current time-of-day.
+    // Edit: keep the entry's original start so it holds its place in the day.
+    const start = (editing && originalStartedAt.value)
+      ? new Date(originalStartedAt.value)
+      : new Date(`${data.date}T${timeStr(new Date())}`);
+    const end = new Date(start.getTime() + mins * 60000);
+
     const payload = {
       project_id: data.project_id,
       description: data.description,
       billable: data.billable,
-      started_at: r ? r.start.toISOString() : null,
-      ended_at: r ? r.end.toISOString() : null,
+      started_at: start.toISOString(),
+      ended_at: end.toISOString(),
     };
-    // When editing and the project changed, drop the task so we never leave an
-    // entry whose task belongs to a different project.
     if (editing && data.project_id !== originalProjectId.value) {
       payload.task_id = null;
     }
@@ -101,7 +99,12 @@ function submitManual() {
   });
 
   const opts = {
-    onSuccess: () => { showManual.value = false; editingId.value = null; manualForm.reset(); },
+    onSuccess: () => {
+      showManual.value = false;
+      editingId.value = null;
+      manualForm.reset();
+      durationText.value = '1:00';
+    },
     preserveScroll: true,
   };
 
@@ -113,17 +116,15 @@ function submitManual() {
 }
 
 function startEdit(entry) {
-  const start = new Date(entry.started_at);
-  const end = entry.ended_at ? new Date(entry.ended_at) : new Date();
   manualForm.clearErrors();
   manualForm.project_id = entry.project.id;
   manualForm.description = entry.description || '';
-  manualForm.date = dateStr(start);
-  manualForm.start_time = timeStr(start);
-  manualForm.end_time = timeStr(end);
+  manualForm.date = dateStr(new Date(entry.started_at));
   manualForm.billable = entry.billable;
+  durationText.value = formatDuration(Math.round(entry.duration_seconds / 60));
   editingId.value = entry.id;
   originalProjectId.value = entry.project.id;
+  originalStartedAt.value = entry.started_at;
   showManual.value = true;
   // Scroll the page region fully to the top: the form sits just under the sticky
   // page-head, so scrollIntoView would tuck it behind that header. Scrolling the
@@ -142,6 +143,7 @@ function cancelManual() {
   editingId.value = null;
   manualForm.clearErrors();
   manualForm.reset();
+  durationText.value = '1:00';
 }
 </script>
 
@@ -184,16 +186,9 @@ function cancelManual() {
         <input type="date" v-model="manualForm.date" required class="input" />
       </label>
       <label class="field">
-        <span>From</span>
-        <input type="time" v-model="manualForm.start_time" required class="input" />
-      </label>
-      <label class="field">
-        <span>To</span>
-        <input type="time" v-model="manualForm.end_time" required class="input" />
-      </label>
-      <label class="field">
         <span>Duration</span>
-        <output class="me-dur">{{ durationLabel }}</output>
+        <input v-model="durationText" placeholder="1:30" class="input" />
+        <span class="me-dur-hint" :class="{ ok: durationMinutes }">{{ durationPreview }}</span>
       </label>
     </div>
 
@@ -292,23 +287,17 @@ function cancelManual() {
 .me-grid { display: grid; gap: 16px; }
 .me-grid--main { grid-template-columns: minmax(0, 1.3fr) minmax(0, 2fr); }
 .me-grid--time {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
   margin-top: 16px;
 }
-/* Live duration readout — echoes the big tabular timer numerals. */
-.me-dur {
-  min-height: var(--row-h);
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  font-size: var(--fs-lg);
-  font-weight: 600;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
+.me-dur-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--fs-xs);
+  color: var(--ink-4);
 }
+.me-dur-hint.ok { color: var(--ink-3); }
 .manual-entry__foot {
   display: flex;
   align-items: center;
@@ -339,6 +328,5 @@ function cancelManual() {
 @media (max-width: 760px) {
   .me-grid--main { grid-template-columns: 1fr; }
   .me-grid--time { grid-template-columns: 1fr 1fr; }
-  .me-dur { justify-content: flex-start; }
 }
 </style>
