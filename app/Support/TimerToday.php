@@ -9,9 +9,9 @@ use Illuminate\Support\Carbon;
 
 class TimerToday
 {
-    public static function payload(User $user): array
+    public static function payload(User $user, ?Carbon $date = null): array
     {
-        $start = Carbon::today();
+        $start = ($date ?? Carbon::today())->copy()->startOfDay();
         $end = $start->copy()->addDay();
 
         $entries = TimeEntry::query()
@@ -32,6 +32,7 @@ class TimerToday
                 $billableSecs += $dur;
                 $earningsRappen += (int) round(($dur / 3600) * (int) $e->project->rate_rappen);
             }
+
             return [
                 'id' => $e->id,
                 'description' => $e->description,
@@ -52,6 +53,7 @@ class TimerToday
         $byProject = $entries->groupBy('project_id')->map(function ($bucket) {
             $first = $bucket->first();
             $secs = $bucket->sum(fn (TimeEntry $e) => $e->duration_seconds);
+
             return [
                 'project_id' => $first->project_id,
                 'name' => $first->project->name,
@@ -76,6 +78,8 @@ class TimerToday
             ->all();
 
         return [
+            'date' => $start->toDateString(),
+            'is_today' => $start->isToday(),
             'entries' => $serialized->all(),
             'totals' => [
                 'total_seconds' => $totalSecs,

@@ -35,6 +35,56 @@ test('GET /timer renders Timer/Today with today payload', function () {
         );
 });
 
+test('GET /timer defaults to today and flags is_today', function () {
+    $this->get('/timer')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Timer/Today')
+            ->where('date', today()->toDateString())
+            ->where('is_today', true)
+            ->etc()
+        );
+});
+
+test('GET /timer?date= shows only that day\'s entries and flags is_today false', function () {
+    TimeEntry::create([
+        'user_id' => $this->user->id, 'project_id' => $this->project->id,
+        'description' => 'three days ago',
+        'started_at' => today()->subDays(3)->setHour(9), 'ended_at' => today()->subDays(3)->setHour(11),
+        'billable' => true,
+    ]);
+    // A today entry that must NOT leak into the past-day view.
+    TimeEntry::create([
+        'user_id' => $this->user->id, 'project_id' => $this->project->id,
+        'description' => 'today',
+        'started_at' => today()->setHour(9), 'ended_at' => today()->setHour(10),
+        'billable' => true,
+    ]);
+
+    $this->get('/timer?date='.today()->subDays(3)->toDateString())
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Timer/Today')
+            ->where('date', today()->subDays(3)->toDateString())
+            ->where('is_today', false)
+            ->has('entries', 1)
+            ->where('entries.0.description', 'three days ago')
+            ->where('totals.total_seconds', 7200)
+            ->etc()
+        );
+});
+
+test('GET /timer with a malformed date falls back to today', function () {
+    $this->get('/timer?date=not-a-date')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Timer/Today')
+            ->where('date', today()->toDateString())
+            ->where('is_today', true)
+            ->etc()
+        );
+});
+
 test('today entries carry the project name even when description is blank, so the row stays identifiable', function () {
     TimeEntry::create([
         'user_id' => $this->user->id, 'project_id' => $this->project->id,

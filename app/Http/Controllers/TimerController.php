@@ -9,6 +9,7 @@ use App\Services\Timer\TimerService;
 use App\Support\TimerToday;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,7 +19,18 @@ class TimerController extends Controller
 
     public function show(Request $request): Response
     {
-        return Inertia::render('Timer/Today', TimerToday::payload($request->user()));
+        // The day being viewed; defaults to today. A malformed ?date= falls back to
+        // today rather than erroring, so a stale or hand-edited URL stays usable.
+        $date = Carbon::today();
+        if ($request->filled('date')) {
+            $date = rescue(
+                fn () => Carbon::createFromFormat('Y-m-d', (string) $request->input('date'))->startOfDay(),
+                Carbon::today(),
+                report: false,
+            );
+        }
+
+        return Inertia::render('Timer/Today', TimerToday::payload($request->user(), $date));
     }
 
     public function start(StartTimerRequest $request): RedirectResponse

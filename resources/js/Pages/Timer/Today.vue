@@ -16,6 +16,8 @@ const props = defineProps({
   by_project:  { type: Array,  required: true },
   quick_start: { type: Array,  required: true },
   projects:    { type: Array,  default: () => [] },
+  date:        { type: String, required: true },  // 'YYYY-MM-DD' — the day being viewed
+  is_today:    { type: Boolean, default: true },
 });
 
 function fmtHM(sec) {
@@ -24,7 +26,23 @@ function fmtHM(sec) {
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
 }
 
-const today = new Date().toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+// The viewed day. Anchor on local midnight ('T00:00:00') so the date doesn't slip
+// across timezones when parsed.
+const viewedDate = computed(() => new Date(`${props.date}T00:00:00`));
+const viewedDateLabel = computed(() => viewedDate.value.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }));
+const headingLabel = computed(() => props.is_today ? 'Today' : viewedDate.value.toLocaleDateString([], { weekday: 'long' }));
+
+function goToDate(value) {
+  router.get('/timer', { date: value }, { preserveScroll: true, preserveState: false });
+}
+function shiftDay(delta) {
+  const d = new Date(`${props.date}T00:00:00`);
+  d.setDate(d.getDate() + delta);
+  goToDate(dateStr(d));
+}
+function goToday() {
+  goToDate(dateStr(new Date()));
+}
 
 function startProject(projectId) {
   router.post('/timer/start', { project_id: projectId }, { preserveScroll: true });
@@ -55,12 +73,10 @@ const pad = (n) => String(n).padStart(2, '0');
 const dateStr = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const timeStr = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
-const nowDate = new Date();
-
 const manualForm = useForm({
   project_id: '',
   description: '',
-  date: dateStr(nowDate),
+  date: props.date,
   billable: true,
 });
 
@@ -154,11 +170,17 @@ function cancelManual() {
     <div>
       <div class="crumb">~ / timer</div>
       <h1 class="page-title">
-        Today
-        <span class="meta">{{ today }}<span class="ascii-dot">·</span>{{ fmtHM(totals.total_seconds) }} logged</span>
+        {{ headingLabel }}
+        <span class="meta">{{ viewedDateLabel }}<span class="ascii-dot">·</span>{{ fmtHM(totals.total_seconds) }} logged</span>
       </h1>
     </div>
-    <div style="display: flex; gap: 8px">
+    <div style="display: flex; gap: 8px; align-items: center">
+      <div class="day-nav">
+        <button class="btn ghost day-nav__arrow" title="Previous day" aria-label="Previous day" @click="shiftDay(-1)">‹</button>
+        <input type="date" class="input day-nav__date" :value="date" @change="goToDate($event.target.value)" />
+        <button class="btn ghost day-nav__arrow" title="Next day" aria-label="Next day" @click="shiftDay(1)">›</button>
+        <button v-if="!is_today" class="btn ghost" @click="goToday">Today</button>
+      </div>
       <button class="btn" @click="showManual ? cancelManual() : (showManual = true)">{{ showManual ? '× cancel' : '+ Manual entry' }}</button>
     </div>
   </div>
@@ -210,15 +232,15 @@ function cancelManual() {
 
   <div class="timer-stage">
     <div>
-      <TimerHero />
+      <TimerHero v-if="is_today" />
 
-      <div class="divider-row">Today's entries · {{ entries.length }}</div>
+      <div class="divider-row">{{ is_today ? "Today's entries" : 'Entries' }} · {{ entries.length }}</div>
       <EntryRow v-for="(e, i) in entries" :key="e.id" :entry="e" :color-index="i" @edit="startEdit" @delete="deleteEntry" />
-      <div v-if="entries.length === 0" class="muted" style="padding: 12px">No entries today yet</div>
+      <div v-if="entries.length === 0" class="muted" style="padding: 12px">{{ is_today ? 'No entries today yet' : 'No entries this day' }}</div>
     </div>
 
     <aside>
-      <h3 class="section-title">Today summary</h3>
+      <h3 class="section-title">{{ is_today ? 'Today summary' : 'Day summary' }}</h3>
       <div style="border: 1px solid var(--border); padding: 16px; margin-bottom: 18px">
         <div style="display: flex; justify-content: space-between; align-items: baseline">
           <span class="muted" style="font-size: var(--fs-xs)">TOTAL</span>
@@ -283,6 +305,21 @@ function cancelManual() {
   text-transform: uppercase;
   color: var(--ink-3);
   margin-bottom: 16px;
+}
+.day-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.day-nav__arrow {
+  padding: 6px 10px;
+  font-size: var(--fs-md);
+  line-height: 1;
+}
+.day-nav__date {
+  width: auto;
+  padding: 6px 8px;
+  font-size: var(--fs-sm);
 }
 .me-grid { display: grid; gap: 16px; }
 .me-grid--main { grid-template-columns: minmax(0, 1.3fr) minmax(0, 2fr); }
