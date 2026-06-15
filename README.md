@@ -58,6 +58,21 @@ The scheduler drives the daily background jobs: recurring-invoice generation
 (`ernte:invoices:remind`), overdue stamping (`ernte:invoices:stamp-overdue`),
 and backups (`ernte:backup`).
 
+### Troubleshooting
+
+Run `php artisan ernte:doctor` from the current release on the server to check
+the production configuration.
+
+- **`[FAIL] chromium - BROWSERSHOT_CHROME_PATH is not executable: /usr/bin/chromium`**
+  — no Chrome/Chromium is installed, or `BROWSERSHOT_CHROME_PATH` points at the
+  wrong binary. `/usr/bin/chromium` is the DDEV path and does **not** exist on
+  Forge servers. Install Chrome with
+  `bash deploy/forge/provision-chrome-and-backups.sh` (needs sudo), then set
+  `BROWSERSHOT_CHROME_PATH=/usr/bin/google-chrome-stable` in the Forge
+  environment and run `php artisan config:clear`. Confirm the binary with
+  `which google-chrome-stable`. Avoid the snap `chromium-browser` package — it
+  does not run reliably headless.
+
 ## Importing from Harvest
 
 A one-time importer pulls clients, projects, invoices, and estimates out of
