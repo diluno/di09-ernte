@@ -46,6 +46,7 @@
     <div style="text-align: right">
       <div style="font-weight: 700">{{ $profile->name }}</div>
       <div style="color: #6b6b6b">{{ $profile->address_line_1 }}</div>
+      @if ($profile->address_line_2)<div style="color: #6b6b6b">{{ $profile->address_line_2 }}</div>@endif
       <div style="color: #6b6b6b">{{ $profile->postal_code }} {{ $profile->city }}</div>
       @if ($profile->uid)<div style="color: #6b6b6b">{{ $profile->uid }}</div>@endif
     </div>
@@ -57,6 +58,7 @@
       <div style="font-weight: 600">{{ $estimate->client->name }}</div>
       <div style="color: #3d3d3d">{{ $estimate->client->contact_name }}</div>
       <div style="color: #6b6b6b">{{ $estimate->client->address_line_1 }}</div>
+      @if ($estimate->client->address_line_2)<div style="color: #6b6b6b">{{ $estimate->client->address_line_2 }}</div>@endif
       <div style="color: #6b6b6b">{{ $estimate->client->postal_code }} {{ $estimate->client->city }}</div>
     </div>
     <div>

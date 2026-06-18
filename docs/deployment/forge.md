@@ -48,9 +48,9 @@ Paste the printed key into `APP_KEY`.
 
 ## Deploy Script
 
-Paste the contents of `deploy/forge/deploy.sh` into the Forge deployment script editor. It uses Forge release macros such as `$CREATE_RELEASE()`, `$FORGE_RELEASE_DIRECTORY`, `$ACTIVATE_RELEASE()`, and `$RESTART_QUEUES()`, so it is a Forge script template rather than a script to run directly over SSH.
+Paste the contents of `deploy/forge/deploy.sh` into the Forge deployment script editor. It uses Forge's `$CREATE_RELEASE()` macro and `$FORGE_RELEASE_DIRECTORY` variable, so it is a Forge script template rather than a script to run directly over SSH.
 
-The script creates a release, installs production Composer dependencies, installs Node dependencies, builds Vite assets, prepares storage directories, runs migrations, runs the idempotent bootstrap seeder, warms Laravel caches, checks the release with `php artisan ernte:doctor --advisory`, activates the release, and restarts queue workers. Advisory mode prints configuration failures without blocking the release, so first deploys can still activate while SMTP/SSL/Browsershot are being finished.
+The script creates a release, installs production Composer dependencies, installs Node dependencies, builds Vite assets, prepares storage directories, runs migrations, runs the idempotent bootstrap seeder, warms Laravel caches, checks the release with `php artisan ernte:doctor --advisory`, activates the release by swapping the `current` symlink, prunes older releases, and restarts queue workers. Advisory mode prints configuration failures without blocking the release, so first deploys can still activate while SMTP/SSL/Browsershot are being finished.
 
 ## Queue Daemon
 
