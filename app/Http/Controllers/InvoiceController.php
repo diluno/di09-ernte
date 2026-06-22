@@ -148,6 +148,35 @@ class InvoiceController extends Controller
         ]);
     }
 
+    public function edit(Invoice $invoice): RedirectResponse|Response
+    {
+        if ($invoice->status !== 'draft') {
+            return redirect("/invoices/{$invoice->number}")->with('error', 'Only draft invoices can be edited.');
+        }
+
+        $invoice->load(['client:id,name', 'project:id,name', 'lines' => fn ($q) => $q->orderBy('sort_order')]);
+
+        return Inertia::render('Invoices/Edit', [
+            'invoice' => [
+                'id' => $invoice->id,
+                'number' => $invoice->number,
+                'client' => $invoice->client->only('id', 'name'),
+                'project_name' => $invoice->project?->name,
+                'period_start' => $invoice->period_start?->toDateString(),
+                'period_end' => $invoice->period_end?->toDateString(),
+                'title' => $invoice->title,
+                'notes' => $invoice->notes,
+                'vat_rate' => (float) $invoice->vat_rate,
+                'lines' => $invoice->lines->map(fn (InvoiceLine $l) => [
+                    'description' => $l->description,
+                    'hours' => (float) $l->hours,
+                    'rate' => round($l->rate_rappen / 100, 2),
+                    'rate_rappen' => $l->rate_rappen,
+                ])->values(),
+            ],
+        ]);
+    }
+
     public function preview(Invoice $invoice, InvoicePdfRenderer $renderer): HttpResponse
     {
         return response($renderer->html($invoice))->header('Content-Type', 'text/html');
@@ -163,6 +192,12 @@ class InvoiceController extends Controller
             }
             if (array_key_exists('notes', $data)) {
                 $invoice->notes = $data['notes'];
+            }
+            if (array_key_exists('period_start', $data)) {
+                $invoice->period_start = $data['period_start'];
+            }
+            if (array_key_exists('period_end', $data)) {
+                $invoice->period_end = $data['period_end'];
             }
             if (! empty($data['lines'])) {
                 $invoice->lines()->delete();

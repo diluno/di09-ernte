@@ -240,6 +240,37 @@ test('GET /invoices/{number} renders Invoices/Show with invoice + lines + events
             ->where('preview_url', "/invoices/{$inv->number}/preview"));
 });
 
+test('GET /invoices/{number}/edit renders the draft invoice editor', function () {
+    $this->withoutVite();
+
+    $inv = makeDraft();
+    $inv->lines()->first()->update(['rate_rappen' => 14550]);
+
+    $this->get("/invoices/{$inv->number}/edit")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Invoices/Edit')
+            ->where('invoice.id', $inv->id)
+            ->where('invoice.number', $inv->number)
+            ->where('invoice.client.name', 'Atlas Robotics')
+            ->where('invoice.period_start', $inv->period_start->toDateString())
+            ->where('invoice.period_end', $inv->period_end->toDateString())
+            ->has('invoice.lines', 1, fn (Assert $line) => $line
+                ->where('description', 'Work')
+                ->where('rate', 145.5)
+                ->where('rate_rappen', 14550)
+                ->etc()));
+});
+
+test('GET /invoices/{number}/edit redirects once the invoice is not a draft', function () {
+    $inv = makeDraft();
+    $inv->update(['status' => 'sent']);
+
+    $this->get("/invoices/{$inv->number}/edit")
+        ->assertRedirect("/invoices/{$inv->number}")
+        ->assertSessionHas('error', 'Only draft invoices can be edited.');
+});
+
 test('GET /invoices/{number}/preview returns raw HTML (not Inertia)', function () {
     $inv = makeDraft();
     $res = $this->get("/invoices/{$inv->number}/preview");
@@ -287,12 +318,16 @@ test('PATCH /invoices/{id} edits a draft notes + lines and recomputes totals', f
     $this->patch("/invoices/{$inv->id}", [
         'title' => 'Projekt Aurora',
         'notes' => 'Thanks for your business.',
+        'period_start' => '2026-04-01',
+        'period_end' => '2026-04-30',
         'lines' => [['description' => 'Edited', 'hours' => 1.0, 'rate_rappen' => 10000]],
     ])->assertRedirect("/invoices/{$inv->number}");
 
     $inv->refresh();
     expect($inv->title)->toBe('Projekt Aurora');
     expect($inv->notes)->toBe('Thanks for your business.');
+    expect($inv->period_start->toDateString())->toBe('2026-04-01');
+    expect($inv->period_end->toDateString())->toBe('2026-04-30');
     expect($inv->lines)->toHaveCount(1);
     expect($inv->subtotal_rappen)->toBe(10000);
     expect($inv->total_rappen)->toBe(10810);

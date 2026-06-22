@@ -116,7 +116,8 @@ class InvoiceProjections
                 : null,
             'lines' => $invoice->lines->sortBy('sort_order')->values()->map(fn (InvoiceLine $l) => [
                 'id' => $l->id, 'description' => $l->description,
-                'hours' => (float) $l->hours, 'rate' => (int) round($l->rate_rappen / 100),
+                'hours' => (float) $l->hours, 'rate' => round($l->rate_rappen / 100, 2),
+                'rate_rappen' => $l->rate_rappen,
                 'amount' => round($l->amount_rappen / 100, 2),
             ])->all(),
         ];

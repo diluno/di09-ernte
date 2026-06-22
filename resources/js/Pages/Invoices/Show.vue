@@ -72,6 +72,7 @@ function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-d
     </div>
     <div style="display: flex; gap: 8px">
       <a :href="pdf_url" class="btn">Download PDF</a>
+      <Link v-if="isDraft" :href="`/invoices/${invoice.number}/edit`" class="btn">Edit</Link>
       <button v-if="isDraft" class="btn" @click="markSent">Mark as sent</button>
       <button v-if="isDraft" class="btn primary" @click="send">Send by email</button>
       <button v-else-if="isSent" class="btn primary" @click="markPaid">Mark paid</button>

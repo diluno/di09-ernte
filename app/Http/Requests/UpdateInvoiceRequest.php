@@ -17,6 +17,8 @@ class UpdateInvoiceRequest extends FormRequest
         return [
             'title' => 'sometimes|nullable|string|max:255',
             'notes' => 'sometimes|nullable|string|max:20000',
+            'period_start' => 'sometimes|nullable|date',
+            'period_end' => 'sometimes|nullable|date|after_or_equal:period_start',
             'lines' => 'sometimes|array|min:1',
             'lines.*.description' => 'required_with:lines|string|max:1000',
             'lines.*.hours' => 'required_with:lines|numeric|min:0',
