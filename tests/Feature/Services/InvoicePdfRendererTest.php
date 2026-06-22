@@ -28,3 +28,13 @@ test('html renders markdown and line breaks in a line description', function () 
     expect($html)->toContain('<li>wireframes</li>');
     expect($html)->toContain('<strong>hi-fi</strong>');
 });
+
+test('html keeps the qr payment section together for pdf pagination', function () {
+    $client = Client::factory()->create();
+    $invoice = Invoice::factory()->create(['client_id' => $client->id]);
+
+    $html = app(InvoicePdfRenderer::class)->html($invoice);
+
+    expect($html)->toContain('break-inside: avoid');
+    expect($html)->toContain('page-break-inside: avoid');
+});

@@ -23,7 +23,13 @@
     .totals .v { text-align: right; }
     .totals .grand { font-weight: 700; font-size: 16px; border-top: 1px solid #1a1a1a; padding-top: 8px; }
     .totals .grand-l { border-top: 1px solid #1a1a1a; padding-top: 8px; font-weight: 600; }
-    .qr { margin-top: 48px; border-top: 1px dashed #999; padding-top: 12px; }
+    .qr {
+      margin-top: 48px;
+      border-top: 1px dashed #999;
+      padding-top: 12px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
     .notes { margin-top: 28px; font-size: 12px; color: #1a1a1a; line-height: 1.5; }
     .notes p { margin: 0 0 10px; }
     .notes ul, .notes ol { margin: 0 0 10px; padding-left: 20px; }
