@@ -13,7 +13,7 @@ class Invoice extends Model
         'number', 'client_id', 'project_id', 'recurring_invoice_id',
         'period_start', 'period_end', 'issued_on', 'due_on',
         'status', 'currency', 'vat_rate',
-        'subtotal_rappen', 'vat_rappen', 'total_rappen',
+        'subtotal_rappen', 'vat_rappen', 'rounding_rappen', 'total_rappen',
         'notes', 'title', 'qr_reference', 'sent_at', 'paid_at', 'pdf_path',
     ];
 
@@ -27,6 +27,7 @@ class Invoice extends Model
         'vat_rate' => 'decimal:2',
         'subtotal_rappen' => 'integer',
         'vat_rappen' => 'integer',
+        'rounding_rappen' => 'integer',
         'total_rappen' => 'integer',
     ];
 

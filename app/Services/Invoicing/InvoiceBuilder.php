@@ -135,6 +135,7 @@ class InvoiceBuilder
             $totals = self::computeTotals($lineAmounts, (float) $invoice->vat_rate);
             $invoice->subtotal_rappen = $totals['subtotal_rappen'];
             $invoice->vat_rappen = $totals['vat_rappen'];
+            $invoice->rounding_rappen = $totals['rounding_rappen'];
             $invoice->total_rappen = $totals['total_rappen'];
             $invoice->save();
 
