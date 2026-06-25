@@ -43,10 +43,10 @@ test('createDraft persists lines, recomputes amounts, and computes totals', func
     $travel = $estimate->lines->firstWhere('description', 'Travel');
     expect($travel->amount_rappen)->toBe(5000);
 
-    // subtotal = 34000; vat = 8.10% of 34000 = 2754; total = 36754
+    // subtotal = 34000; vat = 8.10% of 34000 = 2754; total = 36754 → rounded to 36755
     expect($estimate->subtotal_rappen)->toBe(34000);
     expect($estimate->vat_rappen)->toBe(2754);
-    expect($estimate->total_rappen)->toBe(36754);
+    expect($estimate->total_rappen)->toBe(36755); // 36754 rounded to nearest 5
     expect($estimate->notes)->toBe('Valid for 30 days.');
 });
 

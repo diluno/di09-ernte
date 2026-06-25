@@ -100,7 +100,7 @@ test('POST /estimates creates a draft from submitted lines and redirects to its 
     $estimate = Estimate::latest('id')->first();
     $res->assertRedirect("/estimates/{$estimate->number}");
     expect($estimate->lines)->toHaveCount(1);
-    expect($estimate->total_rappen)->toBe(31349); // 29000 + 8.10%
+    expect($estimate->total_rappen)->toBe(31350); // 29000 + 8.10% = 31349, rounded to nearest 5
     expect($estimate->title)->toBe('Partnerschaft auf Augenhöhe');
     expect($estimate->notes)->toBe('Quote for Q3 work.');
 });

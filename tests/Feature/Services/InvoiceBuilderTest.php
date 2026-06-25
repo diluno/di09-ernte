@@ -75,7 +75,7 @@ test('subtotal/vat/total are computed from line amounts', function () {
 
     expect($invoice->subtotal_rappen)->toBe(29000);
     expect($invoice->vat_rappen)->toBe(2349);  // 29000 * 8.10% = 2349
-    expect($invoice->total_rappen)->toBe(31349);
+    expect($invoice->total_rappen)->toBe(31350); // 31349 rounded to nearest 5
 });
 
 test('vat_rate is stamped from the dated VAT catalog at build time', function () {
@@ -155,7 +155,7 @@ test('computeTotals matches the original VAT formula', function () {
     expect($totals)->toMatchArray([
         'subtotal_rappen' => 29000,
         'vat_rappen' => 2349,
-        'total_rappen' => 31349,
+        'total_rappen' => 31350, // 31349 rounded to nearest 5
     ]);
 });
 
@@ -198,10 +198,10 @@ test('createDraft persists submitted lines and recomputes amounts', function () 
     $reimb = $invoice->lines->firstWhere('description', 'Reimbursement');
     expect($reimb->amount_rappen)->toBe(5000);
 
-    // subtotal = 34000; vat = 8.10% of 34000 = 2754; total = 36754
+    // subtotal = 34000; vat = 8.10% of 34000 = 2754; total = 36754 → rounded to 36755
     expect($invoice->subtotal_rappen)->toBe(34000);
     expect($invoice->vat_rappen)->toBe(2754);
-    expect($invoice->total_rappen)->toBe(36754);
+    expect($invoice->total_rappen)->toBe(36755); // 36754 rounded to nearest 5
 
     expect($e->fresh()->invoice_id)->toBe($invoice->id);
     expect($invoice->qr_reference)->toMatch('/^\d{27}$/');

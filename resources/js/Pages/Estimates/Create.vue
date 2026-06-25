@@ -143,6 +143,9 @@ function save() {
       <div class="invoice-totals" style="display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: var(--fs-sm)">
         <div class="label">Subtotal</div><div class="v">{{ fmtMoney(subtotalRappen) }}</div>
         <div class="label">MwSt {{ fmtRate(totals.rate) }}%</div><div class="v">{{ fmtMoney(totals.vat) }}</div>
+        <template v-if="totals.rounding !== 0">
+          <div class="label">Rundung</div><div class="v">{{ fmtMoney(totals.rounding) }}</div>
+        </template>
         <div class="grand-l">Total</div><div class="v grand">{{ fmtMoney(totalRappen) }}</div>
       </div>
       <p class="dim" style="font-size: var(--fs-xs); margin-top: 16px; line-height: 1.6">

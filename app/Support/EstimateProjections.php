@@ -73,6 +73,7 @@ class EstimateProjections
             'valid_until' => $estimate->valid_until?->toDateString(),
             'subtotal' => round($estimate->subtotal_rappen / 100, 2),
             'vat' => round($estimate->vat_rappen / 100, 2),
+            'rounding' => round($estimate->rounding_rappen / 100, 2),
             'total' => round($estimate->total_rappen / 100, 2),
             'vat_rate' => (float) $estimate->vat_rate,
             'notes' => $estimate->notes,

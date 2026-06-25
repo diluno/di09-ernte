@@ -13,7 +13,7 @@ class Estimate extends Model
         'number', 'client_id', 'project_id',
         'issued_on', 'valid_until',
         'status', 'currency', 'vat_rate',
-        'subtotal_rappen', 'vat_rappen', 'total_rappen',
+        'subtotal_rappen', 'vat_rappen', 'rounding_rappen', 'total_rappen',
         'notes', 'title', 'sent_at', 'decided_at', 'converted_invoice_id', 'pdf_path',
     ];
 
@@ -25,6 +25,7 @@ class Estimate extends Model
         'vat_rate' => 'decimal:2',
         'subtotal_rappen' => 'integer',
         'vat_rappen' => 'integer',
+        'rounding_rappen' => 'integer',
         'total_rappen' => 'integer',
     ];
 

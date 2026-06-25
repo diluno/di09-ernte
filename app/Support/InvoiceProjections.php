@@ -108,6 +108,7 @@ class InvoiceProjections
             'due_on' => $invoice->due_on?->toDateString(),
             'subtotal' => round($invoice->subtotal_rappen / 100, 2),
             'vat' => round($invoice->vat_rappen / 100, 2),
+            'rounding' => round($invoice->rounding_rappen / 100, 2),
             'total' => round($invoice->total_rappen / 100, 2),
             'vat_rate' => (float) $invoice->vat_rate,
             'notes' => $invoice->notes,

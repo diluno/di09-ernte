@@ -108,6 +108,9 @@
 	  <div class="totals">
 	    <div>Zwischensumme</div><div class="v">{{ $money($invoice->subtotal_rappen) }}</div>
 	    <div>MwSt {{ $rateLabel($invoice->vat_rate) }}%</div><div class="v">{{ $money($invoice->vat_rappen) }}</div>
+	    @if ($invoice->rounding_rappen != 0)
+	      <div>Rundung</div><div class="v">{{ $money($invoice->rounding_rappen) }}</div>
+	    @endif
 	    <div class="grand-l">Total</div><div class="v grand">{{ $money($invoice->total_rappen) }}</div>
 	  </div>
 

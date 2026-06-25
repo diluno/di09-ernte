@@ -19,9 +19,15 @@ export function lineAmountRappen(line) {
   return Math.round(Number(line.hours) * Number(line.rate) * 100);
 }
 
+// Commercial rounding of a rappen amount to the nearest 5 rappen.
+export function roundTotalRappen(exactRappen) {
+  return Math.round(exactRappen / 5) * 5;
+}
+
 export function totalsForLines(lines, catalog, date) {
   const rate = vatRateForDate(catalog, date);
   const subtotal = lines.reduce((sum, line) => sum + lineAmountRappen(line), 0);
   const vat = Math.round((subtotal * rate) / 100);
-  return { subtotal, vat, total: subtotal + vat, rate };
+  const total = roundTotalRappen(subtotal + vat);
+  return { subtotal, vat, rounding: total - (subtotal + vat), total, rate };
 }
