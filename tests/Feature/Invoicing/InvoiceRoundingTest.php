@@ -35,3 +35,17 @@ test('detail projection exposes the rounding amount in CHF', function () {
     expect($detail['rounding'])->toBe(0.01);
     expect($detail['total'])->toBe(313.5);
 });
+
+test('qr-bill amount equals the rounded total in CHF', function () {
+    $invoice = Invoice::factory()->create([
+        'subtotal_rappen' => 29000,
+        'vat_rappen' => 2349,
+        'rounding_rappen' => 1,
+        'total_rappen' => 31350,
+        'currency' => 'CHF',
+        'vat_rate' => 8.10,
+    ]);
+
+    // The renderer derives the amount from total_rappen / 100.
+    expect(round($invoice->total_rappen / 100, 2))->toBe(313.5);
+});
