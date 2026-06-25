@@ -28,7 +28,7 @@ class InvoiceBuilder
      *
      * @param  int[]  $lineAmounts  Amount in rappen for each line.
      * @param  float  $vatRate  VAT rate as a percentage (e.g. 8.10).
-     * @return array{subtotal_rappen: int, vat_rappen: int, total_rappen: int}
+     * @return array{subtotal_rappen: int, vat_rappen: int, rounding_rappen: int, total_rappen: int}
      */
     public static function computeTotals(array $lineAmounts, float $vatRate): array
     {
