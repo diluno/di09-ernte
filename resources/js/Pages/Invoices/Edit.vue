@@ -4,6 +4,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import AutoTextarea from '@/Components/AutoTextarea.vue';
+import { roundTotalRappen } from '@/formatters/vat';
 
 defineOptions({ layout: AppLayout });
 
@@ -55,7 +56,8 @@ function fmtRate(rate) {
 const totals = computed(() => {
   const subtotal = lines.value.reduce((sum, line) => sum + lineAmountRappen(line), 0);
   const vat = Math.round((subtotal * Number(props.invoice.vat_rate || 0)) / 100);
-  return { subtotal, vat, total: subtotal + vat };
+  const total = roundTotalRappen(subtotal + vat);
+  return { subtotal, vat, rounding: total - (subtotal + vat), total };
 });
 const canSave = computed(() => lines.value.length > 0);
 
@@ -146,6 +148,9 @@ function save() {
       <div class="invoice-totals" style="display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: var(--fs-sm)">
         <div class="label">Subtotal</div><div class="v">{{ fmtMoney(totals.subtotal) }}</div>
         <div class="label">MwSt {{ fmtRate(invoice.vat_rate) }}%</div><div class="v">{{ fmtMoney(totals.vat) }}</div>
+        <template v-if="totals.rounding !== 0">
+          <div class="label">Rundung</div><div class="v">{{ fmtMoney(totals.rounding) }}</div>
+        </template>
         <div class="grand-l">Total</div><div class="v grand">{{ fmtMoney(totals.total) }}</div>
       </div>
 
