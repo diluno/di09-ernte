@@ -156,7 +156,7 @@ test('POST /invoices creates a draft from submitted lines and redirects to its d
     $invoice = Invoice::latest('id')->first();
     $res->assertRedirect("/invoices/{$invoice->number}");
     expect($invoice->lines)->toHaveCount(1);
-    expect($invoice->total_rappen)->toBe(31349); // 29000 + 8.10%
+    expect($invoice->total_rappen)->toBe(31350); // 29000 + 8.10% = 31349, rounded to nearest 5
     expect($entry->fresh()->invoice_id)->toBe($invoice->id);
 });
 
