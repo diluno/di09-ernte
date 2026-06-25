@@ -171,6 +171,7 @@ class EstimateController extends Controller
                 $totals = LineTotals::compute($lineAmounts, (float) $estimate->vat_rate);
                 $estimate->subtotal_rappen = $totals['subtotal_rappen'];
                 $estimate->vat_rappen = $totals['vat_rappen'];
+                $estimate->rounding_rappen = $totals['rounding_rappen'];
                 $estimate->total_rappen = $totals['total_rappen'];
             }
             $estimate->save();
