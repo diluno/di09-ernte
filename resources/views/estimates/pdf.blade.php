@@ -99,6 +99,9 @@
 	  <div class="totals">
 	    <div>Zwischensumme</div><div class="v">{{ $money($estimate->subtotal_rappen) }}</div>
 	    <div>MwSt {{ $rateLabel($estimate->vat_rate) }}%</div><div class="v">{{ $money($estimate->vat_rappen) }}</div>
+	    @if ($estimate->rounding_rappen != 0)
+	      <div>Rundung</div><div class="v">{{ $money($estimate->rounding_rappen) }}</div>
+	    @endif
 	    <div class="grand-l">Total</div><div class="v grand">{{ $money($estimate->total_rappen) }}</div>
 	  </div>
 
