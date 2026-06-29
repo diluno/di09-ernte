@@ -228,6 +228,27 @@ test('GET /estimates/{number}/pdf streams draft PDFs without caching', function 
     expect($est->fresh()->pdf_path)->toBeNull();
 });
 
+test('GET /estimates/{number}/pdf renders sent estimates fresh, ignoring the cached pdf_path', function () {
+    $est = makeDraftEstimate();
+    $est->update(['status' => 'sent', 'pdf_path' => 'estimates/stale.pdf']);
+
+    $this->mock(EstimatePdfRenderer::class, function ($mock) use ($est) {
+        $mock->shouldReceive('pdfBytes')
+            ->once()
+            ->with(Mockery::on(fn ($estimate) => $estimate->is($est)))
+            ->andReturn('%PDF-fresh');
+        $mock->shouldNotReceive('pdf');
+    });
+
+    $this->get("/estimates/{$est->number}/pdf")
+        ->assertOk()
+        ->assertStreamed()
+        ->assertStreamedContent('%PDF-fresh');
+
+    // The frozen as-sent copy stays untouched for reminder emails.
+    expect($est->fresh()->pdf_path)->toBe('estimates/stale.pdf');
+});
+
 test('PATCH /estimates/{id} edits a draft notes + lines and recomputes totals', function () {
     $est = makeDraftEstimate();
     $this->patch("/estimates/{$est->id}", [

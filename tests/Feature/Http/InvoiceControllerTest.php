@@ -313,6 +313,27 @@ test('GET /invoices/{number}/pdf streams draft PDFs without caching on the invoi
     expect($inv->fresh()->pdf_path)->toBeNull();
 });
 
+test('GET /invoices/{number}/pdf renders sent invoices fresh, ignoring the cached pdf_path', function () {
+    $inv = makeDraft();
+    $inv->update(['status' => 'sent', 'pdf_path' => 'invoices/stale.pdf']);
+
+    $this->mock(InvoicePdfRenderer::class, function ($mock) use ($inv) {
+        $mock->shouldReceive('pdfBytes')
+            ->once()
+            ->with(Mockery::on(fn ($invoice) => $invoice->is($inv)))
+            ->andReturn('%PDF-fresh');
+        $mock->shouldNotReceive('pdf');
+    });
+
+    $this->get("/invoices/{$inv->number}/pdf")
+        ->assertOk()
+        ->assertStreamed()
+        ->assertStreamedContent('%PDF-fresh');
+
+    // The frozen as-sent copy stays untouched for reminder emails.
+    expect($inv->fresh()->pdf_path)->toBe('invoices/stale.pdf');
+});
+
 test('PATCH /invoices/{id} edits a draft notes + lines and recomputes totals', function () {
     $inv = makeDraft();
     $this->patch("/invoices/{$inv->id}", [

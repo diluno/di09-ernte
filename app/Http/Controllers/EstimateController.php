@@ -258,23 +258,14 @@ class EstimateController extends Controller
 
     public function pdf(Estimate $estimate, EstimatePdfRenderer $renderer): \Symfony\Component\HttpFoundation\Response
     {
-        if ($estimate->status === 'draft') {
-            return response()->streamDownload(
-                function () use ($estimate, $renderer) {
-                    echo $renderer->pdfBytes($estimate);
-                },
-                $estimate->pdfFilename(),
-                ['Content-Type' => 'application/pdf'],
-            );
-        }
-
-        $relative = $estimate->pdf_path && Storage::disk('local')->exists($estimate->pdf_path)
-            ? $estimate->pdf_path
-            : $renderer->pdf($estimate);
-
-        return response()->download(
-            Storage::disk('local')->path($relative),
+        // Always render fresh so downloads reflect the current template. The
+        // cached pdf_path (frozen at send-time) is reserved for reminder emails.
+        return response()->streamDownload(
+            function () use ($estimate, $renderer) {
+                echo $renderer->pdfBytes($estimate);
+            },
             $estimate->pdfFilename(),
+            ['Content-Type' => 'application/pdf'],
         );
     }
 }

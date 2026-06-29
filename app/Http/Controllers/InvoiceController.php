@@ -293,23 +293,14 @@ class InvoiceController extends Controller
 
     public function pdf(Invoice $invoice, InvoicePdfRenderer $renderer): \Symfony\Component\HttpFoundation\Response
     {
-        if ($invoice->status === 'draft') {
-            return response()->streamDownload(
-                function () use ($invoice, $renderer) {
-                    echo $renderer->pdfBytes($invoice);
-                },
-                $invoice->pdfFilename(),
-                ['Content-Type' => 'application/pdf'],
-            );
-        }
-
-        $relative = $invoice->pdf_path && Storage::disk('local')->exists($invoice->pdf_path)
-            ? $invoice->pdf_path
-            : $renderer->pdf($invoice);
-
-        return response()->download(
-            Storage::disk('local')->path($relative),
+        // Always render fresh so downloads reflect the current template. The
+        // cached pdf_path (frozen at send-time) is reserved for reminder emails.
+        return response()->streamDownload(
+            function () use ($invoice, $renderer) {
+                echo $renderer->pdfBytes($invoice);
+            },
             $invoice->pdfFilename(),
+            ['Content-Type' => 'application/pdf'],
         );
     }
 }
