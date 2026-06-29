@@ -37,6 +37,8 @@
     .notes hr { border: none; border-top: 1px solid #e8e1d4; margin: 18px 0; }
     .notes h1, .notes h2, .notes h3 { font-size: 13px; margin: 16px 0 6px; }
     .foot { margin-top: 28px; font-size: 10px; color: #6b6b6b; }
+    .logo { margin-bottom: 28px; }
+    .logo svg { display: block; height: 56px; width: 100%; }
   </style>
 	</head>
 	@php
@@ -44,6 +46,7 @@
 	  $rateLabel = fn ($rate) => rtrim(rtrim(number_format((float) $rate, 2), '0'), '.');
 	@endphp
 <body>
+  <div class="logo">{!! \App\Support\GenerativeLogo::inlineSvg(crc32((string) $invoice->number)) !!}</div>
   <div class="head">
     <div>
       <div class="label">Rechnung</div>
