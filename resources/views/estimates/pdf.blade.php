@@ -56,7 +56,6 @@
     <div>
       <div class="label">Offerte für</div>
       <div style="font-weight: 600">{{ $estimate->client->name }}</div>
-      <div style="color: #3d3d3d">{{ $estimate->client->contact_name }}</div>
       <div style="color: #6b6b6b">{{ $estimate->client->address_line_1 }}</div>
       @if ($estimate->client->address_line_2)<div style="color: #6b6b6b">{{ $estimate->client->address_line_2 }}</div>@endif
       <div style="color: #6b6b6b">{{ $estimate->client->postal_code }} {{ $estimate->client->city }}</div>

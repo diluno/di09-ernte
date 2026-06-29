@@ -63,7 +63,6 @@
     <div>
       <div class="label">Rechnung an</div>
       <div style="font-weight: 600">{{ $invoice->client->name }}</div>
-      <div style="color: #3d3d3d">{{ $invoice->client->contact_name }}</div>
       <div style="color: #6b6b6b">{{ $invoice->client->address_line_1 }}</div>
       @if ($invoice->client->address_line_2)<div style="color: #6b6b6b">{{ $invoice->client->address_line_2 }}</div>@endif
       <div style="color: #6b6b6b">{{ $invoice->client->postal_code }} {{ $invoice->client->city }}</div>
