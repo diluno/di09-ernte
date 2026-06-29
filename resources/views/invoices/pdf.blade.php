@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8">
   <title>Rechnung {{ $invoice->number }}</title>
+  @include('partials.pdf-fonts')
   <style>
     * { box-sizing: border-box; }
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 40px; font-size: 12px; }
+    body { font-family: 'Beausite', 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 40px; font-size: 12px; }
     .head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 36px; }
     .label { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: #6b6b6b; margin-bottom: 4px; }
     h1 { font-size: 22px; margin: 4px 0 0; }
