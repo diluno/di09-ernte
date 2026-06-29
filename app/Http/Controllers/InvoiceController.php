@@ -309,7 +309,7 @@ class InvoiceController extends Controller
 
         return response()->download(
             Storage::disk('local')->path($relative),
-            "Rechnung-{$invoice->number}.pdf",
+            $invoice->pdfFilename(),
         );
     }
 }

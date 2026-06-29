@@ -274,7 +274,7 @@ class EstimateController extends Controller
 
         return response()->download(
             Storage::disk('local')->path($relative),
-            "Offerte-{$estimate->number}.pdf",
+            $estimate->pdfFilename(),
         );
     }
 }
