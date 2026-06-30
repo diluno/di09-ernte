@@ -120,10 +120,11 @@ function save() {
     </p>
   </div>
 
-  <div v-else style="padding: 0 28px 28px; display: grid; grid-template-columns: 1fr 360px; gap: 28px">
+  <div v-else class="doc-grid" style="padding: 20px 28px 28px; display: grid; grid-template-columns: 1fr 360px; gap: 28px">
     <div>
       <h3 class="section-title">Lines</h3>
-      <table class="table">
+      <div class="lines-card">
+      <table class="table table--lines">
         <thead>
           <tr>
             <th class="pad-l">Description</th>
@@ -141,21 +142,22 @@ function save() {
             <td class="num strong">{{ fmtMoney(Math.round(Number(l.hours) * Number(l.rate) * 100)) }}</td>
             <td>
               <button class="icon-btn" title="move up" @click="moveUp(i)"><Icon name="chevron-up" /></button>
-              <button class="icon-btn" title="remove" @click="removeLine(l.key)"><Icon name="close" /></button>
+              <button class="icon-btn icon-btn--danger" title="remove" @click="removeLine(l.key)"><Icon name="close" /></button>
             </td>
           </tr>
           <tr v-if="lines.length === 0"><td colspan="5" class="pad-l muted" style="padding: 16px">No lines. Add one or widen the period.</td></tr>
         </tbody>
       </table>
-      <button class="btn ghost" style="margin-top: 12px" @click="addLine">+ Add line</button>
+      <button class="add-line" @click="addLine"><span style="font-family: var(--font-mono)">+</span> Add line</button>
+      </div>
 
-      <h3 class="section-title" style="margin-top: 28px">Entries in period</h3>
+      <h3 class="section-title" style="margin-top: 28px">Entries in period<span class="dim" style="font-size: var(--fs-xs)">{{ selectedIds.length }} selected</span></h3>
       <div style="display: flex; gap: 12px; align-items: end; margin-bottom: 12px">
         <label class="field"><span>From</span><input type="date" v-model="from" @change="reloadPeriod" /></label>
         <label class="field"><span>To</span><input type="date" v-model="to" @change="reloadPeriod" /></label>
         <span class="dim" style="font-size: var(--fs-xs)">Changing the period re-queries billable, unbilled entries. Lines above are not auto-updated — edit them to match.</span>
       </div>
-      <table class="table">
+      <table class="table table--picker">
         <thead><tr><th class="pad-l check"></th><th>Entry</th><th>Project</th><th class="num">Hours</th></tr></thead>
         <tbody>
           <tr v-for="e in entries" :key="e.id">
@@ -169,8 +171,9 @@ function save() {
       </table>
     </div>
 
-    <aside>
-      <h3 class="section-title">Totals</h3>
+    <aside class="summary-card">
+      <div class="summary-head">Totals</div>
+      <div class="summary-body">
       <div class="invoice-totals" style="display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: var(--fs-sm)">
         <div class="label">Subtotal</div><div class="v">{{ fmtMoney(subtotalRappen) }}</div>
         <div class="label">MwSt {{ fmtRate(totals.rate) }}%</div><div class="v">{{ fmtMoney(totals.vat) }}</div>
@@ -179,6 +182,10 @@ function save() {
         </template>
         <div class="grand-l">Total</div><div class="v grand">{{ fmtMoney(totalRappen) }}</div>
       </div>
+      <button class="btn primary" style="width: 100%; justify-content: center; margin-top: 16px"
+              :disabled="form.processing || lines.length === 0" @click="save">
+        Create draft
+      </button>
       <p class="dim" style="font-size: var(--fs-xs); margin-top: 16px; line-height: 1.6">
         {{ selectedIds.length }} entr(y/ies) will be attached to this invoice and removed from "unbilled".
         Server recomputes all amounts on save.
@@ -186,15 +193,49 @@ function save() {
       <div v-if="Object.keys(form.errors).length" style="color: var(--red); font-size: var(--fs-sm); margin-top: 12px">
         {{ Object.values(form.errors).join(' · ') }}
       </div>
+      </div>
     </aside>
   </div>
 </template>
 
 <style scoped>
-.cell-input { width: 100%; border: 1px solid transparent; background: transparent; padding: 4px 6px; font-family: inherit; color: var(--ink); }
-.cell-input:focus { outline: none; border-color: var(--accent); background: var(--paper); }
-.cell-input.num { text-align: right; }
-.field { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); color: var(--ink-2); }
-.field input, .field select { border: 1px solid var(--border-strong); background: var(--paper); padding: 6px 8px; font-family: inherit; color: var(--ink); }
-.field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+/* Editable line-item cells: visible at rest, clear focus ring. */
+.cell-input {
+  width: 100%;
+  border: 1px solid transparent;
+  background: var(--bg-2);
+  padding: 8px 10px;
+  font-family: inherit;
+  color: var(--ink);
+  border-radius: 3px;
+}
+.cell-input:hover { border-color: var(--border); }
+.cell-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--paper);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 14%, transparent);
+}
+.cell-input.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Standalone framed fields (title / notes / dates). */
+.cell-input.framed { background: var(--paper); border-color: var(--border-strong); }
+
+/* Labelled select/date/text fields above the table. */
+.field { display: flex; flex-direction: column; gap: 5px; font-size: var(--fs-sm); color: var(--ink-2); }
+.field > span { font-size: var(--fs-xs); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
+.field input, .field select {
+  border: 1px solid var(--border-strong);
+  background: var(--paper);
+  padding: 9px 11px;
+  font-family: inherit;
+  color: var(--ink);
+  border-radius: 3px;
+}
+.field input:focus, .field select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 14%, transparent);
+}
+.detail-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--border); }
 </style>

@@ -96,7 +96,7 @@ function save() {
     </div>
   </div>
 
-  <div style="padding: 0 28px 28px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 28px">
+  <div class="doc-grid" style="padding: 20px 28px 28px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 28px">
     <div>
       <h3 class="section-title">Document</h3>
       <input v-model="title" class="cell-input framed" style="margin-bottom: 12px" placeholder="Title shown on the invoice PDF" />
@@ -113,7 +113,8 @@ function save() {
       </div>
 
       <h3 class="section-title">Lines</h3>
-      <table class="table">
+      <div class="lines-card">
+      <table class="table table--lines">
         <thead>
           <tr>
             <th class="pad-l">Description</th>
@@ -131,20 +132,22 @@ function save() {
             <td class="num strong">{{ fmtMoney(lineAmountRappen(line)) }}</td>
             <td>
               <button class="icon-btn" title="move up" @click="moveUp(index)"><Icon name="chevron-up" /></button>
-              <button class="icon-btn" title="remove" @click="removeLine(line.key)"><Icon name="close" /></button>
+              <button class="icon-btn icon-btn--danger" title="remove" @click="removeLine(line.key)"><Icon name="close" /></button>
             </td>
           </tr>
           <tr v-if="lines.length === 0"><td colspan="5" class="pad-l muted" style="padding: 16px">No lines. Add one to start.</td></tr>
         </tbody>
       </table>
-      <button class="btn ghost" style="margin-top: 12px" @click="addLine">+ Add line</button>
+      <button class="add-line" @click="addLine"><span style="font-family: var(--font-mono)">+</span> Add line</button>
+      </div>
 
       <h3 class="section-title" style="margin-top: 28px">Notes</h3>
       <textarea v-model="notes" class="cell-input framed" rows="4" placeholder="Optional notes shown on the invoice PDF"></textarea>
     </div>
 
-    <aside>
-      <h3 class="section-title">Totals</h3>
+    <aside class="summary-card">
+      <div class="summary-head">Totals</div>
+      <div class="summary-body">
       <div class="invoice-totals" style="display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: var(--fs-sm)">
         <div class="label">Subtotal</div><div class="v">{{ fmtMoney(totals.subtotal) }}</div>
         <div class="label">MwSt {{ fmtRate(invoice.vat_rate) }}%</div><div class="v">{{ fmtMoney(totals.vat) }}</div>
@@ -153,6 +156,10 @@ function save() {
         </template>
         <div class="grand-l">Total</div><div class="v grand">{{ fmtMoney(totals.total) }}</div>
       </div>
+      <button class="btn primary" style="width: 100%; justify-content: center; margin-top: 16px"
+              :disabled="form.processing || !canSave" @click="save">
+        Save changes
+      </button>
 
       <h3 class="section-title" style="margin-top: 24px">Details</h3>
       <div style="font-size: var(--fs-sm); color: var(--ink-2)">
@@ -166,17 +173,49 @@ function save() {
       <div v-if="Object.keys(form.errors).length" style="color: var(--red); font-size: var(--fs-sm); margin-top: 12px">
         {{ Object.values(form.errors).join(' / ') }}
       </div>
+      </div>
     </aside>
   </div>
 </template>
 
 <style scoped>
-.cell-input { width: 100%; border: 1px solid transparent; background: transparent; padding: 4px 6px; font-family: inherit; color: var(--ink); }
-.cell-input:focus { outline: none; border-color: var(--accent); background: var(--paper); }
-.cell-input.num { text-align: right; }
-.cell-input.framed { border-color: var(--border-strong); background: var(--paper); padding: 8px; box-sizing: border-box; }
-.field { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); color: var(--ink-2); }
-.field input { border: 1px solid var(--border-strong); background: var(--paper); padding: 6px 8px; font-family: inherit; color: var(--ink); }
-.field input:focus { outline: none; border-color: var(--accent); }
+/* Editable line-item cells: visible at rest, clear focus ring. */
+.cell-input {
+  width: 100%;
+  border: 1px solid transparent;
+  background: var(--bg-2);
+  padding: 8px 10px;
+  font-family: inherit;
+  color: var(--ink);
+  border-radius: 3px;
+}
+.cell-input:hover { border-color: var(--border); }
+.cell-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--paper);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 14%, transparent);
+}
+.cell-input.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Standalone framed fields (title / notes / dates). */
+.cell-input.framed { background: var(--paper); border-color: var(--border-strong); }
+
+/* Labelled select/date/text fields above the table. */
+.field { display: flex; flex-direction: column; gap: 5px; font-size: var(--fs-sm); color: var(--ink-2); }
+.field > span { font-size: var(--fs-xs); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
+.field input, .field select {
+  border: 1px solid var(--border-strong);
+  background: var(--paper);
+  padding: 9px 11px;
+  font-family: inherit;
+  color: var(--ink);
+  border-radius: 3px;
+}
+.field input:focus, .field select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 14%, transparent);
+}
 .detail-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--border); }
 </style>
