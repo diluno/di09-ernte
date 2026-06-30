@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UpdateBusinessProfileRequest;
 use App\Models\BusinessProfile;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -27,20 +26,5 @@ class SettingsController extends Controller
         BusinessProfile::current()->update($request->validated());
 
         return back()->with('success', 'Business profile updated.');
-    }
-
-    public function updateTweaks(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'theme'   => 'sometimes|in:paper,dark',
-            'density' => 'sometimes|in:comfortable,compact',
-            'accent'  => 'sometimes|regex:/^#[0-9a-fA-F]{6}$/',
-        ]);
-
-        $user = $request->user();
-        $user->settings = array_merge($user->settings ?? [], $data);
-        $user->save();
-
-        return back();
     }
 }

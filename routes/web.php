@@ -87,7 +87,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/settings', [SettingsController::class, 'show'])->name('settings.show');
     Route::patch('/settings/profile', [SettingsController::class, 'updateProfile'])->name('settings.profile');
-    Route::patch('/settings/tweaks', [SettingsController::class, 'updateTweaks'])->name('settings.tweaks');
 
     Route::get('/settings/vat-rates', [\App\Http\Controllers\VatRateController::class, 'index'])->name('vat-rates.index');
     Route::post('/settings/vat-rates', [\App\Http\Controllers\VatRateController::class, 'store'])->name('vat-rates.store');
