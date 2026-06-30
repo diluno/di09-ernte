@@ -12,8 +12,11 @@
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
         <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=jetbrains-mono:400,500,600,700&display=swap" rel="stylesheet">
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+        <link href="https://cdn.jsdelivr.net/npm/@fontsource/iosevka-aile@5/400.css" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/@fontsource/iosevka-aile@5/500.css" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/@fontsource/iosevka-aile@5/600.css" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/@fontsource/iosevka-aile@5/700.css" rel="stylesheet">
 
         <!-- Scripts -->
         @routes
