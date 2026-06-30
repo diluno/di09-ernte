@@ -70,7 +70,7 @@ const remaining = computed(() => Math.max(0, props.project.budget_hours - props.
         <span>{{ project.code }}</span>
       </div>
       <h1 class="page-title">
-        <span class="proj-glyph" :class="glyphClass(project.id)" style="width: 28px; height: 28px; font-size: 14px">{{ project.code[0] }}</span>
+        <span class="proj-glyph" :class="glyphClass(project.id)" style="width: 28px; height: 28px; font-size: 14px; align-self: center">{{ project.code[0] }}</span>
         {{ project.name }}
         <span class="meta">{{ project.client.name }}<span class="ascii-dot">·</span>{{ fmtMoneyShort(project.rate) }}/h</span>
       </h1>
