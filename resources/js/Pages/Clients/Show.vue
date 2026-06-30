@@ -45,7 +45,7 @@ function fmtDate(d) {
         <span>{{ client.short_code }}</span>
       </div>
       <h1 class="page-title">
-        <span class="proj-glyph" :class="glyphClass(client.id)" style="width: 28px; height: 28px; font-size: 14px">{{ client.short_code[0] }}</span>
+        <span class="proj-glyph" :class="glyphClass(client.id)" style="width: 28px; height: 28px; font-size: 14px; align-self: center">{{ client.short_code[0] }}</span>
         {{ client.name }}
         <span class="meta">
           {{ client.contact_name || 'no contact' }}
