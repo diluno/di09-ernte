@@ -1,8 +1,9 @@
 @php
     $fmt = fn (int $rappen) => 'CHF ' . number_format($rappen / 100, 2, '.', "'");
+    $contactName = $invoice->client->defaultRecipients()[0]['name'] ?? null;
 @endphp
 
-Guten Tag{{ $invoice->client->contact_name ? ' ' . $invoice->client->contact_name : '' }}
+Guten Tag{{ $contactName ? ' ' . $contactName : '' }}
 
 Anbei senden wir Ihnen die Rechnung {{ $invoice->number }} als PDF.
 

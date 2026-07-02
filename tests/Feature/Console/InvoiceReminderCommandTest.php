@@ -4,6 +4,7 @@ use App\Jobs\SendInvoiceReminderMail;
 use App\Mail\InvoiceReminderMail;
 use App\Models\BusinessProfile;
 use App\Models\Client;
+use App\Models\Contact;
 use App\Models\Invoice;
 use App\Models\InvoiceEvent;
 use Illuminate\Support\Facades\Mail;
@@ -23,7 +24,8 @@ beforeEach(function () {
 test('reminder command queues only sent overdue invoices past the reminder cadence', function () {
     Queue::fake();
 
-    $client = Client::factory()->create(['email' => 'client@example.test']);
+    $client = Client::factory()->create();
+    Contact::factory()->for($client)->create(['email' => 'client@example.test', 'is_default' => true]);
     $due = Invoice::factory()->create([
         'client_id' => $client->id,
         'status' => 'sent',
@@ -44,14 +46,15 @@ test('reminder command queues only sent overdue invoices past the reminder caden
 test('reminder command skips missing email and recently reminded invoices', function () {
     Queue::fake();
 
-    $missingEmail = Client::factory()->create(['email' => null]);
+    $missingEmail = Client::factory()->create();
     Invoice::factory()->create([
         'client_id' => $missingEmail->id,
         'status' => 'sent',
         'due_on' => now()->subDays(10)->toDateString(),
     ]);
 
-    $client = Client::factory()->create(['email' => 'client@example.test']);
+    $client = Client::factory()->create();
+    Contact::factory()->for($client)->create(['email' => 'client@example.test', 'is_default' => true]);
     $recent = Invoice::factory()->create([
         'client_id' => $client->id,
         'status' => 'sent',
@@ -73,7 +76,8 @@ test('reminder command skips missing email and recently reminded invoices', func
 test('reminder job sends mail and writes reminded event', function () {
     Mail::fake();
 
-    $client = Client::factory()->create(['email' => 'client@example.test']);
+    $client = Client::factory()->create();
+    Contact::factory()->for($client)->create(['email' => 'client@example.test', 'is_default' => true]);
     $invoice = Invoice::factory()->create([
         'client_id' => $client->id,
         'status' => 'sent',
@@ -90,7 +94,8 @@ test('reminder job sends mail and writes reminded event', function () {
 test('reminder job quietly skips invoices that no longer qualify', function () {
     Mail::fake();
 
-    $client = Client::factory()->create(['email' => 'client@example.test']);
+    $client = Client::factory()->create();
+    Contact::factory()->for($client)->create(['email' => 'client@example.test', 'is_default' => true]);
     $invoice = Invoice::factory()->create([
         'client_id' => $client->id,
         'status' => 'paid',

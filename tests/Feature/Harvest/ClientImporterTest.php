@@ -22,8 +22,7 @@ test('maps fields, generates a short code, links the primary contact', function 
     expect($c->postal_code)->toBe('8001');
     expect($c->city)->toBe('Zürich');
     expect($c->country)->toBe('CH');
-    expect($c->contact_name)->toBe('Mira Okafor');
-    expect($c->email)->toBe('mira@atlas.test');
+    expect($c->defaultRecipients())->toBe([['name' => 'Mira Okafor', 'email' => 'mira@atlas.test']]);
     expect($c->archived_at)->toBeNull();
 });
 

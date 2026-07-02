@@ -1,8 +1,9 @@
 @php
     $fmt = fn (int $rappen) => 'CHF ' . number_format($rappen / 100, 2, '.', "'");
+    $contactName = $estimate->client->defaultRecipients()[0]['name'] ?? null;
 @endphp
 
-Guten Tag{{ $estimate->client->contact_name ? ' ' . $estimate->client->contact_name : '' }}
+Guten Tag{{ $contactName ? ' ' . $contactName : '' }}
 
 Anbei senden wir Ihnen unsere Offerte {{ $estimate->number }} als PDF.
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Client;
+use App\Models\Contact;
 use App\Models\Invoice;
 use App\Models\Project;
 use App\Models\User;
@@ -44,10 +45,11 @@ test('search finds projects by name, code, and client name', function () {
 });
 
 test('search finds clients by name contact and email', function () {
-    $client = Client::factory()->create([
-        'name' => 'Northlit Press',
-        'contact_name' => 'Annie Park',
+    $client = Client::factory()->create(['name' => 'Northlit Press']);
+    Contact::factory()->for($client)->create([
+        'name' => 'Annie Park',
         'email' => 'annie@northlit.test',
+        'is_default' => true,
     ]);
 
     foreach (['Northlit', 'Annie', 'northlit.test'] as $term) {

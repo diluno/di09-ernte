@@ -31,7 +31,7 @@ class RemindInvoicesCommand extends Command
         $recent = 0;
 
         foreach ($candidates as $invoice) {
-            if (! $invoice->client?->email) {
+            if (empty($invoice->client?->defaultRecipients())) {
                 $missingEmail++;
                 continue;
             }

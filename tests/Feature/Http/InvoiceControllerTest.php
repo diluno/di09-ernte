@@ -3,6 +3,7 @@
 use App\Mail\InvoiceMail;
 use App\Models\BusinessProfile;
 use App\Models\Client;
+use App\Models\Contact;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Project;
@@ -417,6 +418,7 @@ test('POST /invoices/{id}/void voids and releases entries', function () {
 test('POST /invoices/{id}/send issues the draft', function () {
     BusinessProfile::current()->update(['qr_iban' => 'CH4431999123000889012', 'address_line_1' => 'Bahnhofstrasse 1', 'postal_code' => '8001', 'city' => 'Zürich']);
     $this->client->update(['address_line_1' => 'Friedrichstrasse 47', 'postal_code' => '8004', 'city' => 'Zürich', 'country' => 'CH']);
+    Contact::factory()->for($this->client)->create(['is_default' => true]);
     Mail::fake();
     $inv = makeDraft();
     $this->post("/invoices/{$inv->id}/send")

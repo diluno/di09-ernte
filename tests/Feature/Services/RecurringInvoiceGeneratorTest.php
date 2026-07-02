@@ -2,6 +2,7 @@
 
 use App\Models\BusinessProfile;
 use App\Models\Client;
+use App\Models\Contact;
 use App\Models\Invoice;
 use App\Models\RecurringInvoice;
 use App\Models\RecurringInvoiceLine;
@@ -21,7 +22,13 @@ beforeEach(function () {
 
 function schedule(array $overrides = [], array $lineOverrides = []): RecurringInvoice
 {
-    $client = Client::factory()->create($overrides['client'] ?? []);
+    $clientOverrides = $overrides['client'] ?? [];
+    $withDefaultContact = $clientOverrides['email'] ?? '__unset__';
+    unset($clientOverrides['email']);
+    $client = Client::factory()->create($clientOverrides);
+    if ($withDefaultContact !== '__unset__' && $withDefaultContact !== null) {
+        Contact::factory()->for($client)->create(['email' => $withDefaultContact, 'is_default' => true]);
+    }
     unset($overrides['client']);
     $schedule = RecurringInvoice::factory()->for($client)->create($overrides);
     RecurringInvoiceLine::factory()->for($schedule, 'recurringInvoice')->create(array_merge([
