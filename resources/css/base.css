@@ -197,6 +197,7 @@ a { color: inherit; text-decoration: none; }
   padding: 22px 28px 14px;
   gap: 18px;
   border-bottom: 1px solid var(--border);
+  margin-bottom: 22px;
   position: sticky; top: 0; background: var(--paper); z-index: 2;
 }
 .crumb {
