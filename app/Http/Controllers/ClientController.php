@@ -72,7 +72,7 @@ class ClientController extends Controller
             $this->syncContacts($client, $contacts);
         }
 
-        return back();
+        return redirect("/clients/{$client->id}");
     }
 
     /** Create/update/delete a client's contacts from a submitted array. */

@@ -26,6 +26,14 @@ function removeRow(i) {
 
 <style scoped>
 .contact-row { display: grid; grid-template-columns: 1fr 1fr 0.7fr auto auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+.contact-row input[type="text"],
+.contact-row input[type="email"],
+.contact-row input:not([type]) {
+  border: 1px solid var(--border-strong); background: var(--paper);
+  padding: 6px 8px; font-family: inherit; font-size: var(--fs-sm); color: var(--ink);
+  min-width: 0;
+}
+.contact-row input:focus { outline: none; border-color: var(--accent); }
 .default-toggle { display: flex; align-items: center; gap: 4px; font-size: var(--fs-xs); color: var(--ink-3); white-space: nowrap; }
 .contact-remove {
   border: none;

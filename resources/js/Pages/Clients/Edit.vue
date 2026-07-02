@@ -38,7 +38,8 @@ function archive() {
     <div>
       <div class="crumb">
         <Link href="/clients">~ / clients</Link>
-        <span class="ascii-dot">/</span><span>{{ client.short_code }}</span>
+        <span class="ascii-dot">/</span>
+        <Link :href="`/clients/${client.id}`">{{ client.short_code }}</Link>
       </div>
       <h1 class="page-title">{{ client.name }}</h1>
     </div>
@@ -93,7 +94,7 @@ function archive() {
     </div>
     <div style="grid-column: span 2; display: flex; gap: 8px; margin-top: 12px">
       <button type="submit" class="btn primary" :disabled="form.processing">Save</button>
-      <Link href="/clients" class="btn ghost">Cancel</Link>
+      <Link :href="`/clients/${client.id}`" class="btn ghost">Cancel</Link>
     </div>
   </form>
 </template>
