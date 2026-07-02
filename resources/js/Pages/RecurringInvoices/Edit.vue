@@ -96,7 +96,7 @@ function save() {
     </div>
   </div>
 
-  <div style="padding: 0 28px 28px; display: grid; grid-template-columns: 1fr 360px; gap: 28px">
+  <div style="padding: 20px 28px 28px; display: grid; grid-template-columns: 1fr 360px; gap: 28px">
     <div>
       <h3 class="section-title">Title</h3>
       <input v-model="title" class="cell-input" style="width: 100%; border: 1px solid var(--border-strong); padding: 8px; margin-bottom: 20px" placeholder="e.g. Hosting — {period}" />
