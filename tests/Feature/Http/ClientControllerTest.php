@@ -43,8 +43,6 @@ test('GET /clients/{id} renders Clients/Show with projects invoices and recent a
     $c = Client::factory()->create([
         'name' => 'Atlas Robotics',
         'short_code' => 'AR',
-        'contact_name' => 'Marit Hesse',
-        'email' => 'marit@atlas.test',
         'default_rate_rappen' => 14500,
     ]);
     $p = Project::factory()->create([

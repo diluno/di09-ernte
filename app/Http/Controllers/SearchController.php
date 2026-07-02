@@ -59,22 +59,27 @@ class SearchController extends Controller
     private function clients(string $query, int $limit): array
     {
         return Client::query()
+            ->with('contacts')
             ->when($query !== '', fn ($q) => $q->where(function ($w) use ($query) {
                 $w->where('name', 'like', "%{$query}%")
                     ->orWhere('short_code', 'like', "%{$query}%")
-                    ->orWhere('contact_name', 'like', "%{$query}%")
-                    ->orWhere('email', 'like', "%{$query}%");
+                    ->orWhereHas('contacts', fn ($c) => $c->where('name', 'like', "%{$query}%")
+                        ->orWhere('email', 'like', "%{$query}%"));
             }))
             ->orderBy('name')
             ->limit($limit)
             ->get()
-            ->map(fn (Client $client) => [
-                'type' => 'client',
-                'id' => $client->id,
-                'label' => $client->name,
-                'sublabel' => trim(implode(' · ', array_filter([$client->contact_name, $client->email]))),
-                'url' => "/clients/{$client->id}",
-            ])
+            ->map(function (Client $client) {
+                $contact = $client->defaultRecipients()[0] ?? null;
+
+                return [
+                    'type' => 'client',
+                    'id' => $client->id,
+                    'label' => $client->name,
+                    'sublabel' => $contact ? trim(implode(' · ', array_filter([$contact['name'], $contact['email']]))) : '',
+                    'url' => "/clients/{$client->id}",
+                ];
+            })
             ->all();
     }
 

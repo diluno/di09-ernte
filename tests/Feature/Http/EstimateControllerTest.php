@@ -3,6 +3,7 @@
 use App\Mail\EstimateMail;
 use App\Models\BusinessProfile;
 use App\Models\Client;
+use App\Models\Contact;
 use App\Models\Estimate;
 use App\Models\EstimateLine;
 use App\Models\Invoice;
@@ -333,6 +334,7 @@ test('POST /estimates/{id}/mark-sent issues a draft without emailing', function 
 test('POST /estimates/{id}/send issues the draft', function () {
     BusinessProfile::current()->update(['address_line_1' => 'Bahnhofstrasse 1', 'postal_code' => '8001', 'city' => 'Zürich']);
     $this->client->update(['address_line_1' => 'Friedrichstrasse 47', 'postal_code' => '8004', 'city' => 'Zürich', 'country' => 'CH']);
+    Contact::factory()->for($this->client)->create(['is_default' => true]);
     Mail::fake();
     $est = makeDraftEstimate();
 

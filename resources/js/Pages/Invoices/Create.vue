@@ -4,6 +4,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import AutoTextarea from '@/Components/AutoTextarea.vue';
+import RecipientPicker from '@/Components/RecipientPicker.vue';
 import { totalsForLines } from '@/formatters/vat.js';
 
 defineOptions({ layout: AppLayout });
@@ -17,6 +18,10 @@ const props = defineProps({
   clients: { type: Array, default: () => [] }, // populated only in picker mode (no client yet)
   vat_rates: { type: Array, default: () => [] },
 });
+
+// The chosen client's contacts (client entries carry a `contacts` key in picker mode,
+// or the loaded client itself carries it once selected).
+const selectedClientContacts = computed(() => props.client?.contacts ?? []);
 
 // Picker mode: no client chosen yet — let the user pick one, then reload with ?client=.
 const picked = ref(null);
@@ -64,7 +69,9 @@ const totals = computed(() => totalsForLines(lines.value, props.vat_rates, to.va
 const subtotalRappen = computed(() => totals.value.subtotal);
 const totalRappen = computed(() => totals.value.total);
 
-const form = useForm({});
+const form = useForm({
+  recipients: selectedClientContacts.value.filter((c) => c.is_default).map(({ name, email }) => ({ name, email })),
+});
 function save() {
   form.transform(() => ({
     client_id: props.client.id,
@@ -72,6 +79,7 @@ function save() {
     period_start: from.value,
     period_end: to.value,
     entry_ids: selectedIds.value,
+    recipients: form.recipients,
     lines: lines.value.map((l) => ({
       description: l.description,
       hours: Number(l.hours),
@@ -149,6 +157,11 @@ function save() {
         </tbody>
       </table>
       <button class="add-line" @click="addLine"><span style="font-family: var(--font-mono)">+</span> Add line</button>
+      </div>
+
+      <h3 class="section-title" style="margin-top: 28px">Recipients</h3>
+      <div class="field">
+        <RecipientPicker :contacts="selectedClientContacts" v-model="form.recipients" />
       </div>
 
       <h3 class="section-title" style="margin-top: 28px">Entries in period<span class="dim" style="font-size: var(--fs-xs)">{{ selectedIds.length }} selected</span></h3>

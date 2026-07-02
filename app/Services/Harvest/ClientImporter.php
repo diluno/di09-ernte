@@ -3,6 +3,7 @@
 namespace App\Services\Harvest;
 
 use App\Models\Client;
+use App\Models\Contact;
 use App\Support\PostalAddress;
 
 class ClientImporter
@@ -24,7 +25,7 @@ class ClientImporter
             $contact = $contactByClient[$row['id']] ?? null;
             $address = PostalAddress::parse($row['address'] ?? null);
 
-            $map[$row['id']] = Client::create([
+            $client = Client::create([
                 'name' => $row['name'],
                 'short_code' => $this->uniqueShortCode($row['name']),
                 'address_line_1' => $address['address_line_1'],
@@ -32,12 +33,25 @@ class ClientImporter
                 'postal_code' => $address['postal_code'],
                 'city' => $address['city'],
                 'country' => 'CH',
-                'contact_name' => $contact
-                    ? (trim(($contact['first_name'] ?? '') . ' ' . ($contact['last_name'] ?? '')) ?: null)
-                    : null,
-                'email' => $contact['email'] ?? null,
                 'archived_at' => ($row['is_active'] ?? true) ? null : now(),
             ]);
+
+            $contactName = $contact
+                ? (trim(($contact['first_name'] ?? '') . ' ' . ($contact['last_name'] ?? '')) ?: null)
+                : null;
+            $contactEmail = $contact['email'] ?? null;
+
+            if ($contactEmail) {
+                Contact::create([
+                    'client_id' => $client->id,
+                    'name' => $contactName ?: $client->name,
+                    'email' => $contactEmail,
+                    'is_default' => true,
+                    'sort_order' => 0,
+                ]);
+            }
+
+            $map[$row['id']] = $client;
         }
 
         return $map;

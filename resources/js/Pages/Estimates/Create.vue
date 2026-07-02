@@ -4,12 +4,13 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import AutoTextarea from '@/Components/AutoTextarea.vue';
+import RecipientPicker from '@/Components/RecipientPicker.vue';
 import { totalsForLines } from '@/formatters/vat.js';
 
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-  clients:  { type: Array, default: () => [] },
+  clients:  { type: Array, default: () => [] }, // [{id,name,contacts}]
   projects: { type: Array, default: () => [] }, // { id, name, client_id, rate }
   vat_rates: { type: Array, default: () => [] },
 });
@@ -22,9 +23,15 @@ const notes = ref('');
 // Projects belonging to the selected client.
 const clientProjects = computed(() => props.projects.filter((p) => p.client_id === clientId.value));
 const selectedProject = computed(() => props.projects.find((p) => p.id === projectId.value) ?? null);
+const selectedClientContacts = computed(() => props.clients.find((c) => c.id === clientId.value)?.contacts ?? []);
 
 // Reset the project when the client changes.
 watch(clientId, () => { projectId.value = null; });
+
+// Reset recipients to the new client's default contacts when the client changes.
+watch(selectedClientContacts, (contacts) => {
+  form.recipients = contacts.filter((c) => c.is_default).map(({ name, email }) => ({ name, email }));
+});
 
 // Editable lines (manual entry).
 const lines = ref([]);
@@ -52,13 +59,14 @@ const totalRappen = computed(() => totals.value.total);
 
 const canSave = computed(() => clientId.value && lines.value.length > 0);
 
-const form = useForm({});
+const form = useForm({ recipients: [] });
 function save() {
   form.transform(() => ({
     client_id: clientId.value,
     project_id: projectId.value || null,
     title: title.value || null,
     notes: notes.value || null,
+    recipients: form.recipients,
     lines: lines.value.map((l) => ({
       description: l.description,
       hours: Number(l.hours),
@@ -138,6 +146,11 @@ function save() {
 
       <h3 class="section-title" style="margin-top: 28px">Notes</h3>
       <textarea v-model="notes" class="cell-input" rows="3" style="width: 100%; border: 1px solid var(--border-strong); padding: 8px" placeholder="Optional notes shown on the estimate PDF…"></textarea>
+
+      <h3 class="section-title" style="margin-top: 28px">Recipients</h3>
+      <div class="field">
+        <RecipientPicker :contacts="selectedClientContacts" v-model="form.recipients" />
+      </div>
     </div>
 
     <aside class="summary-card">

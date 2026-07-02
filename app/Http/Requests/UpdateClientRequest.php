@@ -15,8 +15,6 @@ class UpdateClientRequest extends FormRequest
         return [
             'name' => 'sometimes|string|max:255',
             'short_code' => ['sometimes', 'string', 'max:4', Rule::unique('clients', 'short_code')->ignore($id)],
-            'contact_name' => 'nullable|string|max:255',
-            'email' => 'nullable|email|max:255',
             'address_line_1' => 'nullable|string|max:255',
             'address_line_2' => 'nullable|string|max:255',
             'postal_code' => 'nullable|string|max:20',
@@ -24,6 +22,12 @@ class UpdateClientRequest extends FormRequest
             'country' => 'sometimes|string|size:2',
             'vat_id' => 'nullable|string|max:64',
             'default_rate_rappen' => 'nullable|integer|min:0',
+            'contacts' => 'sometimes|array',
+            'contacts.*.id' => ['sometimes', 'integer', Rule::exists('contacts', 'id')->where('client_id', $id)],
+            'contacts.*.name' => 'required|string|max:255',
+            'contacts.*.email' => 'required|email|max:255',
+            'contacts.*.role' => 'nullable|string|max:255',
+            'contacts.*.is_default' => 'boolean',
         ];
     }
 }

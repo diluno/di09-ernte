@@ -3,6 +3,7 @@
 use App\Mail\EstimateMail;
 use App\Models\BusinessProfile;
 use App\Models\Client;
+use App\Models\Contact;
 use App\Models\Estimate;
 use Illuminate\Support\Facades\Storage;
 
@@ -15,7 +16,8 @@ test('estimate mail renders details and attaches the pdf path', function () {
         'default_vat_rate' => 8.10,
     ]);
 
-    $client = Client::factory()->create(['contact_name' => 'Mira Okafor']);
+    $client = Client::factory()->create();
+    Contact::factory()->for($client)->create(['name' => 'Mira Okafor', 'is_default' => true]);
     $estimate = Estimate::factory()->create([
         'client_id' => $client->id,
         'number' => 'OF-2026-014',

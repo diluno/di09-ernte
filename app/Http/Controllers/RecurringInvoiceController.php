@@ -56,9 +56,10 @@ class RecurringInvoiceController extends Controller
         $nextRun = BillingPeriod::nextRunOnOrAfter($data['cadence'], $first, Carbon::today());
 
         DB::transaction(function () use ($data, $first, $nextRun) {
+            $client = Client::findOrFail($data['client_id']);
             $documentRate = $data['vat_rate'] ?? VatRate::rateForDate($nextRun);
             $schedule = RecurringInvoice::create([
-                'client_id' => $data['client_id'],
+                'client_id' => $client->id,
                 'project_id' => $data['project_id'] ?? null,
                 'title' => $data['title'] ?? null,
                 'notes' => $data['notes'] ?? null,
@@ -68,6 +69,7 @@ class RecurringInvoiceController extends Controller
                 'anchor_day' => $first->day,
                 'next_run_on' => $nextRun->toDateString(),
                 'auto_send' => $data['auto_send'] ?? false,
+                'recipients' => $data['recipients'] ?? $client->defaultRecipients(),
             ]);
             $this->syncLines($schedule, $data['lines']);
         });
@@ -90,6 +92,7 @@ class RecurringInvoiceController extends Controller
                 'next_run_on' => $recurringInvoice->next_run_on?->toDateString(),
                 'vat_rate' => (float) $recurringInvoice->vat_rate,
                 'auto_send' => $recurringInvoice->auto_send,
+                'recipients' => $recurringInvoice->recipients ?? [],
                 'lines' => $recurringInvoice->lines->map(fn (RecurringInvoiceLine $l) => [
                     'description' => $l->description,
                     'hours' => (float) $l->hours,
@@ -119,6 +122,10 @@ class RecurringInvoiceController extends Controller
                 'next_run_on' => $nextRun->toDateString(),
                 'auto_send' => $data['auto_send'] ?? false,
             ]);
+            if (array_key_exists('recipients', $data)) {
+                $recurringInvoice->recipients = $data['recipients'];
+                $recurringInvoice->save();
+            }
             $recurringInvoice->lines()->delete();
             $this->syncLines($recurringInvoice, $data['lines']);
         });
@@ -184,8 +191,14 @@ class RecurringInvoiceController extends Controller
     private function formData(): array
     {
         return [
-            'clients' => Client::active()->orderBy('name')->get(['id', 'name'])
-                ->map(fn (Client $c) => ['id' => $c->id, 'name' => $c->name])->values(),
+            'clients' => Client::active()->with('contacts')->orderBy('name')->get(['id', 'name'])
+                ->map(fn (Client $c) => [
+                    'id' => $c->id, 'name' => $c->name,
+                    'contacts' => $c->contacts->map(fn (\App\Models\Contact $ct) => [
+                        'id' => $ct->id, 'name' => $ct->name, 'email' => $ct->email,
+                        'role' => $ct->role, 'is_default' => $ct->is_default,
+                    ])->values(),
+                ])->values(),
             'projects' => Project::active()->orderBy('name')->get(['id', 'name', 'client_id', 'rate_rappen'])
                 ->map(fn (Project $p) => [
                     'id' => $p->id, 'name' => $p->name, 'client_id' => $p->client_id,

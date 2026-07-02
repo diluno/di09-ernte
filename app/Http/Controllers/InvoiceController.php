@@ -58,13 +58,19 @@ class InvoiceController extends Controller
                 'period' => null,
                 'entries' => [],
                 'suggested_lines' => [],
-                'clients' => Client::active()->orderBy('name')->get(['id', 'name'])
-                    ->map(fn (Client $c) => ['id' => $c->id, 'name' => $c->name])->values(),
+                'clients' => Client::active()->with('contacts')->orderBy('name')->get(['id', 'name'])
+                    ->map(fn (Client $c) => [
+                        'id' => $c->id, 'name' => $c->name,
+                        'contacts' => $c->contacts->map(fn (\App\Models\Contact $ct) => [
+                            'id' => $ct->id, 'name' => $ct->name, 'email' => $ct->email,
+                            'role' => $ct->role, 'is_default' => $ct->is_default,
+                        ])->values(),
+                    ])->values(),
                 'vat_rates' => VatRate::catalogForFrontend(),
             ]);
         }
 
-        $client = Client::findOrFail($request->integer('client'));
+        $client = Client::with('contacts')->findOrFail($request->integer('client'));
         $project = $request->filled('project') ? Project::find($request->integer('project')) : null;
 
         $start = $request->filled('from')
@@ -86,7 +92,12 @@ class InvoiceController extends Controller
             ->get();
 
         return Inertia::render('Invoices/Create', [
-            'client' => $client->only('id', 'name', 'short_code'),
+            'client' => $client->only('id', 'name', 'short_code') + [
+                'contacts' => $client->contacts->map(fn (\App\Models\Contact $ct) => [
+                    'id' => $ct->id, 'name' => $ct->name, 'email' => $ct->email,
+                    'role' => $ct->role, 'is_default' => $ct->is_default,
+                ])->values(),
+            ],
             'project' => $project?->only('id', 'name', 'code', 'rate_rappen'),
             'period' => ['start' => $start->toDateString(), 'end' => $end->toDateString()],
             'entries' => $entries->map(fn (TimeEntry $e) => [
@@ -122,6 +133,7 @@ class InvoiceController extends Controller
             periodEnd: $data['period_end'],
             lines: $data['lines'],
             entryIds: $data['entry_ids'] ?? [],
+            recipients: $data['recipients'] ?? null,
         );
 
         return redirect("/invoices/{$invoice->number}")->with('success', "Draft {$invoice->number} created.");
@@ -154,7 +166,7 @@ class InvoiceController extends Controller
             return redirect("/invoices/{$invoice->number}")->with('error', 'Only draft invoices can be edited.');
         }
 
-        $invoice->load(['client:id,name', 'project:id,name', 'lines' => fn ($q) => $q->orderBy('sort_order')]);
+        $invoice->load(['client:id,name', 'client.contacts', 'project:id,name', 'lines' => fn ($q) => $q->orderBy('sort_order')]);
 
         return Inertia::render('Invoices/Edit', [
             'invoice' => [
@@ -167,6 +179,7 @@ class InvoiceController extends Controller
                 'title' => $invoice->title,
                 'notes' => $invoice->notes,
                 'vat_rate' => (float) $invoice->vat_rate,
+                'recipients' => $invoice->recipients ?? [],
                 'lines' => $invoice->lines->map(fn (InvoiceLine $l) => [
                     'description' => $l->description,
                     'hours' => (float) $l->hours,
@@ -174,6 +187,10 @@ class InvoiceController extends Controller
                     'rate_rappen' => $l->rate_rappen,
                 ])->values(),
             ],
+            'client_contacts' => $invoice->client->contacts->map(fn (\App\Models\Contact $ct) => [
+                'id' => $ct->id, 'name' => $ct->name, 'email' => $ct->email,
+                'role' => $ct->role, 'is_default' => $ct->is_default,
+            ])->values(),
         ]);
     }
 
@@ -198,6 +215,9 @@ class InvoiceController extends Controller
             }
             if (array_key_exists('period_end', $data)) {
                 $invoice->period_end = $data['period_end'];
+            }
+            if (array_key_exists('recipients', $data)) {
+                $invoice->recipients = $data['recipients'];
             }
             if (! empty($data['lines'])) {
                 $invoice->lines()->delete();

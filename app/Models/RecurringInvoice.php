@@ -13,10 +13,11 @@ class RecurringInvoice extends Model
     protected $fillable = [
         'client_id', 'project_id', 'title', 'notes', 'currency', 'vat_rate',
         'cadence', 'anchor_day', 'next_run_on', 'last_generated_on',
-        'auto_send', 'paused_at',
+        'auto_send', 'paused_at', 'recipients',
     ];
 
     protected $casts = [
+        'recipients' => 'array',
         'vat_rate' => 'decimal:2',
         'anchor_day' => 'integer',
         'next_run_on' => 'date',

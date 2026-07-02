@@ -2,6 +2,7 @@
 
 use App\Models\BusinessProfile;
 use App\Models\Client;
+use App\Models\Contact;
 use App\Models\Invoice;
 use App\Models\Project;
 use App\Models\TimeEntry;
@@ -14,6 +15,7 @@ beforeEach(function () {
     BusinessProfile::create(['name' => 'Ernte Test', 'country' => 'CH', 'default_currency' => 'CHF', 'default_vat_rate' => 8.10]);
     $this->user = User::factory()->create();
     $this->client = Client::factory()->create();
+    $this->contact = Contact::factory()->for($this->client)->create(['is_default' => true]);
     $this->project = Project::factory()->create(['client_id' => $this->client->id, 'billable' => true, 'rate_rappen' => 14500]);
     $this->builder = app(InvoiceBuilder::class);
     $this->lifecycle = app(InvoiceLifecycle::class);
@@ -101,8 +103,8 @@ test('issue transitions draft -> sent, stamps dates, writes pdf_generated + sent
     Mail::assertSent(\App\Mail\InvoiceMail::class, fn ($mail) => $mail->invoice->is($invoice) && $mail->pdfPath === $invoice->pdf_path);
 })->group('browsershot');
 
-test('markSent transitions draft -> sent without emailing or needing a client email', function () {
-    test()->client->update(['email' => null]);
+test('markSent transitions draft -> sent without emailing or needing a client contact', function () {
+    test()->contact->delete();
     [$invoice] = draftWithEntry();
     Mail::fake();
 
@@ -129,8 +131,8 @@ test('issue is rejected unless draft', function () {
     expect(fn () => test()->lifecycle->issue($invoice))->toThrow(\DomainException::class);
 });
 
-test('issue is rejected when the client has no email address', function () {
-    test()->client->update(['email' => null]);
+test('issue is rejected when the client has no default contacts', function () {
+    test()->contact->delete();
     [$invoice] = draftWithEntry();
 
     expect(fn () => test()->lifecycle->issue($invoice))->toThrow(\DomainException::class);
@@ -145,7 +147,7 @@ test('mail failures keep the invoice as draft and write no sent event', function
 
     Mail::shouldReceive('to')
         ->once()
-        ->with(test()->client->email)
+        ->with(\Mockery::type(\Illuminate\Mail\Mailables\Address::class))
         ->andThrow(new RuntimeException('SMTP down'));
 
     expect(fn () => test()->lifecycle->issue($invoice))->toThrow(RuntimeException::class);

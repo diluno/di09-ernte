@@ -28,7 +28,24 @@ class DemoFixturesSeeder extends Seeder
                 ['name' => 'Halden Studio',          'short_code' => 'HS', 'contact_name' => 'Ola Halden',     'email' => 'ola@halden.no',     'default_rate_rappen' => 11000],
                 ['name' => 'Kelp Forest Co.',        'short_code' => 'KF', 'contact_name' => 'Mira Okafor',    'email' => 'mira@kelp.co',      'default_rate_rappen' => 15000],
                 ['name' => 'Private / Internal',     'short_code' => 'PR', 'contact_name' => null,             'email' => null,                'default_rate_rappen' => null],
-            ])->map(fn ($c) => Client::firstOrCreate(['short_code' => $c['short_code']], $c));
+            ])->map(function ($c) {
+                $contactName = $c['contact_name'];
+                $contactEmail = $c['email'];
+                unset($c['contact_name'], $c['email']);
+
+                $client = Client::firstOrCreate(['short_code' => $c['short_code']], $c);
+
+                if ($contactName && $contactEmail && $client->contacts()->count() === 0) {
+                    $client->contacts()->create([
+                        'name' => $contactName,
+                        'email' => $contactEmail,
+                        'is_default' => true,
+                        'sort_order' => 0,
+                    ]);
+                }
+
+                return $client;
+            });
 
             $projectDefs = [
                 ['code' => 'ATLS-FLT', 'client' => 'AR', 'name' => 'Fleet Console v2',         'budget_hours' => 220, 'budget_amount_rappen' => 3190000, 'rate_rappen' => 14500],

@@ -12,6 +12,8 @@ class ClientDetail
 {
     public static function payload(Client $client): array
     {
+        $client->loadMissing('contacts');
+
         $projectIds = $client->projects()->pluck('id');
 
         return [
@@ -29,8 +31,10 @@ class ClientDetail
             'id' => $client->id,
             'name' => $client->name,
             'short_code' => $client->short_code,
-            'contact_name' => $client->contact_name,
-            'email' => $client->email,
+            'contacts' => $client->contacts->map(fn ($c) => [
+                'id' => $c->id, 'name' => $c->name, 'email' => $c->email,
+                'role' => $c->role, 'is_default' => $c->is_default,
+            ])->values()->all(),
             'address_line_1' => $client->address_line_1,
             'address_line_2' => $client->address_line_2,
             'postal_code' => $client->postal_code,

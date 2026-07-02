@@ -7,6 +7,7 @@ use App\Models\Estimate;
 use App\Models\EstimateEvent;
 use App\Models\Invoice;
 use App\Services\Invoicing\InvoiceBuilder;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
@@ -26,11 +27,12 @@ class EstimateLifecycle
             throw new \DomainException("Only a draft can be sent (status: {$estimate->status}).");
         }
 
-        if (! $estimate->client?->email) {
-            throw new \DomainException('Cannot send estimate because the client has no email address.');
+        $recipients = $estimate->recipients ?: ($estimate->client?->defaultRecipients() ?? []);
+        if (empty($recipients)) {
+            throw new \DomainException('Cannot send estimate because the client has no contacts.');
         }
 
-        DB::transaction(function () use ($estimate) {
+        DB::transaction(function () use ($estimate, $recipients) {
             $estimate->update([
                 'status' => 'sent',
                 'issued_on' => now()->toDateString(),
@@ -41,10 +43,11 @@ class EstimateLifecycle
 
             $path = $this->pdf->pdf($estimate);
 
-            Mail::to($estimate->client->email)->send(new EstimateMail($estimate, $path));
+            $to = array_map(fn ($r) => new Address($r['email'], $r['name']), $recipients);
+            Mail::to($to[0])->cc(array_slice($to, 1))->send(new EstimateMail($estimate, $path));
 
             $this->event($estimate, 'pdf_generated', ['path' => $path]);
-            $this->event($estimate, 'sent', ['email_to' => $estimate->client->email, 'pdf_path' => $path]);
+            $this->event($estimate, 'sent', ['email_to' => array_column($recipients, 'email'), 'pdf_path' => $path]);
         });
     }
 

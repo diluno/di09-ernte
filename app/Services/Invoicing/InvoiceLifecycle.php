@@ -6,6 +6,7 @@ use App\Mail\InvoiceMail;
 use App\Models\Invoice;
 use App\Models\InvoiceEvent;
 use App\Models\TimeEntry;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
@@ -25,11 +26,12 @@ class InvoiceLifecycle
             throw new \DomainException("Only a draft can be sent (status: {$invoice->status}).");
         }
 
-        if (! $invoice->client?->email) {
-            throw new \DomainException('Cannot send invoice because the client has no email address.');
+        $recipients = $invoice->recipients ?: ($invoice->client?->defaultRecipients() ?? []);
+        if (empty($recipients)) {
+            throw new \DomainException('Cannot send invoice because the client has no contacts.');
         }
 
-        DB::transaction(function () use ($invoice) {
+        DB::transaction(function () use ($invoice, $recipients) {
             $invoice->update([
                 'status' => 'sent',
                 'issued_on' => now()->toDateString(),
@@ -40,10 +42,11 @@ class InvoiceLifecycle
 
             $path = $this->pdf->pdf($invoice);
 
-            Mail::to($invoice->client->email)->send(new InvoiceMail($invoice, $path));
+            $to = array_map(fn ($r) => new Address($r['email'], $r['name']), $recipients);
+            Mail::to($to[0])->cc(array_slice($to, 1))->send(new InvoiceMail($invoice, $path));
 
             $this->event($invoice, 'pdf_generated', ['path' => $path]);
-            $this->event($invoice, 'sent', ['email_to' => $invoice->client->email, 'pdf_path' => $path]);
+            $this->event($invoice, 'sent', ['email_to' => array_column($recipients, 'email'), 'pdf_path' => $path]);
         });
     }
 

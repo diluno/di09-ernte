@@ -14,10 +14,11 @@ class Estimate extends Model
         'issued_on', 'valid_until',
         'status', 'currency', 'vat_rate',
         'subtotal_rappen', 'vat_rappen', 'rounding_rappen', 'total_rappen',
-        'notes', 'title', 'sent_at', 'decided_at', 'converted_invoice_id', 'pdf_path',
+        'notes', 'title', 'sent_at', 'decided_at', 'converted_invoice_id', 'pdf_path', 'recipients',
     ];
 
     protected $casts = [
+        'recipients' => 'array',
         'issued_on' => 'date',
         'valid_until' => 'date',
         'sent_at' => 'datetime',

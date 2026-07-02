@@ -56,6 +56,7 @@ class RecurringInvoiceGenerator
             );
 
             $invoice->recurring_invoice_id = $schedule->id;
+            $invoice->recipients = $schedule->recipients;
             $invoice->save();
 
             $schedule->last_generated_on = $runDate->toDateString();

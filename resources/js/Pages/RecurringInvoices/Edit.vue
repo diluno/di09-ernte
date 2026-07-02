@@ -4,13 +4,14 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import AutoTextarea from '@/Components/AutoTextarea.vue';
+import RecipientPicker from '@/Components/RecipientPicker.vue';
 import { totalsForLines } from '@/formatters/vat.js';
 
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-  schedule: { type: Object, required: true },
-  clients: { type: Array, default: () => [] },
+  schedule: { type: Object, required: true }, // includes recipients
+  clients: { type: Array, default: () => [] }, // [{id,name,contacts}]
   projects: { type: Array, default: () => [] },
   vat_rates: { type: Array, default: () => [] },
 });
@@ -24,7 +25,14 @@ const nextRunOn = ref(props.schedule.next_run_on);
 const autoSend = ref(props.schedule.auto_send);
 
 const clientProjects = computed(() => props.projects.filter((p) => p.client_id === clientId.value));
+const selectedClientContacts = computed(() => props.clients.find((c) => c.id === clientId.value)?.contacts ?? []);
 watch(clientId, (val, old) => { if (old !== undefined && val !== old) projectId.value = null; });
+
+// Reset recipients to the newly-selected client's default contacts (skip the initial load).
+watch(selectedClientContacts, (contacts, oldContacts) => {
+  if (oldContacts === undefined) return;
+  form.recipients = contacts.filter((c) => c.is_default).map(({ name, email }) => ({ name, email }));
+});
 
 const lines = ref([]);
 let nextKey = 0;
@@ -54,7 +62,7 @@ const totalRappen = computed(() => totals.value.total);
 
 const canSave = computed(() => clientId.value && lines.value.length > 0 && nextRunOn.value);
 
-const form = useForm({});
+const form = useForm({ recipients: props.schedule.recipients ?? [] });
 function save() {
   form.transform(() => ({
     client_id: clientId.value,
@@ -64,6 +72,7 @@ function save() {
     cadence: cadence.value,
     next_run_on: nextRunOn.value,
     auto_send: autoSend.value,
+    recipients: form.recipients,
     lines: lines.value.map((l) => ({
       description: l.description,
       hours: Number(l.hours),
@@ -160,6 +169,11 @@ function save() {
 
       <h3 class="section-title" style="margin-top: 28px">Notes</h3>
       <textarea v-model="notes" class="cell-input" rows="3" style="width: 100%; border: 1px solid var(--border-strong); padding: 8px"></textarea>
+
+      <h3 class="section-title" style="margin-top: 28px">Recipients</h3>
+      <div class="field">
+        <RecipientPicker :contacts="selectedClientContacts" v-model="form.recipients" />
+      </div>
     </div>
 
     <aside>

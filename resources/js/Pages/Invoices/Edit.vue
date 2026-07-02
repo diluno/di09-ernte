@@ -4,13 +4,17 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import AutoTextarea from '@/Components/AutoTextarea.vue';
+import RecipientPicker from '@/Components/RecipientPicker.vue';
 import { roundTotalRappen } from '@/formatters/vat';
 
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
   invoice: { type: Object, required: true },
+  client_contacts: { type: Array, default: () => [] },
 });
+
+const selectedClientContacts = computed(() => props.client_contacts);
 
 const title = ref(props.invoice.title ?? '');
 const notes = ref(props.invoice.notes ?? '');
@@ -61,13 +65,16 @@ const totals = computed(() => {
 });
 const canSave = computed(() => lines.value.length > 0);
 
-const form = useForm({});
+const form = useForm({
+  recipients: props.invoice.recipients ?? [],
+});
 function save() {
   form.transform(() => ({
     title: title.value || null,
     notes: notes.value || null,
     period_start: periodStart.value || null,
     period_end: periodEnd.value || null,
+    recipients: form.recipients,
     lines: lines.value.map((line) => ({
       description: line.description,
       hours: Number(line.hours),
@@ -143,6 +150,11 @@ function save() {
 
       <h3 class="section-title" style="margin-top: 28px">Notes</h3>
       <textarea v-model="notes" class="cell-input framed" rows="4" placeholder="Optional notes shown on the invoice PDF"></textarea>
+
+      <h3 class="section-title" style="margin-top: 28px">Recipients</h3>
+      <div class="field">
+        <RecipientPicker :contacts="selectedClientContacts" v-model="form.recipients" />
+      </div>
     </div>
 
     <aside class="summary-card">

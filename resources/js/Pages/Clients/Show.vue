@@ -48,7 +48,7 @@ function fmtDate(d) {
         <span class="proj-glyph" :class="glyphClass(client.id)" style="width: 28px; height: 28px; font-size: 14px; align-self: center">{{ client.short_code[0] }}</span>
         {{ client.name }}
         <span class="meta">
-          {{ client.contact_name || 'no contact' }}
+          {{ (client.contacts.find((c) => c.is_default) || client.contacts[0])?.name || 'no contact' }}
           <span v-if="client.archived" class="ascii-dot">·</span>
           <span v-if="client.archived" class="badge dot void">archived</span>
         </span>
@@ -164,9 +164,23 @@ function fmtDate(d) {
 
     <aside class="detail-side">
       <h3 class="section-title">Contact</h3>
-      <dl class="kv">
-        <dt>Contact</dt><dd>{{ client.contact_name || '-' }}</dd>
-        <dt>Email</dt><dd>{{ client.email || '-' }}</dd>
+      <template v-if="client.contacts.length">
+        <div
+          v-for="c in client.contacts"
+          :key="c.id"
+          class="contact-line"
+          style="font-size: var(--fs-sm); line-height: 1.6; margin-bottom: 8px"
+        >
+          <div class="contact-name" style="color: var(--ink); font-weight: 500">
+            {{ c.name }}<span v-if="c.is_default" class="badge dot sent" style="margin-left: 6px">default</span>
+          </div>
+          <a :href="`mailto:${c.email}`" style="display: block; color: var(--ink-2); word-break: break-all">{{ c.email }}</a>
+          <span v-if="c.role" class="muted">{{ c.role }}</span>
+        </div>
+      </template>
+      <p v-else class="muted">No contacts.</p>
+
+      <dl class="kv" style="margin-top: 12px">
         <dt>Default rate</dt><dd>{{ client.default_rate ? `${formatChf(client.default_rate)}/h` : '-' }}</dd>
         <dt>VAT ID</dt><dd>{{ client.vat_id || '-' }}</dd>
       </dl>

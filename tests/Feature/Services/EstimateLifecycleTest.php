@@ -2,6 +2,7 @@
 
 use App\Models\BusinessProfile;
 use App\Models\Client;
+use App\Models\Contact;
 use App\Models\Invoice;
 use App\Models\Project;
 use App\Models\User;
@@ -13,6 +14,7 @@ beforeEach(function () {
     BusinessProfile::create(['name' => 'Ernte Test', 'country' => 'CH', 'default_currency' => 'CHF', 'default_vat_rate' => 8.10]);
     $this->user = User::factory()->create();
     $this->client = Client::factory()->create();
+    $this->contact = Contact::factory()->for($this->client)->create(['is_default' => true]);
     $this->project = Project::factory()->create(['client_id' => $this->client->id, 'billable' => true, 'rate_rappen' => 14500]);
     $this->builder = app(EstimateBuilder::class);
     $this->lifecycle = app(EstimateLifecycle::class);
@@ -104,8 +106,8 @@ test('convertToInvoice refuses to convert the same estimate twice', function () 
     expect(fn () => test()->lifecycle->convertToInvoice($estimate->fresh()))->toThrow(\DomainException::class);
 });
 
-test('markSent transitions draft -> sent without emailing or needing a client email', function () {
-    test()->client->update(['email' => null]);
+test('markSent transitions draft -> sent without emailing or needing a client contact', function () {
+    test()->contact->delete();
     $estimate = draftEstimate();
     Mail::fake();
 
@@ -150,8 +152,8 @@ test('send is rejected unless draft', function () {
     expect(fn () => test()->lifecycle->send($estimate))->toThrow(\DomainException::class);
 });
 
-test('send is rejected when the client has no email address', function () {
-    test()->client->update(['email' => null]);
+test('send is rejected when the client has no default contacts', function () {
+    test()->contact->delete();
     $estimate = draftEstimate();
 
     expect(fn () => test()->lifecycle->send($estimate))->toThrow(\DomainException::class);
@@ -166,7 +168,7 @@ test('mail failures keep the estimate as draft and write no sent event', functio
 
     Mail::shouldReceive('to')
         ->once()
-        ->with(test()->client->email)
+        ->with(\Mockery::type(\Illuminate\Mail\Mailables\Address::class))
         ->andThrow(new RuntimeException('SMTP down'));
 
     expect(fn () => test()->lifecycle->send($estimate))->toThrow(RuntimeException::class);

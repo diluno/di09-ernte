@@ -1,8 +1,9 @@
 @php
     $fmt = fn (int $rappen) => 'CHF ' . number_format($rappen / 100, 2, '.', "'");
+    $contactName = $invoice->client->defaultRecipients()[0]['name'] ?? null;
 @endphp
 
-Guten Tag{{ $invoice->client->contact_name ? ' ' . $invoice->client->contact_name : '' }}
+Guten Tag{{ $contactName ? ' ' . $contactName : '' }}
 
 Wir möchten Sie freundlich an die noch offene Rechnung {{ $invoice->number }} erinnern.
 
