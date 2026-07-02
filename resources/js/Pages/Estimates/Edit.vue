@@ -29,6 +29,12 @@ const selectedClientContacts = computed(() => props.clients.find((c) => c.id ===
 // Reset the project when the client changes (skip the initial assignment above).
 watch(clientId, (val, old) => { if (old !== undefined && val !== old) projectId.value = null; });
 
+// Reset recipients to the newly-selected client's default contacts (skip the initial load).
+watch(selectedClientContacts, (contacts, oldContacts) => {
+  if (oldContacts === undefined) return;
+  form.recipients = contacts.filter((c) => c.is_default).map(({ name, email }) => ({ name, email }));
+});
+
 // Editable lines, seeded from the existing estimate.
 let nextKey = 0;
 const lines = ref(props.estimate.lines.map((l) => ({ key: nextKey++, ...l })));

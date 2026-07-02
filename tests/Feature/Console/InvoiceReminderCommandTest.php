@@ -73,6 +73,29 @@ test('reminder command skips missing email and recently reminded invoices', func
     Queue::assertNothingPushed();
 });
 
+test('reminder command still queues invoices whose recipients snapshot survives after client default contacts are removed', function () {
+    Queue::fake();
+
+    $client = Client::factory()->create();
+    $contact = Contact::factory()->for($client)->create(['email' => 'client@example.test', 'is_default' => true]);
+
+    $invoice = Invoice::factory()->create([
+        'client_id' => $client->id,
+        'status' => 'sent',
+        'due_on' => now()->subDays(10)->toDateString(),
+        'recipients' => [['name' => $contact->name, 'email' => $contact->email]],
+    ]);
+
+    // Client's default contacts are removed after the invoice was sent.
+    $contact->delete();
+
+    $this->artisan('ernte:invoices:remind')
+        ->expectsOutput('Queued 1 reminder(s); skipped 0 missing email; skipped 0 recently reminded.')
+        ->assertExitCode(0);
+
+    Queue::assertPushed(SendInvoiceReminderMail::class, fn ($job) => $job->invoiceId === $invoice->id);
+});
+
 test('reminder job sends mail and writes reminded event', function () {
     Mail::fake();
 
