@@ -25,7 +25,7 @@ const filtered = computed(() => {
     const q = search.value.toLowerCase();
     list = list.filter((c) =>
       c.name.toLowerCase().includes(q) ||
-      (c.contact_name ?? '').toLowerCase().includes(q));
+      (c.default_contact?.name ?? '').toLowerCase().includes(q));
   }
   return list;
 });
@@ -92,9 +92,9 @@ function fmtMoneyShort(v) { return formatChf(v); }
             </Link>
           </td>
           <td>
-            <div class="cell-trunc" :title="[c.contact_name, c.email].filter(Boolean).join(' · ')">
-              <template v-if="c.contact_name">
-                {{ c.contact_name }}<span v-if="c.email" class="dim" style="margin-left: 6px">{{ c.email }}</span>
+            <div class="cell-trunc" :title="[c.default_contact?.name, c.default_contact?.email].filter(Boolean).join(' · ')">
+              <template v-if="c.default_contact?.name">
+                {{ c.default_contact.name }}<span v-if="c.default_contact.email" class="dim" style="margin-left: 6px">{{ c.default_contact.email }}</span>
               </template>
               <span v-else class="dim">—</span>
             </div>
