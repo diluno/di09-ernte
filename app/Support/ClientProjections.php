@@ -13,6 +13,7 @@ class ClientProjections
     {
         $clients = Client::query()
             ->withCount('projects')
+            ->with('contacts')
             ->orderBy('name')
             ->get();
 
@@ -36,8 +37,7 @@ class ClientProjections
             'id' => $c->id,
             'name' => $c->name,
             'short_code' => $c->short_code,
-            'contact_name' => $c->contact_name,
-            'email' => $c->email,
+            'default_contact' => $c->defaultRecipients()[0] ?? null,
             'default_rate' => $c->default_rate_rappen ? (int) round($c->default_rate_rappen / 100) : null,
             'projects_count' => (int) $c->projects_count,
             'hours_ytd' => round(((int) ($hoursYtd[$c->id] ?? 0)) / 3600, 1),
