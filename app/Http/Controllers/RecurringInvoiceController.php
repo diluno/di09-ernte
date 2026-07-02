@@ -56,9 +56,10 @@ class RecurringInvoiceController extends Controller
         $nextRun = BillingPeriod::nextRunOnOrAfter($data['cadence'], $first, Carbon::today());
 
         DB::transaction(function () use ($data, $first, $nextRun) {
+            $client = Client::findOrFail($data['client_id']);
             $documentRate = $data['vat_rate'] ?? VatRate::rateForDate($nextRun);
             $schedule = RecurringInvoice::create([
-                'client_id' => $data['client_id'],
+                'client_id' => $client->id,
                 'project_id' => $data['project_id'] ?? null,
                 'title' => $data['title'] ?? null,
                 'notes' => $data['notes'] ?? null,
@@ -68,6 +69,7 @@ class RecurringInvoiceController extends Controller
                 'anchor_day' => $first->day,
                 'next_run_on' => $nextRun->toDateString(),
                 'auto_send' => $data['auto_send'] ?? false,
+                'recipients' => $client->defaultRecipients(),
             ]);
             $this->syncLines($schedule, $data['lines']);
         });

@@ -51,6 +51,7 @@ class EstimateBuilder
                 'total_rappen' => 0,
                 'notes' => $notes,
                 'title' => $title,
+                'recipients' => $client->defaultRecipients(),
             ]);
 
             $lineAmounts = [];

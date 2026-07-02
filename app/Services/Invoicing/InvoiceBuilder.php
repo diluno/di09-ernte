@@ -109,6 +109,7 @@ class InvoiceBuilder
                 'total_rappen' => 0,
                 'title' => $title,
                 'notes' => $notes,
+                'recipients' => $client->defaultRecipients(),
             ]);
 
             $invoice->qr_reference = $this->qr->generate($invoice->id);
