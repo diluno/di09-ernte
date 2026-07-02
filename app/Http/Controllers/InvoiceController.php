@@ -133,6 +133,7 @@ class InvoiceController extends Controller
             periodEnd: $data['period_end'],
             lines: $data['lines'],
             entryIds: $data['entry_ids'] ?? [],
+            recipients: $data['recipients'] ?? null,
         );
 
         return redirect("/invoices/{$invoice->number}")->with('success', "Draft {$invoice->number} created.");

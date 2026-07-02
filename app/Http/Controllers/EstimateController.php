@@ -77,6 +77,7 @@ class EstimateController extends Controller
             lines: $data['lines'],
             notes: $data['notes'] ?? null,
             title: $data['title'] ?? null,
+            recipients: $data['recipients'] ?? null,
         );
 
         return redirect("/estimates/{$estimate->number}")->with('success', "Draft {$estimate->number} created.");

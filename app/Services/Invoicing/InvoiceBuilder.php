@@ -87,8 +87,9 @@ class InvoiceBuilder
         ?string $notes = null,
         ?float $vatRate = null,
         Carbon|string|null $taxDate = null,
+        ?array $recipients = null,
     ): Invoice {
-        return DB::transaction(function () use ($client, $project, $periodStart, $periodEnd, $lines, $entryIds, $title, $notes, $vatRate, $taxDate) {
+        return DB::transaction(function () use ($client, $project, $periodStart, $periodEnd, $lines, $entryIds, $title, $notes, $vatRate, $taxDate, $recipients) {
             $profile = BusinessProfile::current();
             $taxDate = $taxDate ?: $periodEnd;
             $documentRate = $vatRate ?? VatRate::rateForDate($taxDate);
@@ -109,7 +110,7 @@ class InvoiceBuilder
                 'total_rappen' => 0,
                 'title' => $title,
                 'notes' => $notes,
-                'recipients' => $client->defaultRecipients(),
+                'recipients' => $recipients ?? $client->defaultRecipients(),
             ]);
 
             $invoice->qr_reference = $this->qr->generate($invoice->id);

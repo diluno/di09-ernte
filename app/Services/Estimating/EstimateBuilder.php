@@ -31,8 +31,9 @@ class EstimateBuilder
         ?string $notes = null,
         ?string $title = null,
         Carbon|string|null $taxDate = null,
+        ?array $recipients = null,
     ): Estimate {
-        return DB::transaction(function () use ($client, $project, $lines, $notes, $title, $taxDate) {
+        return DB::transaction(function () use ($client, $project, $lines, $notes, $title, $taxDate, $recipients) {
             $profile = BusinessProfile::current();
             $taxDate = $taxDate ?: now()->toDateString();
             $documentRate = VatRate::rateForDate($taxDate);
@@ -51,7 +52,7 @@ class EstimateBuilder
                 'total_rappen' => 0,
                 'notes' => $notes,
                 'title' => $title,
-                'recipients' => $client->defaultRecipients(),
+                'recipients' => $recipients ?? $client->defaultRecipients(),
             ]);
 
             $lineAmounts = [];

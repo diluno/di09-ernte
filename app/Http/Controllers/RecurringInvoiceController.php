@@ -69,7 +69,7 @@ class RecurringInvoiceController extends Controller
                 'anchor_day' => $first->day,
                 'next_run_on' => $nextRun->toDateString(),
                 'auto_send' => $data['auto_send'] ?? false,
-                'recipients' => $client->defaultRecipients(),
+                'recipients' => $data['recipients'] ?? $client->defaultRecipients(),
             ]);
             $this->syncLines($schedule, $data['lines']);
         });
