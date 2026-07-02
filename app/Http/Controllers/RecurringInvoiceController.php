@@ -92,6 +92,7 @@ class RecurringInvoiceController extends Controller
                 'next_run_on' => $recurringInvoice->next_run_on?->toDateString(),
                 'vat_rate' => (float) $recurringInvoice->vat_rate,
                 'auto_send' => $recurringInvoice->auto_send,
+                'recipients' => $recurringInvoice->recipients ?? [],
                 'lines' => $recurringInvoice->lines->map(fn (RecurringInvoiceLine $l) => [
                     'description' => $l->description,
                     'hours' => (float) $l->hours,
@@ -190,8 +191,14 @@ class RecurringInvoiceController extends Controller
     private function formData(): array
     {
         return [
-            'clients' => Client::active()->orderBy('name')->get(['id', 'name'])
-                ->map(fn (Client $c) => ['id' => $c->id, 'name' => $c->name])->values(),
+            'clients' => Client::active()->with('contacts')->orderBy('name')->get(['id', 'name'])
+                ->map(fn (Client $c) => [
+                    'id' => $c->id, 'name' => $c->name,
+                    'contacts' => $c->contacts->map(fn (\App\Models\Contact $ct) => [
+                        'id' => $ct->id, 'name' => $ct->name, 'email' => $ct->email,
+                        'role' => $ct->role, 'is_default' => $ct->is_default,
+                    ])->values(),
+                ])->values(),
             'projects' => Project::active()->orderBy('name')->get(['id', 'name', 'client_id', 'rate_rappen'])
                 ->map(fn (Project $p) => [
                     'id' => $p->id, 'name' => $p->name, 'client_id' => $p->client_id,

@@ -48,8 +48,14 @@ class EstimateController extends Controller
     public function create(): Response
     {
         return Inertia::render('Estimates/Create', [
-            'clients' => Client::active()->orderBy('name')->get(['id', 'name'])
-                ->map(fn (Client $c) => ['id' => $c->id, 'name' => $c->name])->values(),
+            'clients' => Client::active()->with('contacts')->orderBy('name')->get(['id', 'name'])
+                ->map(fn (Client $c) => [
+                    'id' => $c->id, 'name' => $c->name,
+                    'contacts' => $c->contacts->map(fn (\App\Models\Contact $ct) => [
+                        'id' => $ct->id, 'name' => $ct->name, 'email' => $ct->email,
+                        'role' => $ct->role, 'is_default' => $ct->is_default,
+                    ])->values(),
+                ])->values(),
             'projects' => Project::active()->orderBy('name')->get(['id', 'name', 'client_id', 'rate_rappen'])
                 ->map(fn (Project $p) => [
                     'id' => $p->id, 'name' => $p->name, 'client_id' => $p->client_id,
@@ -114,14 +120,21 @@ class EstimateController extends Controller
                 'title' => $estimate->title,
                 'notes' => $estimate->notes,
                 'tax_date' => ($estimate->issued_on ?? $estimate->created_at)?->toDateString(),
+                'recipients' => $estimate->recipients ?? [],
                 'lines' => $estimate->lines->map(fn (EstimateLine $l) => [
                     'description' => $l->description,
                     'hours' => (float) $l->hours,
                     'rate' => (int) round($l->rate_rappen / 100),
                 ])->values(),
             ],
-            'clients' => Client::active()->orderBy('name')->get(['id', 'name'])
-                ->map(fn (Client $c) => ['id' => $c->id, 'name' => $c->name])->values(),
+            'clients' => Client::active()->with('contacts')->orderBy('name')->get(['id', 'name'])
+                ->map(fn (Client $c) => [
+                    'id' => $c->id, 'name' => $c->name,
+                    'contacts' => $c->contacts->map(fn (\App\Models\Contact $ct) => [
+                        'id' => $ct->id, 'name' => $ct->name, 'email' => $ct->email,
+                        'role' => $ct->role, 'is_default' => $ct->is_default,
+                    ])->values(),
+                ])->values(),
             'projects' => Project::active()->orderBy('name')->get(['id', 'name', 'client_id', 'rate_rappen'])
                 ->map(fn (Project $p) => [
                     'id' => $p->id, 'name' => $p->name, 'client_id' => $p->client_id,
