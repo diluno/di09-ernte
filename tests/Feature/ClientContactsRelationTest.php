@@ -2,6 +2,7 @@
 // tests/Feature/ClientContactsRelationTest.php
 use App\Models\Client;
 use App\Models\Contact;
+use Illuminate\Support\Facades\DB;
 
 it('returns default recipients ordered by sort_order', function () {
     $client = Client::factory()->create();
@@ -19,4 +20,18 @@ it('returns an empty array when no default contacts exist', function () {
     $client = Client::factory()->create();
     Contact::factory()->for($client)->create(['is_default' => false]);
     expect($client->defaultRecipients())->toBe([]);
+});
+
+it('does not run an extra query when contacts are already eager-loaded', function () {
+    $client = Client::factory()->create();
+    Contact::factory()->for($client)->create(['is_default' => true]);
+
+    $loaded = Client::with('contacts')->find($client->id);
+
+    DB::enableQueryLog();
+    $loaded->defaultRecipients();
+    $queries = DB::getQueryLog();
+    DB::disableQueryLog();
+
+    expect($queries)->toBeEmpty();
 });

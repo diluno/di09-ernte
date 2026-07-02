@@ -38,10 +38,10 @@ class Client extends Model
     /** Default recipient set as [{name,email}] snapshots. */
     public function defaultRecipients(): array
     {
-        return $this->contacts()
+        return $this->contacts
             ->where('is_default', true)
-            ->get(['name', 'email'])
             ->map(fn (Contact $c) => ['name' => $c->name, 'email' => $c->email])
+            ->values()
             ->all();
     }
 
