@@ -842,6 +842,13 @@ a { color: inherit; text-decoration: none; }
 .entry-row .dur { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
 .entry-row .billable { color: var(--forest); text-align: right; font-variant-numeric: tabular-nums; }
 .entry-row .billable.no { color: var(--ink-4); }
+/* The sidebar is far narrower than the Today page, so let the fixed columns
+   shrink to their content and hand the leftover width to the description —
+   otherwise "no description" wraps onto multiple lines. */
+.detail-side .entry-row {
+  grid-template-columns: 4px minmax(0, 1fr) auto auto auto;
+  gap: 8px;
+}
 
 /* ─────────────────────── Invoice detail ─────────────────────── */
 .invoice-page {
