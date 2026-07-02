@@ -23,7 +23,7 @@ class UpdateClientRequest extends FormRequest
             'vat_id' => 'nullable|string|max:64',
             'default_rate_rappen' => 'nullable|integer|min:0',
             'contacts' => 'sometimes|array',
-            'contacts.*.id' => 'sometimes|integer',
+            'contacts.*.id' => ['sometimes', 'integer', Rule::exists('contacts', 'id')->where('client_id', $id)],
             'contacts.*.name' => 'required|string|max:255',
             'contacts.*.email' => 'required|email|max:255',
             'contacts.*.role' => 'nullable|string|max:255',

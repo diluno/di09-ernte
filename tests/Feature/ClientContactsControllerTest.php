@@ -38,3 +38,20 @@ it('syncs contacts on update: adds, edits, deletes', function () {
     expect($client->contacts->pluck('name')->sort()->values()->all())->toBe(['New', 'Renamed']);
     expect(Contact::find($drop->id))->toBeNull();
 });
+
+it('rejects a contact id belonging to another client', function () {
+    $clientA = Client::factory()->create();
+    Contact::factory()->for($clientA)->create(['name' => 'A Contact', 'email' => 'a@x.ch']);
+
+    $clientB = Client::factory()->create();
+    $foreignContact = Contact::factory()->for($clientB)->create(['name' => 'B Contact', 'email' => 'b@x.ch']);
+
+    $this->patch("/clients/{$clientA->id}", [
+        'contacts' => [
+            ['id' => $foreignContact->id, 'name' => 'Hijacked', 'email' => 'b@x.ch', 'role' => null, 'is_default' => false],
+        ],
+    ])->assertSessionHasErrors('contacts.0.id');
+
+    expect(Contact::find($foreignContact->id))->not->toBeNull();
+    expect(Contact::find($foreignContact->id)->name)->toBe('B Contact');
+});
