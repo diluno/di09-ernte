@@ -29,7 +29,7 @@ class SendInvoiceReminderMail implements ShouldQueue
             return;
         }
 
-        $recipients = $invoice->client?->defaultRecipients() ?? [];
+        $recipients = $invoice->recipients ?: ($invoice->client?->defaultRecipients() ?? []);
 
         $to = array_map(fn ($r) => new Address($r['email'], $r['name']), $recipients);
         Mail::to($to[0])->cc(array_slice($to, 1))->send(new InvoiceReminderMail($invoice));
@@ -51,7 +51,7 @@ class SendInvoiceReminderMail implements ShouldQueue
             return false;
         }
 
-        if (empty($invoice->client?->defaultRecipients())) {
+        if (empty($invoice->recipients ?: ($invoice->client?->defaultRecipients() ?? []))) {
             return false;
         }
 

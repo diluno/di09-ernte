@@ -27,7 +27,7 @@ class EstimateLifecycle
             throw new \DomainException("Only a draft can be sent (status: {$estimate->status}).");
         }
 
-        $recipients = $estimate->client?->defaultRecipients() ?? [];
+        $recipients = $estimate->recipients ?: ($estimate->client?->defaultRecipients() ?? []);
         if (empty($recipients)) {
             throw new \DomainException('Cannot send estimate because the client has no contacts.');
         }

@@ -26,7 +26,7 @@ class InvoiceLifecycle
             throw new \DomainException("Only a draft can be sent (status: {$invoice->status}).");
         }
 
-        $recipients = $invoice->client?->defaultRecipients() ?? [];
+        $recipients = $invoice->recipients ?: ($invoice->client?->defaultRecipients() ?? []);
         if (empty($recipients)) {
             throw new \DomainException('Cannot send invoice because the client has no contacts.');
         }
