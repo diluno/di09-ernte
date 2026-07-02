@@ -10,7 +10,7 @@ class Client extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'short_code', 'contact_name', 'email',
+        'name', 'short_code',
         'address_line_1', 'address_line_2', 'postal_code', 'city', 'country',
         'vat_id', 'default_rate_rappen', 'archived_at',
     ];
@@ -28,6 +28,21 @@ class Client extends Model
     public function invoices()
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    public function contacts()
+    {
+        return $this->hasMany(Contact::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /** Default recipient set as [{name,email}] snapshots. */
+    public function defaultRecipients(): array
+    {
+        return $this->contacts()
+            ->where('is_default', true)
+            ->get(['name', 'email'])
+            ->map(fn (Contact $c) => ['name' => $c->name, 'email' => $c->email])
+            ->all();
     }
 
     public function scopeActive($q) { return $q->whereNull('archived_at'); }
