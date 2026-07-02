@@ -153,6 +153,9 @@ class EstimateController extends Controller
             if (array_key_exists('notes', $data)) {
                 $estimate->notes = $data['notes'];
             }
+            if (array_key_exists('recipients', $data)) {
+                $estimate->recipients = $data['recipients'];
+            }
             if (! empty($data['lines'])) {
                 $estimate->lines()->delete();
                 $lineAmounts = [];

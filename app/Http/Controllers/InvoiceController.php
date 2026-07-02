@@ -199,6 +199,9 @@ class InvoiceController extends Controller
             if (array_key_exists('period_end', $data)) {
                 $invoice->period_end = $data['period_end'];
             }
+            if (array_key_exists('recipients', $data)) {
+                $invoice->recipients = $data['recipients'];
+            }
             if (! empty($data['lines'])) {
                 $invoice->lines()->delete();
                 $lineAmounts = [];

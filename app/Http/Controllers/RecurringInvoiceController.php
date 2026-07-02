@@ -121,6 +121,10 @@ class RecurringInvoiceController extends Controller
                 'next_run_on' => $nextRun->toDateString(),
                 'auto_send' => $data['auto_send'] ?? false,
             ]);
+            if (array_key_exists('recipients', $data)) {
+                $recurringInvoice->recipients = $data['recipients'];
+                $recurringInvoice->save();
+            }
             $recurringInvoice->lines()->delete();
             $this->syncLines($recurringInvoice, $data['lines']);
         });
