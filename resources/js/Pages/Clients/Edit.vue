@@ -3,6 +3,7 @@ import { onMounted } from 'vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { pushRecent } from '@/composables/useRecent.js';
+import ContactsEditor from '@/Components/ContactsEditor.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -10,7 +11,10 @@ const props = defineProps({
   client: { type: Object, required: true },
 });
 
-const form = useForm({ ...props.client });
+const form = useForm({
+  ...props.client,
+  contacts: (props.client.contacts ?? []).map((c) => ({ ...c })),
+});
 
 onMounted(() => {
   pushRecent({ url: `/clients/${props.client.id}`, label: props.client.name });
@@ -58,14 +62,6 @@ function archive() {
       <span>Country</span>
       <input v-model="form.country" maxlength="2" style="text-transform: uppercase" />
     </label>
-    <label class="field">
-      <span>Contact name</span>
-      <input v-model="form.contact_name" />
-    </label>
-    <label class="field">
-      <span>Email</span>
-      <input type="email" v-model="form.email" />
-    </label>
     <label class="field" style="grid-column: span 2">
       <span>Address line 1</span>
       <input v-model="form.address_line_1" />
@@ -90,6 +86,11 @@ function archive() {
       <span>Default rate (rappen)</span>
       <input type="number" v-model="form.default_rate_rappen" min="0" />
     </label>
+    <div class="field" style="grid-column: span 2">
+      <span>Contacts</span>
+      <ContactsEditor v-model="form.contacts" />
+      <small v-if="form.errors.contacts" class="err">{{ form.errors.contacts }}</small>
+    </div>
     <div style="grid-column: span 2; display: flex; gap: 8px; margin-top: 12px">
       <button type="submit" class="btn primary" :disabled="form.processing">Save</button>
       <Link href="/clients" class="btn ghost">Cancel</Link>

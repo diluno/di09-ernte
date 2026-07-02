@@ -1,11 +1,12 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import ContactsEditor from '@/Components/ContactsEditor.vue';
 
 defineOptions({ layout: AppLayout });
 
 const form = useForm({
-  name: '', short_code: '', contact_name: '', email: '',
+  name: '', short_code: '', contacts: [],
   address_line_1: '', address_line_2: '', postal_code: '', city: '',
   country: 'CH', vat_id: '', default_rate_rappen: null,
 });
@@ -44,14 +45,6 @@ function submit() {
       <span>Country</span>
       <input v-model="form.country" required maxlength="2" style="text-transform: uppercase" />
     </label>
-    <label class="field">
-      <span>Contact name</span>
-      <input v-model="form.contact_name" />
-    </label>
-    <label class="field">
-      <span>Email</span>
-      <input type="email" v-model="form.email" />
-    </label>
     <label class="field" style="grid-column: span 2">
       <span>Address line 1</span>
       <input v-model="form.address_line_1" />
@@ -76,6 +69,11 @@ function submit() {
       <span>Default rate (rappen)</span>
       <input type="number" v-model="form.default_rate_rappen" min="0" />
     </label>
+    <div class="field" style="grid-column: span 2">
+      <span>Contacts</span>
+      <ContactsEditor v-model="form.contacts" />
+      <small v-if="form.errors.contacts" class="err">{{ form.errors.contacts }}</small>
+    </div>
     <div style="grid-column: span 2; display: flex; gap: 8px; margin-top: 12px">
       <button type="submit" class="btn primary" :disabled="form.processing">Create</button>
       <Link href="/clients" class="btn ghost">Cancel</Link>
