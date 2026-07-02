@@ -15,8 +15,6 @@ class ClientFactory extends Factory
         return [
             'name' => $name,
             'short_code' => strtoupper(substr(str_replace(' ', '', $name), 0, 2)),
-            'contact_name' => $this->faker->name(),
-            'email' => $this->faker->companyEmail(),
             'address_line_1' => $this->faker->streetAddress(),
             'postal_code' => $this->faker->postcode(),
             'city' => $this->faker->city(),
