@@ -17,8 +17,8 @@ class StoreInvoiceRequest extends FormRequest
         return [
             'client_id' => 'required|exists:clients,id',
             'project_id' => ['nullable', Rule::exists('projects', 'id')->where(fn ($q) => $q->where('client_id', $this->input('client_id')))],
-            'period_start' => 'required|date',
-            'period_end' => 'required|date|after_or_equal:period_start',
+            'period_start' => 'nullable|date',
+            'period_end' => 'nullable|date|after_or_equal:period_start',
             'entry_ids' => 'array',
             'entry_ids.*' => 'integer|exists:time_entries,id',
             'lines' => 'required|array|min:1',

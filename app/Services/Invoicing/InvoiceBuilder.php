@@ -79,8 +79,8 @@ class InvoiceBuilder
     public function createDraft(
         Client $client,
         ?Project $project,
-        string $periodStart,
-        string $periodEnd,
+        ?string $periodStart,
+        ?string $periodEnd,
         array $lines,
         array $entryIds,
         ?string $title = null,
@@ -91,7 +91,7 @@ class InvoiceBuilder
     ): Invoice {
         return DB::transaction(function () use ($client, $project, $periodStart, $periodEnd, $lines, $entryIds, $title, $notes, $vatRate, $taxDate, $recipients) {
             $profile = BusinessProfile::current();
-            $taxDate = $taxDate ?: $periodEnd;
+            $taxDate = $taxDate ?: ($periodEnd ?? Carbon::now()->toDateString());
             $documentRate = $vatRate ?? VatRate::rateForDate($taxDate);
 
             $number = $this->numberer->nextFor((int) date('Y'));
