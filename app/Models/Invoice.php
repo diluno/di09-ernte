@@ -14,10 +14,11 @@ class Invoice extends Model
         'period_start', 'period_end', 'issued_on', 'due_on',
         'status', 'currency', 'vat_rate',
         'subtotal_rappen', 'vat_rappen', 'rounding_rappen', 'total_rappen',
-        'notes', 'title', 'qr_reference', 'sent_at', 'paid_at', 'pdf_path',
+        'notes', 'title', 'qr_reference', 'sent_at', 'paid_at', 'pdf_path', 'recipients',
     ];
 
     protected $casts = [
+        'recipients' => 'array',
         'period_start' => 'date',
         'period_end' => 'date',
         'issued_on' => 'date',
