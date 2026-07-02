@@ -13,8 +13,6 @@ class StoreClientRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'short_code' => 'required|string|max:4|unique:clients,short_code',
-            'contact_name' => 'nullable|string|max:255',
-            'email' => 'nullable|email|max:255',
             'address_line_1' => 'nullable|string|max:255',
             'address_line_2' => 'nullable|string|max:255',
             'postal_code' => 'nullable|string|max:20',
@@ -22,6 +20,12 @@ class StoreClientRequest extends FormRequest
             'country' => 'required|string|size:2',
             'vat_id' => 'nullable|string|max:64',
             'default_rate_rappen' => 'nullable|integer|min:0',
+            'contacts' => 'sometimes|array',
+            'contacts.*.id' => 'sometimes|integer',
+            'contacts.*.name' => 'required|string|max:255',
+            'contacts.*.email' => 'required|email|max:255',
+            'contacts.*.role' => 'nullable|string|max:255',
+            'contacts.*.is_default' => 'boolean',
         ];
     }
 }
