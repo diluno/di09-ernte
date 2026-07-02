@@ -40,7 +40,7 @@ function destroy(id) {
     <Link href="/recurring-invoices/new" class="btn primary">New schedule</Link>
   </div>
 
-  <div style="padding: 0 28px 28px">
+  <div style="padding: 20px 28px 28px">
     <table class="table">
       <thead>
         <tr>

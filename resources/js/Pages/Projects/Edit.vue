@@ -72,7 +72,7 @@ function unarchive() {
     </div>
   </div>
 
-  <form @submit.prevent="submit" style="max-width: 720px; padding: 0 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px">
+  <form @submit.prevent="submit" style="max-width: 720px; padding: 20px 28px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px">
     <label class="field" style="grid-column: span 2">
       <span>Client</span>
       <select v-model="form.client_id" required>

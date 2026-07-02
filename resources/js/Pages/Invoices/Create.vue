@@ -109,7 +109,7 @@ function save() {
   </div>
 
   <!-- Picker mode: choose a client first. -->
-  <div v-if="!client" style="padding: 0 28px 28px; max-width: 460px">
+  <div v-if="!client" style="padding: 20px 28px 28px; max-width: 460px">
     <h3 class="section-title">Choose a client</h3>
     <p class="dim" style="font-size: var(--fs-sm); margin: 0 0 12px">
       Pick the client to invoice — you'll then select billable, unbilled entries for the period.
