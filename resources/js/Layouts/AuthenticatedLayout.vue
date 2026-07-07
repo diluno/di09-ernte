@@ -6,6 +6,7 @@ import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link } from '@inertiajs/vue3';
+import FlashMessages from '@/Components/FlashMessages.vue';
 
 const showingNavigationDropdown = ref(false);
 </script>
@@ -194,5 +195,7 @@ const showingNavigationDropdown = ref(false);
                 <slot />
             </main>
         </div>
+
+        <FlashMessages />
     </div>
 </template>

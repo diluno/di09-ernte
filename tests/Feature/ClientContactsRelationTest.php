@@ -16,9 +16,18 @@ it('returns default recipients ordered by sort_order', function () {
     ]);
 });
 
-it('returns an empty array when no default contacts exist', function () {
+it('falls back to the first contact when none is marked default', function () {
     $client = Client::factory()->create();
-    Contact::factory()->for($client)->create(['is_default' => false]);
+    Contact::factory()->for($client)->create(['name' => 'B', 'email' => 'b@x.ch', 'is_default' => false, 'sort_order' => 1]);
+    Contact::factory()->for($client)->create(['name' => 'A', 'email' => 'a@x.ch', 'is_default' => false, 'sort_order' => 0]);
+
+    expect($client->defaultRecipients())->toBe([
+        ['name' => 'A', 'email' => 'a@x.ch'],
+    ]);
+});
+
+it('returns an empty array when the client has no contacts', function () {
+    $client = Client::factory()->create();
     expect($client->defaultRecipients())->toBe([]);
 });
 
