@@ -311,6 +311,44 @@ class InvoiceController extends Controller
         return back()->with('success', "Invoice {$invoice->number} sent.");
     }
 
+    public function exportPaid(Request $request, InvoicePdfRenderer $renderer): \Symfony\Component\HttpFoundation\Response|RedirectResponse
+    {
+        $year = $request->integer('year', now()->year);
+        $quarter = min(4, max(1, $request->integer('quarter', now()->quarter)));
+
+        $start = Carbon::create($year, ($quarter - 1) * 3 + 1, 1)->startOfDay();
+        $end = $start->copy()->addMonths(3);
+
+        $invoices = Invoice::query()
+            ->where('status', 'paid')
+            ->where('paid_at', '>=', $start)
+            ->where('paid_at', '<', $end)
+            ->orderBy('number')
+            ->get();
+
+        if ($invoices->isEmpty()) {
+            return back()->with('error', "No paid invoices in Q{$quarter} {$year}.");
+        }
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'invoices-zip-');
+        $zip = new \ZipArchive;
+        $zip->open($zipPath, \ZipArchive::OVERWRITE);
+
+        foreach ($invoices as $invoice) {
+            // Prefer the PDF frozen at send-time; render fresh only when it's missing.
+            $bytes = $invoice->pdf_path && Storage::disk('local')->exists($invoice->pdf_path)
+                ? Storage::disk('local')->get($invoice->pdf_path)
+                : $renderer->pdfBytes($invoice);
+            $zip->addFromString($invoice->pdfFilename(), $bytes);
+        }
+
+        $zip->close();
+
+        return response()
+            ->download($zipPath, "Rechnungen-{$year}-Q{$quarter}.zip", ['Content-Type' => 'application/zip'])
+            ->deleteFileAfterSend();
+    }
+
     public function pdf(Invoice $invoice, InvoicePdfRenderer $renderer): \Symfony\Component\HttpFoundation\Response
     {
         // Always render fresh so downloads reflect the current template. The

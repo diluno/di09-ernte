@@ -41,6 +41,27 @@ function changeChartYear(year) {
 function fmtMoney(v)      { return 'CHF ' + Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function fmtMoneyShort(v) { return 'CHF ' + Math.round(v).toLocaleString('de-CH'); }
 
+const exportQuarters = computed(() => {
+  const now = new Date();
+  let year = now.getFullYear();
+  let quarter = Math.floor(now.getMonth() / 3) + 1;
+  const list = [];
+  for (let i = 0; i < 8; i++) {
+    list.push({ year, quarter, label: `Q${quarter} ${year}` });
+    quarter -= 1;
+    if (quarter === 0) { quarter = 4; year -= 1; }
+  }
+  return list;
+});
+
+function exportQuarter(event) {
+  const value = event.target.value;
+  if (!value) return;
+  const [year, quarter] = value.split('-');
+  window.location.href = `/invoices/export?year=${year}&quarter=${quarter}`;
+  event.target.value = '';
+}
+
 const TABS = computed(() => [
   { id: 'all',     label: 'All',     count: props.counts.all },
   { id: 'draft',   label: 'Draft',   count: props.counts.draft },
@@ -62,6 +83,10 @@ const TABS = computed(() => [
       </h1>
     </div>
     <div style="display: flex; gap: 8px">
+      <select class="btn" title="Download all paid invoices of a quarter as ZIP" @change="exportQuarter">
+        <option value="">↓ Paid PDFs…</option>
+        <option v-for="q in exportQuarters" :key="q.label" :value="`${q.year}-${q.quarter}`">{{ q.label }}</option>
+      </select>
       <Link href="/invoices/new" class="btn primary">+ New invoice</Link>
     </div>
   </div>
