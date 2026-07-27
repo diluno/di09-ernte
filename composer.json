@@ -10,6 +10,7 @@
         "anthropic-ai/sdk": "^0.40.0",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/framework": "^13.0",
+        "laravel/mcp": "^0.9.1",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "spatie/browsershot": "^5.4",

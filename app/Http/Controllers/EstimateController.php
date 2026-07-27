@@ -175,49 +175,9 @@ class EstimateController extends Controller
         return response($renderer->html($estimate))->header('Content-Type', 'text/html');
     }
 
-    public function update(UpdateEstimateRequest $request, Estimate $estimate): RedirectResponse
+    public function update(UpdateEstimateRequest $request, Estimate $estimate, EstimateBuilder $builder): RedirectResponse
     {
-        $data = $request->validated();
-
-        DB::transaction(function () use ($data, $estimate) {
-            if (array_key_exists('client_id', $data)) {
-                $estimate->client_id = $data['client_id'];
-            }
-            if (array_key_exists('project_id', $data)) {
-                $estimate->project_id = $data['project_id'];
-            }
-            if (array_key_exists('title', $data)) {
-                $estimate->title = $data['title'];
-            }
-            if (array_key_exists('notes', $data)) {
-                $estimate->notes = $data['notes'];
-            }
-            if (array_key_exists('recipients', $data)) {
-                $estimate->recipients = $data['recipients'];
-            }
-            if (! empty($data['lines'])) {
-                $estimate->lines()->delete();
-                $lineAmounts = [];
-                $sort = 0;
-                foreach ($data['lines'] as $line) {
-                    $hours = round((float) $line['hours'], 2);
-                    $rate = (int) $line['rate_rappen'];
-                    $amount = (int) round($hours * $rate);
-                    $estimate->lines()->create([
-                        'description' => $line['description'], 'hours' => $hours,
-                        'rate_rappen' => $rate, 'amount_rappen' => $amount,
-                        'sort_order' => $sort++,
-                    ]);
-                    $lineAmounts[] = $amount;
-                }
-                $totals = LineTotals::compute($lineAmounts, (float) $estimate->vat_rate);
-                $estimate->subtotal_rappen = $totals['subtotal_rappen'];
-                $estimate->vat_rappen = $totals['vat_rappen'];
-                $estimate->rounding_rappen = $totals['rounding_rappen'];
-                $estimate->total_rappen = $totals['total_rappen'];
-            }
-            $estimate->save();
-        });
+        $builder->updateDraft($estimate, $request->validated());
 
         return redirect("/estimates/{$estimate->number}")->with('success', 'Draft updated.');
     }

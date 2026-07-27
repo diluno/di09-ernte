@@ -91,4 +91,53 @@ class EstimateBuilder
             return $estimate->fresh(['lines', 'events']);
         });
     }
+
+    /**
+     * Apply a partial update to a draft estimate. Only the keys present in $data
+     * are touched; passing `lines` replaces the whole set and recomputes totals.
+     *
+     * @param  array{client_id?:int, project_id?:?int, title?:?string, notes?:?string, recipients?:?array, lines?:array<int, array{description:string, hours:float|string, rate_rappen:int}>}  $data
+     */
+    public function updateDraft(Estimate $estimate, array $data): Estimate
+    {
+        return DB::transaction(function () use ($estimate, $data) {
+            foreach (['client_id', 'project_id', 'title', 'notes', 'recipients'] as $field) {
+                if (array_key_exists($field, $data)) {
+                    $estimate->{$field} = $data[$field];
+                }
+            }
+
+            if (! empty($data['lines'])) {
+                $estimate->lines()->delete();
+
+                $lineAmounts = [];
+                $sort = 0;
+                foreach ($data['lines'] as $line) {
+                    $hours = round((float) $line['hours'], 2);
+                    $rate = (int) $line['rate_rappen'];
+                    $amount = (int) round($hours * $rate);   // recompute — ignore any submitted amount
+
+                    $estimate->lines()->create([
+                        'description' => (string) $line['description'],
+                        'hours' => $hours,
+                        'rate_rappen' => $rate,
+                        'amount_rappen' => $amount,
+                        'sort_order' => $sort++,
+                    ]);
+
+                    $lineAmounts[] = $amount;
+                }
+
+                $totals = LineTotals::compute($lineAmounts, (float) $estimate->vat_rate);
+                $estimate->subtotal_rappen = $totals['subtotal_rappen'];
+                $estimate->vat_rappen = $totals['vat_rappen'];
+                $estimate->rounding_rappen = $totals['rounding_rappen'];
+                $estimate->total_rappen = $totals['total_rappen'];
+            }
+
+            $estimate->save();
+
+            return $estimate->fresh(['lines', 'events']);
+        });
+    }
 }

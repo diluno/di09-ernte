@@ -121,3 +121,33 @@ Common `ernte:doctor` fixes:
 - `manifest.json`
 
 To restore, put the app in maintenance mode, import the SQL dump into the Forge database, extract `invoices.tar.gz` back under `storage/app/private/invoices`, run `php artisan optimize:clear`, then bring the app back up.
+
+## MCP Server
+
+ernte exposes its estimates over MCP at `POST /api/mcp` (streamable HTTP), authed with
+the same Sanctum tokens as the rest of `/api` and rate-limited to 60 requests/minute.
+Tools: `list_clients`, `list_estimates`, `get_estimate`, `draft_estimate_lines`,
+`create_estimate`, `update_estimate`, `send_estimate`, `accept_estimate`,
+`decline_estimate`, `convert_estimate_to_invoice`.
+
+Mint a token with the existing auth endpoint:
+
+```sh
+curl -s -X POST https://ernte.dil.uno/api/auth/token \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"you@example.com","password":"…","device_name":"claude-mcp"}'
+```
+
+Then register it with Claude Code:
+
+```sh
+claude mcp add --transport http ernte https://ernte.dil.uno/api/mcp \
+  --header "Authorization: Bearer <token>"
+```
+
+Revoke from tinker with `PersonalAccessToken::where('name', 'claude-mcp')->delete()`.
+
+`send_estimate` emails the client and is not reversible — the tool requires an explicit
+estimate number so it cannot fire on a vague instruction, but there is no confirmation
+step beyond that. `draft_estimate_lines` needs `ANTHROPIC_API_KEY` set in the site env;
+every other tool works without it.

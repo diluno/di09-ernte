@@ -8,7 +8,13 @@ use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\TimerController;
+use App\Mcp\Servers\ErnteServer;
 use Illuminate\Support\Facades\Route;
+use Laravel\Mcp\Facades\Mcp;
+
+// Streamable-HTTP MCP endpoint, authed with the same Sanctum tokens as the rest
+// of /api. Lives at /api/mcp.
+Mcp::web('/mcp', ErnteServer::class)->middleware(['auth:sanctum', 'throttle:60,1']);
 
 Route::post('/auth/token', [AuthController::class, 'store'])->middleware('throttle:5,1');
 
