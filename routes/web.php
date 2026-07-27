@@ -62,6 +62,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/estimates', [EstimateController::class, 'index'])->name('estimates.index');
     Route::get('/estimates/new', [EstimateController::class, 'create'])->name('estimates.create');
+    Route::post('/estimates/draft', [EstimateController::class, 'draft'])->name('estimates.draft');
     Route::post('/estimates', [EstimateController::class, 'store'])->name('estimates.store');
 
     Route::get('/estimates/{estimate:number}', [EstimateController::class, 'show'])->name('estimates.show');

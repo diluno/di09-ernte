@@ -50,6 +50,56 @@ function moveUp(i) { if (i > 0) { const a = lines.value; [a[i - 1], a[i]] = [a[i
 // Seed one empty line on mount for convenience.
 addLine();
 
+// ---- AI drafting -----------------------------------------------------------
+// Sends a prose brief to the server, which asks Claude for line items and
+// returns them as a proposal. Nothing is saved — the lines land in the form
+// above for review and editing, exactly as if they'd been typed by hand.
+const brief = ref('');
+const drafting = ref(false);
+const draftError = ref('');
+
+const canDraft = computed(() => clientId.value && brief.value.trim().length >= 10 && !drafting.value);
+
+async function draftWithAi() {
+  if (!canDraft.value) return;
+  drafting.value = true;
+  draftError.value = '';
+
+  try {
+    const res = await fetch('/estimates/draft', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        // Laravel sets an XSRF-TOKEN cookie; plain fetch doesn't echo it back on its own.
+        'X-XSRF-TOKEN': decodeURIComponent(document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/)?.[1] ?? ''),
+      },
+      body: JSON.stringify({
+        brief: brief.value,
+        client_id: clientId.value,
+        project_id: projectId.value || null,
+      }),
+    });
+
+    const payload = await res.json();
+    if (!res.ok) throw new Error(payload.message || 'Drafting failed.');
+
+    // Replace the lines wholesale — the draft is the starting point, not an addition.
+    lines.value = payload.lines.map((l) => ({
+      key: nextKey++,
+      description: l.description,
+      hours: l.hours,
+      rate: l.rate || selectedProject.value?.rate || 0,
+    }));
+    if (payload.title && !title.value) title.value = payload.title;
+    if (payload.notes && !notes.value) notes.value = payload.notes;
+  } catch (e) {
+    draftError.value = e.message;
+  } finally {
+    drafting.value = false;
+  }
+}
+
 function fmtMoney(rappen) { return 'CHF ' + (rappen / 100).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function fmtRate(rate) { return Number(rate).toFixed(2).replace(/\.?0+$/, ''); }
 
@@ -115,7 +165,26 @@ function save() {
         </label>
       </div>
 
-      <h3 class="section-title">Lines</h3>
+      <h3 class="section-title">Draft with AI</h3>
+      <div class="ai-draft">
+        <AutoTextarea
+          v-model="brief"
+          class="cell-input framed"
+          :disabled="drafting"
+          placeholder="Describe the job — e.g. “Neue Website für den Hofladen: 6 Seiten, Bildstrecke, Bestellformular, Umzug auf unser Hosting.” The lines below get replaced with a draft you can edit."
+        />
+        <div class="ai-draft__foot">
+          <span class="dim" style="font-size: var(--fs-xs)">
+            {{ clientId ? 'Uses this client’s past estimates as a style reference.' : 'Select a client first.' }}
+          </span>
+          <button class="btn ghost" :disabled="!canDraft" @click="draftWithAi">
+            {{ drafting ? 'Drafting…' : 'Draft lines' }}
+          </button>
+        </div>
+        <p v-if="draftError" style="color: var(--red); font-size: var(--fs-sm); margin-top: 8px">{{ draftError }}</p>
+      </div>
+
+      <h3 class="section-title" style="margin-top: 28px">Lines</h3>
       <div class="lines-card">
       <table class="table table--lines">
         <thead>
@@ -218,5 +287,10 @@ function save() {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 14%, transparent);
 }
+/* Prose-brief box that feeds the AI drafter. */
+.ai-draft { border: 1px solid var(--border-strong); background: var(--bg-2); padding: 12px; border-radius: 3px; }
+.ai-draft .cell-input { min-height: 72px; }
+.ai-draft__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
+
 .detail-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--border); }
 </style>

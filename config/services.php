@@ -39,6 +39,11 @@ return [
         'chrome_path' => env('BROWSERSHOT_CHROME_PATH'),
     ],
 
+    'anthropic' => [
+        'api_key' => env('ANTHROPIC_API_KEY'),
+        'model' => env('ANTHROPIC_MODEL', 'claude-opus-5'),
+    ],
+
     'harvest' => [
         'access_token' => env('HARVEST_ACCESS_TOKEN'),
         'account_id' => env('HARVEST_ACCOUNT_ID'),

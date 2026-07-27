@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\DraftEstimateRequest;
 use App\Http\Requests\StoreEstimateRequest;
 use App\Http\Requests\UpdateEstimateRequest;
 use App\Models\Client;
@@ -10,6 +11,7 @@ use App\Models\EstimateLine;
 use App\Models\Project;
 use App\Models\VatRate;
 use App\Services\Estimating\EstimateBuilder;
+use App\Services\Estimating\EstimateDrafter;
 use App\Services\Estimating\EstimateLifecycle;
 use App\Services\Estimating\EstimatePdfRenderer;
 use App\Support\EstimateProjections;
@@ -63,6 +65,29 @@ class EstimateController extends Controller
                 ])->values(),
             'vat_rates' => VatRate::catalogForFrontend(),
         ]);
+    }
+
+    /**
+     * Draft line items from a prose brief. Returns a proposal for the create
+     * form to fill in — nothing is persisted until the user saves.
+     */
+    public function draft(DraftEstimateRequest $request, EstimateDrafter $drafter): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validated();
+
+        try {
+            $draft = $drafter->draft(
+                brief: $data['brief'],
+                client: Client::findOrFail($data['client_id']),
+                project: isset($data['project_id']) ? Project::find($data['project_id']) : null,
+            );
+        } catch (\Throwable $e) {
+            Log::error('Estimate drafting failed', ['exception' => $e]);
+
+            return response()->json(['message' => 'Could not draft this estimate: '.$e->getMessage()], 422);
+        }
+
+        return response()->json($draft);
     }
 
     public function store(StoreEstimateRequest $request, EstimateBuilder $builder): RedirectResponse
