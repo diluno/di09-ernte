@@ -51,6 +51,11 @@ const EVENT_LABEL = {
   reminders_paused: 'Reminders paused', reminders_resumed: 'Reminders resumed',
 };
 function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+function eventDetail(e) {
+  if (e.payload?.email_to?.length) return `to ${e.payload.email_to.join(', ')}`;
+  if (e.kind === 'sent' && e.payload?.manual) return 'marked manually';
+  return null;
+}
 </script>
 
 <template>
@@ -110,7 +115,10 @@ function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-d
       <div style="display: flex; flex-direction: column; gap: 10px; font-size: var(--fs-sm)">
         <div v-for="(e, i) in events" :key="i" style="display: flex; gap: 10px; align-items: baseline">
           <span style="color: var(--ink-4); font-size: 10px; min-width: 96px">{{ fmtWhen(e.occurred_at) }}</span>
-          <span style="color: var(--ink-2)">{{ EVENT_LABEL[e.kind] ?? e.kind }}</span>
+          <span style="color: var(--ink-2)">
+            {{ EVENT_LABEL[e.kind] ?? e.kind }}
+            <span v-if="eventDetail(e)" class="muted"> — {{ eventDetail(e) }}</span>
+          </span>
         </div>
         <div v-if="events.length === 0" class="muted">No activity yet.</div>
       </div>
