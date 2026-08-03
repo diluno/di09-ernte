@@ -52,7 +52,9 @@ const EVENT_LABEL = {
 };
 function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); }
 function eventDetail(e) {
-  if (e.payload?.email_to?.length) return `to ${e.payload.email_to.join(', ')}`;
+  // email_to was a single string before multi-contact support; an array since.
+  const to = e.payload?.email_to;
+  if (to?.length) return `to ${Array.isArray(to) ? to.join(', ') : to}`;
   if (e.kind === 'sent' && e.payload?.manual) return 'marked manually';
   return null;
 }
