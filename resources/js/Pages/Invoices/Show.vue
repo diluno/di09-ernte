@@ -38,6 +38,8 @@ function voidIt()  {
   if (!window.confirm(`Void invoice #${props.invoice.number}? Linked entries will become billable again.`)) return;
   router.post(`/invoices/${props.invoice.id}/void`,  {}, { preserveScroll: true });
 }
+function pauseReminders()  { router.post(`/invoices/${props.invoice.id}/pause-reminders`,  {}, { preserveScroll: true }); }
+function resumeReminders() { router.post(`/invoices/${props.invoice.id}/resume-reminders`, {}, { preserveScroll: true }); }
 function destroy() {
   if (!window.confirm(`Delete invoice #${props.invoice.number}? This permanently removes it and its line items. Linked time entries return to unbilled.`)) return;
   router.delete(`/invoices/${props.invoice.id}`);
@@ -46,6 +48,7 @@ function destroy() {
 const EVENT_LABEL = {
   created: 'Created', sent: 'Sent', reminded: 'Reminder sent', paid: 'Marked paid',
   pdf_generated: 'Generated PDF', voided: 'Voided', overdue_stamped: 'Marked overdue',
+  reminders_paused: 'Reminders paused', reminders_resumed: 'Reminders resumed',
 };
 function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); }
 </script>
@@ -60,7 +63,7 @@ function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-d
       </div>
       <h1 class="page-title">
         Invoice #{{ invoice.number }}
-        <span class="meta">{{ invoice.client.name }}<span class="ascii-dot">·</span><span class="badge dot" :class="statusLabel">{{ statusLabel }}</span></span>
+        <span class="meta">{{ invoice.client.name }}<span class="ascii-dot">·</span><span class="badge dot" :class="statusLabel">{{ statusLabel }}</span><template v-if="invoice.reminders_paused"><span class="ascii-dot">·</span><span class="badge">reminders paused</span></template></span>
       </h1>
       <div v-if="invoice.title" class="page-subtitle">{{ invoice.title }}</div>
       <Link
@@ -76,6 +79,8 @@ function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-d
       <button v-if="isDraft" class="btn" @click="markSent">Mark as sent</button>
       <button v-if="isDraft" class="btn primary" @click="send">Send by email</button>
       <button v-else-if="isSent" class="btn primary" @click="markPaid">Mark paid</button>
+      <button v-if="isSent && !invoice.reminders_paused" class="btn" @click="pauseReminders">Pause reminders</button>
+      <button v-else-if="isSent" class="btn" @click="resumeReminders">Resume reminders</button>
       <button v-if="invoice.status !== 'paid' && invoice.status !== 'void'" class="btn ghost" @click="voidIt">Void</button>
       <button class="btn ghost" style="color: var(--red)" @click="destroy">Delete</button>
     </div>

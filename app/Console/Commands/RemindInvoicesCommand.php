@@ -23,6 +23,7 @@ class RemindInvoicesCommand extends Command
         $candidates = Invoice::query()
             ->with('client')
             ->where('status', 'sent')
+            ->whereNull('reminders_paused_at')
             ->whereDate('due_on', '<=', $dueThreshold)
             ->get();
 

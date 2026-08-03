@@ -96,6 +96,43 @@ test('reminder command still queues invoices whose recipients snapshot survives 
     Queue::assertPushed(SendInvoiceReminderMail::class, fn ($job) => $job->invoiceId === $invoice->id);
 });
 
+test('reminder command skips invoices with paused reminders', function () {
+    Queue::fake();
+
+    $client = Client::factory()->create();
+    Contact::factory()->for($client)->create(['email' => 'client@example.test', 'is_default' => true]);
+    Invoice::factory()->create([
+        'client_id' => $client->id,
+        'status' => 'sent',
+        'due_on' => now()->subDays(10)->toDateString(),
+        'reminders_paused_at' => now(),
+    ]);
+
+    $this->artisan('ernte:invoices:remind')
+        ->expectsOutput('Queued 0 reminder(s); skipped 0 missing email; skipped 0 recently reminded.')
+        ->assertExitCode(0);
+
+    Queue::assertNothingPushed();
+});
+
+test('reminder job skips invoices paused after the job was queued', function () {
+    Mail::fake();
+
+    $client = Client::factory()->create();
+    Contact::factory()->for($client)->create(['email' => 'client@example.test', 'is_default' => true]);
+    $invoice = Invoice::factory()->create([
+        'client_id' => $client->id,
+        'status' => 'sent',
+        'due_on' => now()->subDays(10)->toDateString(),
+        'reminders_paused_at' => now(),
+    ]);
+
+    (new SendInvoiceReminderMail($invoice->id))->handle();
+
+    Mail::assertNothingSent();
+    expect($invoice->events()->where('kind', 'reminded')->count())->toBe(0);
+});
+
 test('reminder job sends mail and writes reminded event', function () {
     Mail::fake();
 

@@ -47,7 +47,7 @@ class SendInvoiceReminderMail implements ShouldQueue
 
     private function shouldRemind(Invoice $invoice): bool
     {
-        if ($invoice->status !== 'sent' || ! $invoice->due_on || ! $invoice->due_on->lt(Carbon::today())) {
+        if ($invoice->status !== 'sent' || $invoice->reminders_paused_at || ! $invoice->due_on || ! $invoice->due_on->lt(Carbon::today())) {
             return false;
         }
 

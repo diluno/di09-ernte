@@ -371,6 +371,27 @@ test('POST /invoices/{id}/mark-sent issues a draft without emailing', function (
     Mail::assertNothingSent();
 });
 
+test('POST /invoices/{id}/pause-reminders and resume-reminders toggle the pause flag and log events', function () {
+    $inv = makeDraft();
+    $inv->update(['status' => 'sent']);
+
+    $this->post("/invoices/{$inv->id}/pause-reminders")->assertRedirect();
+    expect($inv->fresh()->reminders_paused_at)->not->toBeNull();
+    expect($inv->events()->where('kind', 'reminders_paused')->count())->toBe(1);
+
+    $this->post("/invoices/{$inv->id}/resume-reminders")->assertRedirect();
+    expect($inv->fresh()->reminders_paused_at)->toBeNull();
+    expect($inv->events()->where('kind', 'reminders_resumed')->count())->toBe(1);
+});
+
+test('POST /invoices/{id}/pause-reminders is rejected for non-sent invoices', function () {
+    $inv = makeDraft();
+
+    $this->post("/invoices/{$inv->id}/pause-reminders")->assertRedirect();
+
+    expect($inv->fresh()->reminders_paused_at)->toBeNull();
+});
+
 test('POST /invoices/{id}/mark-sent is rejected once not a draft', function () {
     $inv = makeDraft();
     $inv->update(['status' => 'sent']);

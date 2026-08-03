@@ -101,6 +101,7 @@ class InvoiceProjections
             'number' => $invoice->number,
             'status' => $invoice->status,
             'overdue' => $invoice->overdue,
+            'reminders_paused' => $invoice->reminders_paused_at !== null,
             'title' => $invoice->title,
             'client' => $invoice->client->only('id', 'name'),
             'project_name' => $invoice->project?->name,

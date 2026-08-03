@@ -58,6 +58,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/invoices/{invoice}/mark-sent', [InvoiceController::class, 'markSent'])->name('invoices.mark-sent');
     Route::post('/invoices/{invoice}/paid', [InvoiceController::class, 'markPaid'])->name('invoices.paid');
     Route::post('/invoices/{invoice}/void', [InvoiceController::class, 'void'])->name('invoices.void');
+    Route::post('/invoices/{invoice}/pause-reminders', [InvoiceController::class, 'pauseReminders'])->name('invoices.pause-reminders');
+    Route::post('/invoices/{invoice}/resume-reminders', [InvoiceController::class, 'resumeReminders'])->name('invoices.resume-reminders');
     Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
 
     Route::get('/estimates', [EstimateController::class, 'index'])->name('estimates.index');

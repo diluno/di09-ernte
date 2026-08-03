@@ -6,6 +6,7 @@ use App\Http\Requests\StoreInvoiceRequest;
 use App\Http\Requests\UpdateInvoiceRequest;
 use App\Models\Client;
 use App\Models\Invoice;
+use App\Models\InvoiceEvent;
 use App\Models\InvoiceLine;
 use App\Models\Project;
 use App\Models\TimeEntry;
@@ -291,6 +292,30 @@ class InvoiceController extends Controller
         }
 
         return back()->with('success', "Invoice {$invoice->number} voided.");
+    }
+
+    public function pauseReminders(Invoice $invoice): RedirectResponse
+    {
+        if ($invoice->status !== 'sent') {
+            return back()->with('error', 'Reminders only apply to sent invoices.');
+        }
+
+        $invoice->update(['reminders_paused_at' => now()]);
+        InvoiceEvent::create(['invoice_id' => $invoice->id, 'kind' => 'reminders_paused', 'occurred_at' => now()]);
+
+        return back()->with('success', "Reminders paused for invoice {$invoice->number}.");
+    }
+
+    public function resumeReminders(Invoice $invoice): RedirectResponse
+    {
+        if (! $invoice->reminders_paused_at) {
+            return back()->with('error', 'Reminders are not paused for this invoice.');
+        }
+
+        $invoice->update(['reminders_paused_at' => null]);
+        InvoiceEvent::create(['invoice_id' => $invoice->id, 'kind' => 'reminders_resumed', 'occurred_at' => now()]);
+
+        return back()->with('success', "Reminders resumed for invoice {$invoice->number}.");
     }
 
     public function send(Invoice $invoice, InvoiceLifecycle $lifecycle): RedirectResponse

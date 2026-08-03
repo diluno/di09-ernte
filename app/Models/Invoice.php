@@ -14,7 +14,7 @@ class Invoice extends Model
         'period_start', 'period_end', 'issued_on', 'due_on',
         'status', 'currency', 'vat_rate',
         'subtotal_rappen', 'vat_rappen', 'rounding_rappen', 'total_rappen',
-        'notes', 'title', 'qr_reference', 'sent_at', 'paid_at', 'pdf_path', 'recipients',
+        'notes', 'title', 'qr_reference', 'sent_at', 'paid_at', 'reminders_paused_at', 'pdf_path', 'recipients',
     ];
 
     protected $casts = [
@@ -25,6 +25,7 @@ class Invoice extends Model
         'due_on' => 'date',
         'sent_at' => 'datetime',
         'paid_at' => 'datetime',
+        'reminders_paused_at' => 'datetime',
         'vat_rate' => 'decimal:2',
         'subtotal_rappen' => 'integer',
         'vat_rappen' => 'integer',
