@@ -82,7 +82,7 @@
         <div class="label">Projekt</div>
         <div style="font-weight: 600">{{ $invoice->project->name }}</div>
       @endif
-      @if ($invoice->period_start && $invoice->period_end)
+      @if ($invoice->period_start && $invoice->period_end && ! $invoice->period_start->isSameDay($invoice->period_end))
         <div class="label" style="margin-top: 14px">Periode</div>
         <div style="color: #3d3d3d">{{ $invoice->period_start->format('d.m.') }} – {{ $invoice->period_end->format('d.m.Y') }}</div>
       @endif
