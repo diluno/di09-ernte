@@ -11,6 +11,21 @@ test('compute taxes every line at the document rate', function () {
     expect($totals['total_rappen'])->toBe(16215);
 });
 
+test('compute excludes VAT-exempt lines from the VAT base but not the subtotal', function () {
+    $totals = LineTotals::compute([10000, 5000], 8.10, [false, true]);
+
+    expect($totals['subtotal_rappen'])->toBe(15000);
+    expect($totals['vat_rappen'])->toBe(810);    // 8.10% of the 10000 taxable line only
+    expect($totals['total_rappen'])->toBe(15810);
+});
+
+test('compute with all lines exempt yields no VAT', function () {
+    $totals = LineTotals::compute([10000, 5000], 8.10, [true, true]);
+
+    expect($totals['vat_rappen'])->toBe(0);
+    expect($totals['total_rappen'])->toBe(15000);
+});
+
 test('compute rounds the grand total up to the nearest 5 rappen', function () {
     // 29000 + 2349 VAT = 31349 -> rounds to 31350 (+1)
     $totals = LineTotals::compute([29000], 8.10);

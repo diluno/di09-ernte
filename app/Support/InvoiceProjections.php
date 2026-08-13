@@ -121,6 +121,7 @@ class InvoiceProjections
                 'hours' => (float) $l->hours, 'rate' => round($l->rate_rappen / 100, 2),
                 'rate_rappen' => $l->rate_rappen,
                 'amount' => round($l->amount_rappen / 100, 2),
+                'vat_exempt' => (bool) $l->vat_exempt,
             ])->all(),
         ];
     }

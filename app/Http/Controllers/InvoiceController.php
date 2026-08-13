@@ -186,6 +186,7 @@ class InvoiceController extends Controller
                     'hours' => (float) $l->hours,
                     'rate' => round($l->rate_rappen / 100, 2),
                     'rate_rappen' => $l->rate_rappen,
+                    'vat_exempt' => (bool) $l->vat_exempt,
                 ])->values(),
             ],
             'client_contacts' => $invoice->client->contacts->map(fn (\App\Models\Contact $ct) => [
@@ -223,19 +224,23 @@ class InvoiceController extends Controller
             if (! empty($data['lines'])) {
                 $invoice->lines()->delete();
                 $lineAmounts = [];
+                $exemptFlags = [];
                 $sort = 0;
                 foreach ($data['lines'] as $line) {
                     $hours = round((float) $line['hours'], 2);
                     $rate = (int) $line['rate_rappen'];
                     $amount = (int) round($hours * $rate);
+                    $exempt = (bool) ($line['vat_exempt'] ?? false);
                     $invoice->lines()->create([
                         'description' => $line['description'], 'hours' => $hours,
                         'rate_rappen' => $rate, 'amount_rappen' => $amount,
+                        'vat_exempt' => $exempt,
                         'sort_order' => $sort++,
                     ]);
                     $lineAmounts[] = $amount;
+                    $exemptFlags[] = $exempt;
                 }
-                $totals = InvoiceBuilder::computeTotals($lineAmounts, (float) $invoice->vat_rate);
+                $totals = InvoiceBuilder::computeTotals($lineAmounts, (float) $invoice->vat_rate, $exemptFlags);
                 $invoice->subtotal_rappen = $totals['subtotal_rappen'];
                 $invoice->vat_rappen = $totals['vat_rappen'];
                 $invoice->rounding_rappen = $totals['rounding_rappen'];

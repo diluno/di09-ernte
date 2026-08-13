@@ -27,7 +27,8 @@ export function roundTotalRappen(exactRappen) {
 export function totalsForLines(lines, catalog, date) {
   const rate = vatRateForDate(catalog, date);
   const subtotal = lines.reduce((sum, line) => sum + lineAmountRappen(line), 0);
-  const vat = Math.round((subtotal * rate) / 100);
+  const vatBase = lines.reduce((sum, line) => sum + (line.vat_exempt ? 0 : lineAmountRappen(line)), 0);
+  const vat = Math.round((vatBase * rate) / 100);
   const total = roundTotalRappen(subtotal + vat);
   return { subtotal, vat, rounding: total - (subtotal + vat), total, rate };
 }

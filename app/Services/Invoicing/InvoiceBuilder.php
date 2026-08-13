@@ -28,11 +28,12 @@ class InvoiceBuilder
      *
      * @param  int[]  $lineAmounts  Amount in rappen for each line.
      * @param  float  $vatRate  VAT rate as a percentage (e.g. 8.10).
+     * @param  bool[]  $exemptFlags  Parallel to $lineAmounts; true = no VAT on that line.
      * @return array{subtotal_rappen: int, vat_rappen: int, rounding_rappen: int, total_rappen: int}
      */
-    public static function computeTotals(array $lineAmounts, float $vatRate): array
+    public static function computeTotals(array $lineAmounts, float $vatRate, array $exemptFlags = []): array
     {
-        return LineTotals::compute($lineAmounts, $vatRate);
+        return LineTotals::compute($lineAmounts, $vatRate, $exemptFlags);
     }
 
     /**
@@ -116,11 +117,13 @@ class InvoiceBuilder
             $invoice->qr_reference = $this->qr->generate($invoice->id);
 
             $lineAmounts = [];
+            $exemptFlags = [];
             $sort = 0;
             foreach ($lines as $line) {
                 $hours = round((float) $line['hours'], 2);
                 $rate = (int) $line['rate_rappen'];
                 $amount = (int) round($hours * $rate);           // recompute — ignore any submitted amount
+                $exempt = (bool) ($line['vat_exempt'] ?? false);
 
                 InvoiceLine::create([
                     'invoice_id' => $invoice->id,
@@ -128,13 +131,15 @@ class InvoiceBuilder
                     'hours' => $hours,
                     'rate_rappen' => $rate,
                     'amount_rappen' => $amount,
+                    'vat_exempt' => $exempt,
                     'sort_order' => $sort++,
                 ]);
 
                 $lineAmounts[] = $amount;
+                $exemptFlags[] = $exempt;
             }
 
-            $totals = self::computeTotals($lineAmounts, (float) $invoice->vat_rate);
+            $totals = self::computeTotals($lineAmounts, (float) $invoice->vat_rate, $exemptFlags);
             $invoice->subtotal_rappen = $totals['subtotal_rappen'];
             $invoice->vat_rappen = $totals['vat_rappen'];
             $invoice->rounding_rappen = $totals['rounding_rappen'];

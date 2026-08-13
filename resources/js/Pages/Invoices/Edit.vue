@@ -27,6 +27,7 @@ const lines = ref(props.invoice.lines.map((line) => ({
   description: line.description,
   hours: line.hours,
   rate: Number(line.rate_rappen ?? 0) / 100,
+  vat_exempt: Boolean(line.vat_exempt),
 })));
 
 function addLine() {
@@ -35,6 +36,7 @@ function addLine() {
     description: '',
     hours: 0,
     rate: lines.value.length ? lines.value[lines.value.length - 1].rate : 0,
+    vat_exempt: false,
   });
 }
 function removeLine(key) { lines.value = lines.value.filter((line) => line.key !== key); }
@@ -59,7 +61,8 @@ function fmtRate(rate) {
 
 const totals = computed(() => {
   const subtotal = lines.value.reduce((sum, line) => sum + lineAmountRappen(line), 0);
-  const vat = Math.round((subtotal * Number(props.invoice.vat_rate || 0)) / 100);
+  const vatBase = lines.value.reduce((sum, line) => sum + (line.vat_exempt ? 0 : lineAmountRappen(line)), 0);
+  const vat = Math.round((vatBase * Number(props.invoice.vat_rate || 0)) / 100);
   const total = roundTotalRappen(subtotal + vat);
   return { subtotal, vat, rounding: total - (subtotal + vat), total };
 });
@@ -79,6 +82,7 @@ function save() {
       description: line.description,
       hours: Number(line.hours),
       rate_rappen: Math.round(Number(line.rate) * 100),
+      vat_exempt: Boolean(line.vat_exempt),
     })),
   })).patch(`/invoices/${props.invoice.id}`);
 }
@@ -128,6 +132,7 @@ function save() {
             <th class="num" style="width: 80px">Hours</th>
             <th class="num" style="width: 110px">Rate</th>
             <th class="num" style="width: 120px">Amount</th>
+            <th style="width: 52px; text-align: center" title="Charge MwSt on this line">MwSt</th>
             <th style="width: 70px"></th>
           </tr>
         </thead>
@@ -137,12 +142,16 @@ function save() {
             <td class="num"><input v-model="line.hours" type="number" min="0" step="0.25" class="cell-input num" /></td>
             <td class="num"><input v-model="line.rate" type="number" min="0" step="0.01" class="cell-input num" /></td>
             <td class="num strong">{{ fmtMoney(lineAmountRappen(line)) }}</td>
+            <td style="text-align: center">
+              <input type="checkbox" :checked="!line.vat_exempt" title="Charge MwSt on this line"
+                     @change="line.vat_exempt = !$event.target.checked" />
+            </td>
             <td>
               <button class="icon-btn" title="move up" @click="moveUp(index)"><Icon name="chevron-up" /></button>
               <button class="icon-btn icon-btn--danger" title="remove" @click="removeLine(line.key)"><Icon name="close" /></button>
             </td>
           </tr>
-          <tr v-if="lines.length === 0"><td colspan="5" class="pad-l muted" style="padding: 16px">No lines. Add one to start.</td></tr>
+          <tr v-if="lines.length === 0"><td colspan="6" class="pad-l muted" style="padding: 16px">No lines. Add one to start.</td></tr>
         </tbody>
       </table>
       <button class="add-line" @click="addLine"><span style="font-family: var(--font-mono)">+</span> Add line</button>

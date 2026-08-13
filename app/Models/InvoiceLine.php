@@ -10,11 +10,12 @@ class InvoiceLine extends Model
     use HasFactory;
 
     protected $fillable = [
-        'invoice_id', 'description', 'hours', 'rate_rappen', 'amount_rappen', 'sort_order',
+        'invoice_id', 'description', 'hours', 'rate_rappen', 'amount_rappen', 'vat_exempt', 'sort_order',
     ];
 
     protected $casts = [
         'hours' => 'decimal:2',
+        'vat_exempt' => 'boolean',
         'rate_rappen' => 'integer',
         'amount_rappen' => 'integer',
         'sort_order' => 'integer',

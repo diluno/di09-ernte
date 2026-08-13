@@ -101,7 +101,7 @@
 	    <tbody>
 	      @foreach ($invoice->lines as $line)
 	        <tr>
-	          <td class="line-desc">{!! \App\Support\Markdown::toHtml($line->description) !!}</td>
+	          <td class="line-desc">{!! \App\Support\Markdown::toHtml($line->description) !!}@if ($line->vat_exempt) <span style="color: #777; font-size: 0.85em">(ohne MwSt)</span>@endif</td>
 	          <td class="num">{{ number_format((float) $line->hours, 2) }}</td>
 	          <td class="num">{{ $money($line->rate_rappen) }}</td>
 	          <td class="num">{{ $money($line->amount_rappen) }}</td>

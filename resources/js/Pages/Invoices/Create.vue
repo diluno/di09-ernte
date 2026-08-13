@@ -47,7 +47,7 @@ const selectedIds = computed(() => props.entries.filter((e) => selected[e.id]).m
 
 // Editable lines, seeded from the server's suggested grouping.
 const lines = ref(props.suggested_lines.map((l, i) => ({
-  key: i, description: l.description, hours: l.hours, rate: l.rate,
+  key: i, description: l.description, hours: l.hours, rate: l.rate, vat_exempt: false,
 })));
 let nextKey = props.suggested_lines.length;
 
@@ -57,6 +57,7 @@ function addLine() {
     description: '',
     hours: 0,
     rate: props.project?.rate_rappen ? Math.round(props.project.rate_rappen / 100) : 0,
+    vat_exempt: false,
   });
 }
 function removeLine(key) { lines.value = lines.value.filter((l) => l.key !== key); }
@@ -84,6 +85,7 @@ function save() {
       description: l.description,
       hours: Number(l.hours),
       rate_rappen: Math.round(Number(l.rate) * 100),
+      vat_exempt: Boolean(l.vat_exempt),
     })),
   })).post('/invoices');
 }
@@ -139,6 +141,7 @@ function save() {
             <th class="num" style="width: 80px">Hours</th>
             <th class="num" style="width: 100px">Rate</th>
             <th class="num" style="width: 120px">Amount</th>
+            <th style="width: 52px; text-align: center" title="Charge MwSt on this line">MwSt</th>
             <th style="width: 70px"></th>
           </tr>
         </thead>
@@ -148,12 +151,16 @@ function save() {
             <td class="num"><input v-model="l.hours" type="number" min="0" step="0.25" class="cell-input num" /></td>
             <td class="num"><input v-model="l.rate" type="number" min="0" class="cell-input num" /></td>
             <td class="num strong">{{ fmtMoney(Math.round(Number(l.hours) * Number(l.rate) * 100)) }}</td>
+            <td style="text-align: center">
+              <input type="checkbox" :checked="!l.vat_exempt" title="Charge MwSt on this line"
+                     @change="l.vat_exempt = !$event.target.checked" />
+            </td>
             <td>
               <button class="icon-btn" title="move up" @click="moveUp(i)"><Icon name="chevron-up" /></button>
               <button class="icon-btn icon-btn--danger" title="remove" @click="removeLine(l.key)"><Icon name="close" /></button>
             </td>
           </tr>
-          <tr v-if="lines.length === 0"><td colspan="5" class="pad-l muted" style="padding: 16px">No lines. Add one or widen the period.</td></tr>
+          <tr v-if="lines.length === 0"><td colspan="6" class="pad-l muted" style="padding: 16px">No lines. Add one or widen the period.</td></tr>
         </tbody>
       </table>
       <button class="add-line" @click="addLine"><span style="font-family: var(--font-mono)">+</span> Add line</button>

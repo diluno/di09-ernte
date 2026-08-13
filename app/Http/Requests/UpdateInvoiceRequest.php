@@ -23,6 +23,7 @@ class UpdateInvoiceRequest extends FormRequest
             'lines.*.description' => 'required_with:lines|string|max:1000',
             'lines.*.hours' => 'required_with:lines|numeric|min:0',
             'lines.*.rate_rappen' => 'required_with:lines|integer|min:0',
+            'lines.*.vat_exempt' => 'sometimes|boolean',
             'recipients' => 'sometimes|array',
             'recipients.*.name' => 'required|string|max:255',
             'recipients.*.email' => 'required|email|max:255',
