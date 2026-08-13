@@ -134,6 +134,7 @@ class InvoiceController extends Controller
             periodEnd: $data['period_end'],
             lines: $data['lines'],
             entryIds: $data['entry_ids'] ?? [],
+            title: $data['title'] ?? null,
             recipients: $data['recipients'] ?? null,
         );
 

@@ -73,9 +73,12 @@ const totalRappen = computed(() => totals.value.total);
 const form = useForm({
   recipients: selectedClientContacts.value.filter((c) => c.is_default).map(({ name, email }) => ({ name, email })),
 });
+const title = ref('');
+
 function save() {
   form.transform(() => ({
     client_id: props.client.id,
+    title: title.value || null,
     project_id: props.project?.id ?? null,
     period_start: from.value,
     period_end: to.value,
@@ -132,6 +135,9 @@ function save() {
 
   <div v-else class="doc-grid" style="padding: 20px 28px 28px; display: grid; grid-template-columns: 1fr 360px; gap: 28px">
     <div>
+      <h3 class="section-title">Document</h3>
+      <input v-model="title" class="cell-input framed" style="margin-bottom: 24px" placeholder="Title shown on the invoice PDF" />
+
       <h3 class="section-title">Lines</h3>
       <div class="lines-card">
       <table class="table table--lines">
