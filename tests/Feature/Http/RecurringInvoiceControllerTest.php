@@ -3,6 +3,7 @@
 use App\Models\BusinessProfile;
 use App\Models\Client;
 use App\Models\Invoice;
+use App\Models\Project;
 use App\Models\RecurringInvoice;
 use App\Models\RecurringInvoiceLine;
 use App\Models\User;
@@ -87,6 +88,46 @@ test('pause and resume toggle the schedule and snap next run forward', function 
     expect($schedule->next_run_on->toDateString())->toBe('2026-06-01'); // snapped forward
 });
 
+test('resume preserves a month-end anchor after a clamped February date', function () {
+    Carbon::setTestNow('2026-03-01');
+    $schedule = RecurringInvoice::factory()->create([
+        'cadence' => 'monthly',
+        'anchor_day' => 31,
+        'next_run_on' => '2026-02-28',
+        'paused_at' => now()->subDay(),
+    ]);
+
+    $this->post("/recurring-invoices/{$schedule->id}/resume")->assertRedirect();
+
+    expect($schedule->fresh()->next_run_on->toDateString())->toBe('2026-03-31')
+        ->and($schedule->fresh()->anchor_day)->toBe(31);
+});
+
+test('editing without changing a clamped run date preserves the original anchor', function () {
+    Carbon::setTestNow('2026-02-01');
+    $schedule = RecurringInvoice::factory()->create([
+        'cadence' => 'monthly',
+        'anchor_day' => 31,
+        'next_run_on' => '2026-02-28',
+    ]);
+    RecurringInvoiceLine::factory()->for($schedule, 'recurringInvoice')->create([
+        'description' => 'Hosting',
+        'hours' => 1,
+        'rate_rappen' => 14550,
+    ]);
+
+    $this->patch("/recurring-invoices/{$schedule->id}", [
+        'client_id' => $schedule->client_id,
+        'cadence' => 'monthly',
+        'next_run_on' => '2026-02-28',
+        'vat_rate' => 8.10,
+        'lines' => [['description' => 'Hosting', 'hours' => 1, 'rate_rappen' => 14550]],
+    ])->assertRedirect('/recurring-invoices');
+
+    expect($schedule->fresh()->anchor_day)->toBe(31)
+        ->and($schedule->fresh()->next_run_on->toDateString())->toBe('2026-02-28');
+});
+
 test('run generates an invoice immediately and redirects to it', function () {
     $schedule = RecurringInvoice::factory()->create(['cadence' => 'monthly', 'anchor_day' => 1, 'next_run_on' => '2026-06-01']);
     RecurringInvoiceLine::factory()->for($schedule, 'recurringInvoice')->create(['hours' => 1, 'rate_rappen' => 10000]);
@@ -108,10 +149,15 @@ test('destroy deletes the schedule but keeps generated invoices', function () {
 });
 
 test('edit renders the edit page', function () {
-    $schedule = RecurringInvoice::factory()->create();
-    RecurringInvoiceLine::factory()->for($schedule, 'recurringInvoice')->create();
+    $project = Project::factory()->create(['rate_rappen' => 14550]);
+    $schedule = RecurringInvoice::factory()->create(['client_id' => $project->client_id, 'project_id' => $project->id]);
+    RecurringInvoiceLine::factory()->for($schedule, 'recurringInvoice')->create(['rate_rappen' => 14550]);
 
     $this->get("/recurring-invoices/{$schedule->id}/edit")
         ->assertOk()
-        ->assertInertia(fn (Assert $p) => $p->component('RecurringInvoices/Edit')->has('schedule'));
+        ->assertInertia(fn (Assert $p) => $p
+            ->component('RecurringInvoices/Edit')
+            ->where('schedule.lines.0.rate', 145.5)
+            ->where('projects.0.rate', 145.5)
+            ->etc());
 });

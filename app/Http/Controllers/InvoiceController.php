@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreInvoiceRequest;
 use App\Http\Requests\UpdateInvoiceRequest;
 use App\Models\Client;
+use App\Models\Contact;
 use App\Models\Invoice;
 use App\Models\InvoiceEvent;
 use App\Models\InvoiceLine;
@@ -62,7 +63,7 @@ class InvoiceController extends Controller
                 'clients' => Client::active()->with('contacts')->orderBy('name')->get(['id', 'name'])
                     ->map(fn (Client $c) => [
                         'id' => $c->id, 'name' => $c->name,
-                        'contacts' => $c->contacts->map(fn (\App\Models\Contact $ct) => [
+                        'contacts' => $c->contacts->map(fn (Contact $ct) => [
                             'id' => $ct->id, 'name' => $ct->name, 'email' => $ct->email,
                             'role' => $ct->role, 'is_default' => $ct->is_default,
                         ])->values(),
@@ -94,7 +95,7 @@ class InvoiceController extends Controller
 
         return Inertia::render('Invoices/Create', [
             'client' => $client->only('id', 'name', 'short_code') + [
-                'contacts' => $client->contacts->map(fn (\App\Models\Contact $ct) => [
+                'contacts' => $client->contacts->map(fn (Contact $ct) => [
                     'id' => $ct->id, 'name' => $ct->name, 'email' => $ct->email,
                     'role' => $ct->role, 'is_default' => $ct->is_default,
                 ])->values(),
@@ -106,14 +107,15 @@ class InvoiceController extends Controller
                 'description' => $e->description !== '' ? $e->description : ($e->task_id ? ('Task #'.$e->task_id) : ('Entry #'.$e->id)),
                 'project' => ['id' => $e->project->id, 'name' => $e->project->name, 'code' => $e->project->code],
                 'hours' => round($e->duration_seconds / 3600, 2),
+                'duration_seconds' => $e->duration_seconds,
                 'started_at' => $e->started_at->toIso8601String(),
-                'rate' => (int) round(($e->project->rate_rappen ?? 0) / 100),
+                'rate' => round(($e->project->rate_rappen ?? 0) / 100, 2),
             ]),
             'suggested_lines' => collect($builder->suggestLinesFromEntries($entries, $project, $end))
                 ->map(fn ($l) => [
                     'description' => $l['description'],
                     'hours' => $l['hours'],
-                    'rate' => (int) round($l['rate_rappen'] / 100),
+                    'rate' => round($l['rate_rappen'] / 100, 2),
                     'rate_rappen' => $l['rate_rappen'],
                     'entry_ids' => $l['entry_ids'],
                 ])->values(),
@@ -190,7 +192,7 @@ class InvoiceController extends Controller
                     'vat_exempt' => (bool) $l->vat_exempt,
                 ])->values(),
             ],
-            'client_contacts' => $invoice->client->contacts->map(fn (\App\Models\Contact $ct) => [
+            'client_contacts' => $invoice->client->contacts->map(fn (Contact $ct) => [
                 'id' => $ct->id, 'name' => $ct->name, 'email' => $ct->email,
                 'role' => $ct->role, 'is_default' => $ct->is_default,
             ])->values(),

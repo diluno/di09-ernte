@@ -97,3 +97,10 @@ test('a brand new client still gets studio-wide grounding', function () {
         ->not->toContain('Past estimates for Neu AG')
         ->toContain('Recent estimates for other clients');
 });
+
+test('the prompt preserves fractional rates from past estimates', function () {
+    $target = Client::factory()->create(['name' => 'Hofladen Berg', 'short_code' => 'HB']);
+    estimateWithLines($target, 'Support', 'accepted', [['Support', 2, 145.5]]);
+
+    expect(promptFor($target))->toContain('Support — 2h @ 145.5');
+});

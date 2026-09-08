@@ -29,7 +29,7 @@ class ErnteServer extends Server
     Show the drafted lines and totals to the operator and get their agreement before
     calling create_estimate — drafting is free, a created estimate is a real record.
 
-    Money is always in whole Swiss francs per hour for rates; the app computes
+    Rates are in Swiss francs per hour and may include centimes; the app computes
     subtotals, VAT and rounding itself, so never try to supply totals.
 
     send_estimate emails the client and stamps the validity date. It is not

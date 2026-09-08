@@ -38,7 +38,7 @@ class ClientProjections
             'name' => $c->name,
             'short_code' => $c->short_code,
             'default_contact' => $c->defaultRecipients()[0] ?? null,
-            'default_rate' => $c->default_rate_rappen ? (int) round($c->default_rate_rappen / 100) : null,
+            'default_rate' => $c->default_rate_rappen ? round($c->default_rate_rappen / 100, 2) : null,
             'projects_count' => (int) $c->projects_count,
             'hours_ytd' => round(((int) ($hoursYtd[$c->id] ?? 0)) / 3600, 1),
             'outstanding' => round(((int) ($outstanding[$c->id] ?? 0)) / 100, 2),

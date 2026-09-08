@@ -47,8 +47,10 @@ const selectedIds = computed(() => props.entries.filter((e) => selected[e.id]).m
 
 // Editable lines, seeded from the server's suggested grouping.
 const lines = ref(props.suggested_lines.map((l, i) => ({
-  key: i, description: l.description, hours: l.hours, rate: l.rate, vat_exempt: false,
+  key: i, suggestionKey: i, description: l.description, hours: l.hours, rate: l.rate,
+  entry_ids: [...l.entry_ids], vat_exempt: false,
 })));
+const suggestions = props.suggested_lines.map((line, suggestionKey) => ({ ...line, suggestionKey }));
 let nextKey = props.suggested_lines.length;
 
 function addLine() {
@@ -56,12 +58,57 @@ function addLine() {
     key: nextKey++,
     description: '',
     hours: 0,
-    rate: props.project?.rate_rappen ? Math.round(props.project.rate_rappen / 100) : 0,
+    rate: props.project?.rate_rappen ? props.project.rate_rappen / 100 : 0,
+    entry_ids: [],
     vat_exempt: false,
   });
 }
-function removeLine(key) { lines.value = lines.value.filter((l) => l.key !== key); }
+function removeLine(key) {
+  const line = lines.value.find((item) => item.key === key);
+  line?.entry_ids.forEach((entryId) => { selected[entryId] = false; });
+  lines.value = lines.value.filter((item) => item.key !== key);
+}
 function moveUp(i) { if (i > 0) { const a = lines.value; [a[i - 1], a[i]] = [a[i], a[i - 1]]; } }
+
+function hoursForEntries(entryIds) {
+  const seconds = props.entries
+    .filter((entry) => entryIds.includes(entry.id))
+    .reduce((sum, entry) => sum + Number(entry.duration_seconds || 0), 0);
+
+  return Math.round((seconds / 3600) * 100) / 100;
+}
+
+function reconcileEntry(entryId) {
+  const line = lines.value.find((item) => item.entry_ids.includes(entryId));
+
+  if (!selected[entryId]) {
+    if (!line) return;
+    line.entry_ids = line.entry_ids.filter((id) => id !== entryId);
+    if (line.entry_ids.length === 0) removeLine(line.key);
+    else line.hours = hoursForEntries(line.entry_ids);
+    return;
+  }
+
+  if (line) return;
+  const suggestion = suggestions.find((item) => item.entry_ids.includes(entryId));
+  if (!suggestion) return;
+  const existing = lines.value.find((item) => item.suggestionKey === suggestion.suggestionKey);
+  if (existing) {
+    existing.entry_ids.push(entryId);
+    existing.hours = hoursForEntries(existing.entry_ids);
+    return;
+  }
+
+  lines.value.push({
+    key: nextKey++,
+    suggestionKey: suggestion.suggestionKey,
+    description: suggestion.description,
+    hours: hoursForEntries([entryId]),
+    rate: suggestion.rate,
+    entry_ids: [entryId],
+    vat_exempt: false,
+  });
+}
 
 function fmtMoney(rappen) { return 'CHF ' + (rappen / 100).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function fmtRate(rate) { return Number(rate).toFixed(2).replace(/\.?0+$/, ''); }
@@ -155,7 +202,7 @@ function save() {
           <tr v-for="(l, i) in lines" :key="l.key">
             <td class="pad-l"><AutoTextarea v-model="l.description" class="cell-input" placeholder="description" /></td>
             <td class="num"><input v-model="l.hours" type="number" min="0" step="0.25" class="cell-input num" /></td>
-            <td class="num"><input v-model="l.rate" type="number" min="0" class="cell-input num" /></td>
+            <td class="num"><input v-model="l.rate" type="number" min="0" step="0.01" class="cell-input num" /></td>
             <td class="num strong">{{ fmtMoney(Math.round(Number(l.hours) * Number(l.rate) * 100)) }}</td>
             <td style="text-align: center">
               <input type="checkbox" :checked="!l.vat_exempt" title="Charge MwSt on this line"
@@ -181,13 +228,13 @@ function save() {
       <div style="display: flex; gap: 12px; align-items: end; margin-bottom: 12px">
         <label class="field"><span>From</span><input type="date" v-model="from" @change="reloadPeriod" /></label>
         <label class="field"><span>To</span><input type="date" v-model="to" @change="reloadPeriod" /></label>
-        <span class="dim" style="font-size: var(--fs-xs)">Changing the period re-queries billable, unbilled entries. Lines above are not auto-updated — edit them to match.</span>
+        <span class="dim" style="font-size: var(--fs-xs)">Unchecking an entry removes its hours from the suggested line; removing a suggested line unchecks its entries.</span>
       </div>
       <table class="table table--picker">
         <thead><tr><th class="pad-l check"></th><th>Entry</th><th>Project</th><th class="num">Hours</th></tr></thead>
         <tbody>
           <tr v-for="e in entries" :key="e.id">
-            <td class="pad-l check"><input type="checkbox" v-model="selected[e.id]" /></td>
+            <td class="pad-l check"><input type="checkbox" v-model="selected[e.id]" @change="reconcileEntry(e.id)" /></td>
             <td>{{ e.description }}</td>
             <td class="dim">{{ e.project.code }}</td>
             <td class="num">{{ e.hours.toFixed(2) }}h</td>

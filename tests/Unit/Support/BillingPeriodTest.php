@@ -64,6 +64,17 @@ test('nextRunOnOrAfter() snaps a past start forward without backfilling', functi
 });
 
 test('nextRunOnOrAfter() steps non-monthly cadences correctly', function () {
-    $next = \App\Support\BillingPeriod::nextRunOnOrAfter('quarterly', \Illuminate\Support\Carbon::parse('2026-01-15'), \Illuminate\Support\Carbon::parse('2026-08-01'));
+    $next = BillingPeriod::nextRunOnOrAfter('quarterly', Carbon::parse('2026-01-15'), Carbon::parse('2026-08-01'));
     expect($next->toDateString())->toBe('2026-10-15');
+});
+
+test('nextRunOnOrAfter() keeps an explicit month-end anchor after a clamped date', function () {
+    $next = BillingPeriod::nextRunOnOrAfter(
+        'monthly',
+        Carbon::parse('2026-02-28'),
+        Carbon::parse('2026-03-01'),
+        31,
+    );
+
+    expect($next->toDateString())->toBe('2026-03-31');
 });

@@ -10,7 +10,7 @@ class Invoice extends Model
     use HasFactory;
 
     protected $fillable = [
-        'number', 'client_id', 'project_id', 'recurring_invoice_id',
+        'number', 'client_id', 'project_id', 'recurring_invoice_id', 'recurring_occurrence_on',
         'period_start', 'period_end', 'issued_on', 'due_on',
         'status', 'currency', 'vat_rate',
         'subtotal_rappen', 'vat_rappen', 'rounding_rappen', 'total_rappen',
@@ -21,6 +21,7 @@ class Invoice extends Model
         'recipients' => 'array',
         'period_start' => 'date',
         'period_end' => 'date',
+        'recurring_occurrence_on' => 'date',
         'issued_on' => 'date',
         'due_on' => 'date',
         'sent_at' => 'datetime',
@@ -33,12 +34,35 @@ class Invoice extends Model
         'total_rappen' => 'integer',
     ];
 
-    public function client() { return $this->belongsTo(Client::class); }
-    public function project() { return $this->belongsTo(Project::class); }
-    public function recurringInvoice() { return $this->belongsTo(RecurringInvoice::class); }
-    public function lines() { return $this->hasMany(InvoiceLine::class); }
-    public function events() { return $this->hasMany(InvoiceEvent::class); }
-    public function timeEntries() { return $this->hasMany(TimeEntry::class); }
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function recurringInvoice()
+    {
+        return $this->belongsTo(RecurringInvoice::class);
+    }
+
+    public function lines()
+    {
+        return $this->hasMany(InvoiceLine::class);
+    }
+
+    public function events()
+    {
+        return $this->hasMany(InvoiceEvent::class);
+    }
+
+    public function timeEntries()
+    {
+        return $this->hasMany(TimeEntry::class);
+    }
 
     public function getOverdueAttribute(): bool
     {
@@ -47,8 +71,15 @@ class Invoice extends Model
             && $this->due_on->isPast();
     }
 
-    public function scopeOutstanding($q) { return $q->where('status', 'sent'); }
-    public function scopePaid($q)        { return $q->where('status', 'paid'); }
+    public function scopeOutstanding($q)
+    {
+        return $q->where('status', 'sent');
+    }
+
+    public function scopePaid($q)
+    {
+        return $q->where('status', 'paid');
+    }
 
     public function getHoursAttribute(): float
     {

@@ -23,7 +23,7 @@ including recurring billing.
 
 ## Tech stack
 
-- **Backend:** PHP `^8.2`, Laravel `^12.0`, Inertia.js (Laravel) `^2.0`,
+- **Backend:** PHP `^8.3`, Laravel `^13.0`, Inertia.js (Laravel) `^2.0`,
   Laravel Sanctum `^4.0`
 - **Invoicing/PDF:** Swiss QR Bill `^5.3`, Browsershot `^5.4` (Chromium)
 - **Frontend:** Vue `^3.4`, `@inertiajs/vue3` `^2.0`, Vite `^7.0`, Ziggy

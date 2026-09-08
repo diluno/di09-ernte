@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Invoice;
 use App\Models\RecurringInvoice;
 use App\Services\Invoicing\RecurringInvoiceGenerator;
 use Illuminate\Console\Command;
@@ -19,6 +20,25 @@ class GenerateRecurringInvoicesCommand extends Command
         $generated = 0;
         $schedules = 0;
         $skipped = 0;
+        $retried = 0;
+
+        Invoice::query()
+            ->where('status', 'draft')
+            ->whereNotNull('recurring_occurrence_on')
+            ->whereHas('recurringInvoice', fn ($query) => $query->where('auto_send', true))
+            ->whereHas('events', fn ($query) => $query->whereIn('kind', [
+                'recurring_autosend_failed',
+                'recurring_autosend_skipped',
+            ]))
+            ->orderBy('id')
+            ->get()
+            ->each(function (Invoice $invoice) use ($generator, &$retried, &$skipped) {
+                if ($generator->retryAutoSend($invoice)) {
+                    $retried++;
+                } else {
+                    $skipped++;
+                }
+            });
 
         RecurringInvoice::query()
             ->due($today)
@@ -44,7 +64,7 @@ class GenerateRecurringInvoicesCommand extends Command
                 }
             });
 
-        $this->info("Generated {$generated} invoice(s) across {$schedules} schedule(s); {$skipped} auto-send(s) skipped.");
+        $this->info("Generated {$generated} invoice(s) across {$schedules} schedule(s); retried {$retried} delivery failure(s); {$skipped} auto-send(s) pending.");
 
         return self::SUCCESS;
     }

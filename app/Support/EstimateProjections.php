@@ -42,18 +42,18 @@ class EstimateProjections
             ->paginate(self::PER_PAGE)
             ->withQueryString()
             ->through(fn (Estimate $e) => [
-            'id' => $e->id,
-            'number' => $e->number,
-            'title' => $e->title,
-            'status' => $e->status,
-            'expired' => $e->expired,
-            'issued_on' => $e->issued_on?->toDateString(),
-            'valid_until' => $e->valid_until?->toDateString(),
-            'hours' => (float) round((float) $e->lines->sum('hours'), 2),
-            'total' => (float) round($e->total_rappen / 100, 2),
-            'client' => ['id' => $e->client->id, 'name' => $e->client->name],
-            'project_name' => $e->project?->name,
-        ]);
+                'id' => $e->id,
+                'number' => $e->number,
+                'title' => $e->title,
+                'status' => $e->status,
+                'expired' => $e->expired,
+                'issued_on' => $e->issued_on?->toDateString(),
+                'valid_until' => $e->valid_until?->toDateString(),
+                'hours' => (float) round((float) $e->lines->sum('hours'), 2),
+                'total' => (float) round($e->total_rappen / 100, 2),
+                'client' => ['id' => $e->client->id, 'name' => $e->client->name],
+                'project_name' => $e->project?->name,
+            ]);
     }
 
     /** Full single-estimate detail array (shared by the web show page and the API). */
@@ -79,7 +79,7 @@ class EstimateProjections
             'notes' => $estimate->notes,
             'lines' => $estimate->lines->sortBy('sort_order')->values()->map(fn (EstimateLine $l) => [
                 'id' => $l->id, 'description' => $l->description,
-                'hours' => (float) $l->hours, 'rate' => (int) round($l->rate_rappen / 100),
+                'hours' => (float) $l->hours, 'rate' => round($l->rate_rappen / 100, 2),
                 'amount' => round($l->amount_rappen / 100, 2),
             ])->all(),
             'converted_invoice' => $estimate->convertedInvoice

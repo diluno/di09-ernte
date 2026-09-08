@@ -1,7 +1,8 @@
 <?php
 
+use App\Mail\InvoiceMail;
 use App\Models\BusinessProfile;
-use App\Models\Client;
+use App\Models\Contact;
 use App\Models\Invoice;
 use App\Models\RecurringInvoice;
 use App\Models\RecurringInvoiceLine;
@@ -63,4 +64,30 @@ test('catches up multiple missed monthly periods in one run', function () {
 
     expect(Invoice::count())->toBe(4);
     expect(RecurringInvoice::first()->next_run_on->toDateString())->toBe('2026-07-01');
+});
+
+test('retries a previously failed auto-send on the existing invoice', function () {
+    $schedule = makeSchedule([
+        'auto_send' => true,
+        'cadence' => 'monthly',
+        'anchor_day' => 1,
+        'next_run_on' => '2026-06-01',
+    ]);
+
+    $this->artisan('ernte:invoices:generate-recurring')->assertExitCode(0);
+    $invoice = Invoice::first();
+    expect($invoice->status)->toBe('draft')
+        ->and($invoice->events()->where('kind', 'recurring_autosend_failed')->exists())->toBeTrue();
+
+    Contact::factory()->for($schedule->client)->create([
+        'email' => 'client@example.test',
+        'is_default' => true,
+    ]);
+
+    $this->artisan('ernte:invoices:generate-recurring')->assertExitCode(0);
+
+    expect($invoice->fresh()->status)->toBe('sent')
+        ->and(Invoice::count())->toBe(1)
+        ->and($schedule->fresh()->next_run_on->toDateString())->toBe('2026-07-01');
+    Mail::assertSent(InvoiceMail::class, 1);
 });

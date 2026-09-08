@@ -41,7 +41,7 @@ class ClientDetail
             'city' => $client->city,
             'country' => $client->country,
             'vat_id' => $client->vat_id,
-            'default_rate' => $client->default_rate_rappen ? (int) round($client->default_rate_rappen / 100) : null,
+            'default_rate' => $client->default_rate_rappen ? round($client->default_rate_rappen / 100, 2) : null,
             'archived' => $client->archived_at !== null,
         ];
     }
@@ -105,7 +105,7 @@ class ClientDetail
                     'name' => $project->name,
                     'status' => $project->status,
                     'billable' => (bool) $project->billable,
-                    'rate' => (int) round($project->rate_rappen / 100),
+                    'rate' => round($project->rate_rappen / 100, 2),
                     'budget_hours' => (int) $project->budget_hours,
                     'spent_hours' => $hours,
                     'pct_hours' => $pct,

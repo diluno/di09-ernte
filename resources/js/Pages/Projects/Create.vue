@@ -77,12 +77,12 @@ function submit() {
     </label>
     <label class="field">
       <span>Budget amount (CHF) <span class="opt">(optional)</span></span>
-      <input type="number" v-model="form.budget_amount" min="0" />
+      <input type="number" v-model="form.budget_amount" min="0" step="0.01" />
       <small v-if="form.errors.budget_amount_rappen" class="err">{{ form.errors.budget_amount_rappen }}</small>
     </label>
     <label class="field">
       <span>Rate (CHF/h) <span class="opt">(optional)</span></span>
-      <input type="number" v-model="form.rate" min="0" />
+      <input type="number" v-model="form.rate" min="0" step="0.01" />
       <small v-if="form.errors.rate_rappen" class="err">{{ form.errors.rate_rappen }}</small>
     </label>
     <label class="field">

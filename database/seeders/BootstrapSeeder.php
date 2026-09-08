@@ -16,7 +16,7 @@ class BootstrapSeeder extends Seeder
         $name = env('ERNTE_USER_NAME', 'Owner');
         $password = env('ERNTE_USER_PASSWORD', 'changeme');
 
-        User::updateOrCreate(
+        User::firstOrCreate(
             ['email' => $email],
             [
                 'name' => $name,

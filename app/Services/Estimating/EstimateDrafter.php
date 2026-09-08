@@ -7,6 +7,7 @@ use App\Models\BusinessProfile;
 use App\Models\Client as ClientModel;
 use App\Models\Estimate;
 use App\Models\Project;
+use Illuminate\Support\Collection;
 use RuntimeException;
 
 /**
@@ -26,9 +27,8 @@ class EstimateDrafter
 
     private const MAX_LINES_PER_ESTIMATE = 12;
 
-
     /**
-     * @return array{title:?string, notes:?string, lines:array<int, array{description:string, hours:float, rate:int}>}
+     * @return array{title:?string, notes:?string, lines:array<int, array{description:string, hours:float, rate:float}>}
      */
     public function draft(string $brief, ClientModel $client, ?Project $project = null): array
     {
@@ -84,7 +84,7 @@ class EstimateDrafter
             $lines[] = [
                 'description' => $description,
                 'hours' => max(0.0, round((float) ($line['hours'] ?? 0), 2)),
-                'rate' => max(0, (int) round((float) ($line['rate'] ?? $defaultRate))),
+                'rate' => max(0.0, round((float) ($line['rate'] ?? $defaultRate), 2)),
             ];
         }
 
@@ -106,7 +106,7 @@ class EstimateDrafter
 
         Given a prose brief describing a piece of client work, propose the line items
         for an estimate: a short description, an hours figure, and an hourly rate in
-        whole Swiss francs for each.
+        Swiss francs for each. Rates may include centimes.
 
         Rules:
         - Break the work into the phases the studio would actually bill separately —
@@ -145,7 +145,7 @@ class EstimateDrafter
         ];
 
         if ($project) {
-            $rate = (int) round(($project->rate_rappen ?? 0) / 100);
+            $rate = round(($project->rate_rappen ?? 0) / 100, 2);
             $parts[] = "Project: {$project->name}".($rate > 0 ? " (usual rate {$currency} {$rate}/h)" : '');
         }
 
@@ -176,9 +176,9 @@ class EstimateDrafter
      * record of how the studio scopes and prices a job.
      *
      * @param  array<int, int>  $excludeIds
-     * @return \Illuminate\Support\Collection<int, Estimate>
+     * @return Collection<int, Estimate>
      */
-    private function pastEstimates(?int $clientId = null, ?int $exceptClientId = null, int $limit = 3, array $excludeIds = []): \Illuminate\Support\Collection
+    private function pastEstimates(?int $clientId = null, ?int $exceptClientId = null, int $limit = 3, array $excludeIds = []): Collection
     {
         return Estimate::query()
             ->when($clientId, fn ($q) => $q->where('client_id', $clientId))
@@ -196,9 +196,9 @@ class EstimateDrafter
      * Render estimates grouped one block per estimate. The grouping is the point:
      * how a job gets split into lines is as much the house style as the wording.
      *
-     * @param  \Illuminate\Support\Collection<int, Estimate>  $estimates
+     * @param  Collection<int, Estimate>  $estimates
      */
-    private function render(\Illuminate\Support\Collection $estimates, bool $withClient = false): string
+    private function render(Collection $estimates, bool $withClient = false): string
     {
         $blocks = [];
 
@@ -214,10 +214,10 @@ class EstimateDrafter
             $lines = [];
             foreach ($estimate->lines->take(self::MAX_LINES_PER_ESTIMATE) as $line) {
                 $lines[] = sprintf(
-                    '  - %s — %sh @ %d',
+                    '  - %s — %sh @ %s',
                     $line->description,
                     rtrim(rtrim((string) $line->hours, '0'), '.'),
-                    (int) round($line->rate_rappen / 100),
+                    round($line->rate_rappen / 100, 2),
                 );
             }
 
@@ -227,18 +227,18 @@ class EstimateDrafter
         return implode("\n\n", $blocks);
     }
 
-    /** Hourly rate in whole francs to fall back on when Claude omits one. */
-    private function defaultRate(ClientModel $client, ?Project $project): int
+    /** Hourly rate in francs to fall back on when Claude omits one. */
+    private function defaultRate(ClientModel $client, ?Project $project): float
     {
         if ($project && $project->rate_rappen) {
-            return (int) round($project->rate_rappen / 100);
+            return round($project->rate_rappen / 100, 2);
         }
 
         // This client's most recent rate, else the studio's most recent one.
         $lastRate = $this->pastEstimates(clientId: $client->id, limit: 1)->first()?->lines->first()?->rate_rappen
             ?? $this->pastEstimates(limit: 1)->first()?->lines->first()?->rate_rappen;
 
-        return $lastRate ? (int) round($lastRate / 100) : 0;
+        return $lastRate ? round($lastRate / 100, 2) : 0.0;
     }
 
     private function nullableString(mixed $value): ?string

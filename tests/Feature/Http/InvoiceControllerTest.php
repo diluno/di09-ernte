@@ -137,6 +137,26 @@ test('GET /invoices/new defaults to previous month and lists billable unbilled e
             ->has('suggested_lines', 1, fn (Assert $l) => $l->where('description', 'In range')->where('hours', 2.5)->etc()));
 });
 
+test('GET /invoices/new preserves fractional project rates in entry and line props', function () {
+    $this->project->update(['rate_rappen' => 14550]);
+    $previousMonth = now()->subMonthNoOverflow()->startOfMonth();
+    TimeEntry::factory()->create([
+        'user_id' => $this->user->id,
+        'project_id' => $this->project->id,
+        'description' => 'Fractional rate',
+        'started_at' => $previousMonth->copy()->addDay()->setTime(9, 0),
+        'ended_at' => $previousMonth->copy()->addDay()->setTime(10, 0),
+        'billable' => true,
+    ]);
+
+    $this->get("/invoices/new?client={$this->client->id}&project={$this->project->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('entries.0.rate', 145.5)
+            ->where('suggested_lines.0.rate', 145.5)
+            ->etc());
+});
+
 test('POST /invoices creates a draft from submitted lines and redirects to its detail', function () {
     $entry = TimeEntry::factory()->create([
         'user_id' => $this->user->id, 'project_id' => $this->project->id, 'description' => 'Work',

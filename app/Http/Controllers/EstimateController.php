@@ -6,6 +6,7 @@ use App\Http\Requests\DraftEstimateRequest;
 use App\Http\Requests\StoreEstimateRequest;
 use App\Http\Requests\UpdateEstimateRequest;
 use App\Models\Client;
+use App\Models\Contact;
 use App\Models\Estimate;
 use App\Models\EstimateLine;
 use App\Models\Project;
@@ -15,11 +16,10 @@ use App\Services\Estimating\EstimateDrafter;
 use App\Services\Estimating\EstimateLifecycle;
 use App\Services\Estimating\EstimatePdfRenderer;
 use App\Support\EstimateProjections;
-use App\Support\LineTotals;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -53,7 +53,7 @@ class EstimateController extends Controller
             'clients' => Client::active()->with('contacts')->orderBy('name')->get(['id', 'name'])
                 ->map(fn (Client $c) => [
                     'id' => $c->id, 'name' => $c->name,
-                    'contacts' => $c->contacts->map(fn (\App\Models\Contact $ct) => [
+                    'contacts' => $c->contacts->map(fn (Contact $ct) => [
                         'id' => $ct->id, 'name' => $ct->name, 'email' => $ct->email,
                         'role' => $ct->role, 'is_default' => $ct->is_default,
                     ])->values(),
@@ -61,7 +61,7 @@ class EstimateController extends Controller
             'projects' => Project::active()->orderBy('name')->get(['id', 'name', 'client_id', 'rate_rappen'])
                 ->map(fn (Project $p) => [
                     'id' => $p->id, 'name' => $p->name, 'client_id' => $p->client_id,
-                    'rate' => (int) round(($p->rate_rappen ?? 0) / 100),
+                    'rate' => round(($p->rate_rappen ?? 0) / 100, 2),
                 ])->values(),
             'vat_rates' => VatRate::catalogForFrontend(),
         ]);
@@ -71,7 +71,7 @@ class EstimateController extends Controller
      * Draft line items from a prose brief. Returns a proposal for the create
      * form to fill in — nothing is persisted until the user saves.
      */
-    public function draft(DraftEstimateRequest $request, EstimateDrafter $drafter): \Illuminate\Http\JsonResponse
+    public function draft(DraftEstimateRequest $request, EstimateDrafter $drafter): JsonResponse
     {
         $data = $request->validated();
 
@@ -150,13 +150,13 @@ class EstimateController extends Controller
                 'lines' => $estimate->lines->map(fn (EstimateLine $l) => [
                     'description' => $l->description,
                     'hours' => (float) $l->hours,
-                    'rate' => (int) round($l->rate_rappen / 100),
+                    'rate' => round($l->rate_rappen / 100, 2),
                 ])->values(),
             ],
             'clients' => Client::active()->with('contacts')->orderBy('name')->get(['id', 'name'])
                 ->map(fn (Client $c) => [
                     'id' => $c->id, 'name' => $c->name,
-                    'contacts' => $c->contacts->map(fn (\App\Models\Contact $ct) => [
+                    'contacts' => $c->contacts->map(fn (Contact $ct) => [
                         'id' => $ct->id, 'name' => $ct->name, 'email' => $ct->email,
                         'role' => $ct->role, 'is_default' => $ct->is_default,
                     ])->values(),
@@ -164,7 +164,7 @@ class EstimateController extends Controller
             'projects' => Project::active()->orderBy('name')->get(['id', 'name', 'client_id', 'rate_rappen'])
                 ->map(fn (Project $p) => [
                     'id' => $p->id, 'name' => $p->name, 'client_id' => $p->client_id,
-                    'rate' => (int) round(($p->rate_rappen ?? 0) / 100),
+                    'rate' => round(($p->rate_rappen ?? 0) / 100, 2),
                 ])->values(),
             'vat_rates' => VatRate::catalogForFrontend(),
         ]);

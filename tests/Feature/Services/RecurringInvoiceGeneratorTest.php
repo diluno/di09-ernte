@@ -1,12 +1,16 @@
 <?php
 
+use App\Mail\InvoiceMail;
 use App\Models\BusinessProfile;
 use App\Models\Client;
 use App\Models\Contact;
 use App\Models\Invoice;
 use App\Models\RecurringInvoice;
 use App\Models\RecurringInvoiceLine;
+use App\Services\Invoicing\InvoiceBuilder;
+use App\Services\Invoicing\InvoiceLifecycle;
 use App\Services\Invoicing\RecurringInvoiceGenerator;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 
@@ -30,7 +34,9 @@ function schedule(array $overrides = [], array $lineOverrides = []): RecurringIn
         Contact::factory()->for($client)->create(['email' => $withDefaultContact, 'is_default' => true]);
     }
     unset($overrides['client']);
-    $schedule = RecurringInvoice::factory()->for($client)->create($overrides);
+    $schedule = RecurringInvoice::factory()->for($client)->create(array_merge([
+        'next_run_on' => '2026-06-01',
+    ], $overrides));
     RecurringInvoiceLine::factory()->for($schedule, 'recurringInvoice')->create(array_merge([
         'description' => 'Hosting', 'hours' => 1, 'rate_rappen' => 10000, 'sort_order' => 0,
     ], $lineOverrides));
@@ -55,7 +61,12 @@ test('generate() creates a draft invoice from template lines with the schedule v
 });
 
 test('generate() interpolates {period} into the title as a month-year range', function () {
-    $s = schedule(['title' => 'Hosting — {period}', 'cadence' => 'quarterly', 'anchor_day' => 1]);
+    $s = schedule([
+        'title' => 'Hosting — {period}',
+        'cadence' => 'quarterly',
+        'anchor_day' => 1,
+        'next_run_on' => '2026-04-01',
+    ]);
 
     $invoice = $this->gen->generate($s, Carbon::parse('2026-04-01'));
 
@@ -84,21 +95,59 @@ test('generate() advances next_run_on and stamps last_generated_on', function ()
     expect($s->last_generated_on->toDateString())->toBe('2026-06-15');
 });
 
+test('generate() returns the existing invoice when the same occurrence is requested twice', function () {
+    $s = schedule(['cadence' => 'monthly', 'anchor_day' => 1, 'next_run_on' => '2026-06-01']);
+
+    $first = $this->gen->generate($s, Carbon::parse('2026-06-01'));
+    $second = $this->gen->generate($s, Carbon::parse('2026-06-01'));
+
+    expect($second->id)->toBe($first->id)
+        ->and($second->recurring_occurrence_on->toDateString())->toBe('2026-06-01')
+        ->and(Invoice::count())->toBe(1)
+        ->and($s->fresh()->next_run_on->toDateString())->toBe('2026-07-01');
+});
+
+test('database uniqueness rejects two invoices for the same recurring occurrence', function () {
+    $schedule = schedule();
+    Invoice::factory()->create([
+        'recurring_invoice_id' => $schedule->id,
+        'recurring_occurrence_on' => '2026-06-01',
+    ]);
+
+    expect(fn () => Invoice::factory()->create([
+        'recurring_invoice_id' => $schedule->id,
+        'recurring_occurrence_on' => '2026-06-01',
+    ]))->toThrow(QueryException::class);
+});
+
 test('auto_send issues and emails the invoice when the client has an email', function () {
     $s = schedule(['auto_send' => true, 'client' => ['email' => 'client@example.test']]);
 
     $invoice = $this->gen->generate($s, Carbon::parse('2026-06-01'));
 
     expect($invoice->status)->toBe('sent');
-    Mail::assertSent(\App\Mail\InvoiceMail::class);
+    Mail::assertSent(InvoiceMail::class);
 });
 
-test('auto_send leaves a draft and logs recurring_autosend_skipped when the client has no email', function () {
+test('auto_send leaves a draft and records a retryable failure when the client has no email', function () {
     $s = schedule(['auto_send' => true, 'client' => ['email' => null]]);
 
     $invoice = $this->gen->generate($s, Carbon::parse('2026-06-01'));
 
     expect($invoice->status)->toBe('draft');
-    expect($invoice->events()->where('kind', 'recurring_autosend_skipped')->count())->toBe(1);
+    expect($invoice->events()->where('kind', 'recurring_autosend_failed')->count())->toBe(1);
     Mail::assertNothingSent();
+});
+
+test('auto_send records unexpected delivery failures and leaves later retry possible', function () {
+    $lifecycle = Mockery::mock(InvoiceLifecycle::class);
+    $lifecycle->shouldReceive('issue')->once()->andThrow(new RuntimeException('SMTP unavailable'));
+    $generator = new RecurringInvoiceGenerator(app(InvoiceBuilder::class), $lifecycle);
+    $schedule = schedule(['auto_send' => true, 'client' => ['email' => 'client@example.test']]);
+
+    $invoice = $generator->generate($schedule, Carbon::parse('2026-06-01'));
+
+    expect($invoice->status)->toBe('draft')
+        ->and($invoice->events()->where('kind', 'recurring_autosend_failed')->count())->toBe(1)
+        ->and($schedule->fresh()->next_run_on->toDateString())->toBe('2026-07-01');
 });

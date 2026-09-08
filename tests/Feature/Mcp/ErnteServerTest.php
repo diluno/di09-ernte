@@ -16,6 +16,8 @@ use App\Models\Estimate;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\Estimating\EstimateBuilder;
+use App\Services\Estimating\EstimateLifecycle;
+use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
     BusinessProfile::create(['name' => 'Ernte Test', 'country' => 'CH', 'default_currency' => 'CHF', 'default_vat_rate' => 8.10]);
@@ -39,7 +41,7 @@ test('the endpoint is closed to unauthenticated callers', function () {
 });
 
 test('an authenticated caller can list the tools over HTTP', function () {
-    Laravel\Sanctum\Sanctum::actingAs($this->user);
+    Sanctum::actingAs($this->user);
 
     $response = $this->postJson('/api/mcp', [
         'jsonrpc' => '2.0',
@@ -87,6 +89,44 @@ test('create_estimate rejects an unknown client instead of writing anything', fu
         ->assertHasErrors();
 
     expect(Estimate::count())->toBe(0);
+});
+
+test('create_estimate rejects a project belonging to another client', function () {
+    $otherProject = Project::factory()->create();
+
+    ErnteServer::actingAs($this->user)
+        ->tool(CreateEstimate::class, [
+            'client_id' => $this->client->id,
+            'project_id' => $otherProject->id,
+            'lines' => [['description' => 'x', 'hours' => 1, 'rate' => 100]],
+        ])
+        ->assertHasErrors();
+
+    expect(Estimate::count())->toBe(0);
+});
+
+test('create_estimate shares numeric and length validation with the web form', function () {
+    ErnteServer::actingAs($this->user)
+        ->tool(CreateEstimate::class, [
+            'client_id' => $this->client->id,
+            'title' => str_repeat('x', 256),
+            'lines' => [['description' => 'x', 'hours' => -1, 'rate' => 100]],
+        ])
+        ->assertHasErrors();
+
+    expect(Estimate::count())->toBe(0);
+});
+
+test('create_estimate preserves fractional franc rates', function () {
+    ErnteServer::actingAs($this->user)
+        ->tool(CreateEstimate::class, [
+            'client_id' => $this->client->id,
+            'lines' => [['description' => 'x', 'hours' => 1, 'rate' => 145.5]],
+        ])
+        ->assertOk()
+        ->assertSee('145.5');
+
+    expect(Estimate::first()->lines()->first()->rate_rappen)->toBe(14550);
 });
 
 test('get_estimate returns the lines for a known number', function () {
@@ -145,7 +185,7 @@ test('send_estimate will not send an estimate that does not exist', function () 
 
 test('accept and convert move a sent estimate through to a draft invoice', function () {
     $estimate = draft();
-    app(\App\Services\Estimating\EstimateLifecycle::class)->markSent($estimate);
+    app(EstimateLifecycle::class)->markSent($estimate);
 
     ErnteServer::actingAs($this->user)
         ->tool(AcceptEstimate::class, ['number' => $estimate->number])

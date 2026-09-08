@@ -35,9 +35,9 @@ class BillingPeriod
     }
 
     /** The first occurrence on or after $from, stepping from $start by the cadence (no history backfill). */
-    public static function nextRunOnOrAfter(string $cadence, Carbon $start, Carbon $from): Carbon
+    public static function nextRunOnOrAfter(string $cadence, Carbon $start, Carbon $from, ?int $anchorDay = null): Carbon
     {
-        $anchorDay = $start->day;
+        $anchorDay ??= $start->day;
         $next = $start->copy()->startOfDay();
         $floor = $from->copy()->startOfDay();
         $guard = 0;
@@ -76,6 +76,6 @@ class BillingPeriod
             return $startLabel;
         }
 
-        return $startLabel . ' – ' . $end->copy()->locale('de')->translatedFormat('F Y');
+        return $startLabel.' – '.$end->copy()->locale('de')->translatedFormat('F Y');
     }
 }

@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateProjectRequest;
 use App\Models\Client;
 use App\Models\Project;
 use App\Support\DashboardProjections;
+use App\Support\ProjectDetail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -22,13 +23,13 @@ class ProjectController extends Controller
 
         return Inertia::render('Projects/Index', [
             'projects' => DashboardProjections::projects($filter, $search)->values(),
-            'stats'    => DashboardProjections::stats($request->user()),
-            'counts'   => [
-                'active'   => Project::active()->count(),
-                'all'      => Project::count(),
+            'stats' => DashboardProjections::stats($request->user()),
+            'counts' => [
+                'active' => Project::active()->count(),
+                'all' => Project::count(),
                 'archived' => Project::archived()->count(),
             ],
-            'filters'  => ['filter' => $filter, 'q' => $search],
+            'filters' => ['filter' => $filter, 'q' => $search],
         ]);
     }
 
@@ -47,12 +48,13 @@ class ProjectController extends Controller
     public function store(StoreProjectRequest $request): RedirectResponse
     {
         $project = Project::create($request->validated());
+
         return redirect("/projects/{$project->code}");
     }
 
     public function show(Project $project): Response
     {
-        return Inertia::render('Projects/Show', \App\Support\ProjectDetail::payload($project));
+        return Inertia::render('Projects/Show', ProjectDetail::payload($project));
     }
 
     public function edit(Project $project): Response
@@ -66,8 +68,8 @@ class ProjectController extends Controller
                 'description' => $project->description,
                 'billable' => (bool) $project->billable,
                 'budget_hours' => (int) $project->budget_hours,
-                'budget_amount' => (int) round($project->budget_amount_rappen / 100),
-                'rate' => (int) round($project->rate_rappen / 100),
+                'budget_amount' => round($project->budget_amount_rappen / 100, 2),
+                'rate' => round($project->rate_rappen / 100, 2),
                 'started_on' => $project->started_on?->toDateString(),
                 'deadline_on' => $project->deadline_on?->toDateString(),
                 'status' => $project->status,
@@ -79,18 +81,21 @@ class ProjectController extends Controller
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse
     {
         $project->update($request->validated());
+
         return redirect("/projects/{$project->code}");
     }
 
     public function archive(Project $project): RedirectResponse
     {
         $project->update(['status' => 'archived', 'pinned_at' => null]);
+
         return back();
     }
 
     public function unarchive(Project $project): RedirectResponse
     {
         $project->update(['status' => 'active']);
+
         return back();
     }
 
@@ -99,12 +104,14 @@ class ProjectController extends Controller
         if ($project->pinned_at === null) {
             $project->update(['pinned_at' => now()]);
         }
+
         return back();
     }
 
     public function unpin(Project $project): RedirectResponse
     {
         $project->update(['pinned_at' => null]);
+
         return back();
     }
 }

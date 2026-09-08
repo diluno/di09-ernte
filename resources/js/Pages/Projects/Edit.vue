@@ -105,12 +105,12 @@ function unarchive() {
     </label>
     <label class="field">
       <span>Budget amount (CHF)</span>
-      <input type="number" v-model="form.budget_amount" min="0" required />
+      <input type="number" v-model="form.budget_amount" min="0" step="0.01" required />
       <small v-if="form.errors.budget_amount_rappen" class="err">{{ form.errors.budget_amount_rappen }}</small>
     </label>
     <label class="field">
       <span>Rate (CHF/h)</span>
-      <input type="number" v-model="form.rate" min="0" required />
+      <input type="number" v-model="form.rate" min="0" step="0.01" required />
       <small v-if="form.errors.rate_rappen" class="err">{{ form.errors.rate_rappen }}</small>
     </label>
     <label class="field">

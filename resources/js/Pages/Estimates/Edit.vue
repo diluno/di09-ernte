@@ -132,7 +132,7 @@ function save() {
           <tr v-for="(l, i) in lines" :key="l.key">
             <td class="pad-l"><AutoTextarea v-model="l.description" class="cell-input" placeholder="description" /></td>
             <td class="num"><input v-model="l.hours" type="number" min="0" step="0.25" class="cell-input num" /></td>
-            <td class="num"><input v-model="l.rate" type="number" min="0" class="cell-input num" /></td>
+            <td class="num"><input v-model="l.rate" type="number" min="0" step="0.01" class="cell-input num" /></td>
             <td class="num strong">{{ fmtMoney(Math.round(Number(l.hours) * Number(l.rate) * 100)) }}</td>
             <td>
               <button class="icon-btn" title="move up" @click="moveUp(i)"><Icon name="chevron-up" /></button>

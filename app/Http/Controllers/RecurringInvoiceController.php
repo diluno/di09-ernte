@@ -6,6 +6,7 @@ use App\Http\Requests\StoreRecurringInvoiceRequest;
 use App\Http\Requests\UpdateRecurringInvoiceRequest;
 use App\Models\BusinessProfile;
 use App\Models\Client;
+use App\Models\Contact;
 use App\Models\Project;
 use App\Models\RecurringInvoice;
 use App\Models\RecurringInvoiceLine;
@@ -96,7 +97,7 @@ class RecurringInvoiceController extends Controller
                 'lines' => $recurringInvoice->lines->map(fn (RecurringInvoiceLine $l) => [
                     'description' => $l->description,
                     'hours' => (float) $l->hours,
-                    'rate' => (int) round($l->rate_rappen / 100),
+                    'rate' => round($l->rate_rappen / 100, 2),
                 ])->values(),
             ],
             'vat_rates' => VatRate::catalogForFrontend(),
@@ -107,9 +108,12 @@ class RecurringInvoiceController extends Controller
     {
         $data = $request->validated();
         $first = Carbon::parse($data['next_run_on']);
-        $nextRun = BillingPeriod::nextRunOnOrAfter($data['cadence'], $first, Carbon::today());
+        $anchorDay = $first->isSameDay($recurringInvoice->next_run_on)
+            ? $recurringInvoice->anchor_day
+            : $first->day;
+        $nextRun = BillingPeriod::nextRunOnOrAfter($data['cadence'], $first, Carbon::today(), $anchorDay);
 
-        DB::transaction(function () use ($data, $first, $nextRun, $recurringInvoice) {
+        DB::transaction(function () use ($data, $anchorDay, $nextRun, $recurringInvoice) {
             $documentRate = $data['vat_rate'] ?? VatRate::rateForDate($nextRun);
             $recurringInvoice->update([
                 'client_id' => $data['client_id'],
@@ -118,7 +122,7 @@ class RecurringInvoiceController extends Controller
                 'notes' => $data['notes'] ?? null,
                 'vat_rate' => $documentRate,
                 'cadence' => $data['cadence'],
-                'anchor_day' => $first->day,
+                'anchor_day' => $anchorDay,
                 'next_run_on' => $nextRun->toDateString(),
                 'auto_send' => $data['auto_send'] ?? false,
             ]);
@@ -147,6 +151,7 @@ class RecurringInvoiceController extends Controller
             $recurringInvoice->cadence,
             Carbon::parse($recurringInvoice->next_run_on),
             Carbon::today(),
+            $recurringInvoice->anchor_day,
         );
         $recurringInvoice->update(['paused_at' => null, 'next_run_on' => $next->toDateString()]);
 
@@ -194,7 +199,7 @@ class RecurringInvoiceController extends Controller
             'clients' => Client::active()->with('contacts')->orderBy('name')->get(['id', 'name'])
                 ->map(fn (Client $c) => [
                     'id' => $c->id, 'name' => $c->name,
-                    'contacts' => $c->contacts->map(fn (\App\Models\Contact $ct) => [
+                    'contacts' => $c->contacts->map(fn (Contact $ct) => [
                         'id' => $ct->id, 'name' => $ct->name, 'email' => $ct->email,
                         'role' => $ct->role, 'is_default' => $ct->is_default,
                     ])->values(),
@@ -202,7 +207,7 @@ class RecurringInvoiceController extends Controller
             'projects' => Project::active()->orderBy('name')->get(['id', 'name', 'client_id', 'rate_rappen'])
                 ->map(fn (Project $p) => [
                     'id' => $p->id, 'name' => $p->name, 'client_id' => $p->client_id,
-                    'rate' => (int) round(($p->rate_rappen ?? 0) / 100),
+                    'rate' => round(($p->rate_rappen ?? 0) / 100, 2),
                 ])->values(),
         ];
     }

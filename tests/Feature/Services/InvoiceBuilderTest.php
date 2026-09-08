@@ -174,6 +174,22 @@ test('suggestLinesFromEntries groups by description and sums hours/amount', func
     expect($pr['entry_ids'])->toEqualCanonicalizing([$e1->id, $e2->id]);
 });
 
+test('suggestLinesFromEntries keeps identical descriptions separate across project rates', function () {
+    $otherProject = Project::factory()->create([
+        'client_id' => $this->client->id,
+        'billable' => true,
+        'rate_rappen' => 20000,
+    ]);
+    makeEntry($this->user, $this->project, 'Consulting', 60);
+    makeEntry($this->user, $otherProject, 'Consulting', 60);
+
+    $lines = $this->svc->suggestLinesFromEntries(TimeEntry::all(), null);
+
+    expect($lines)->toHaveCount(2)
+        ->and(collect($lines)->pluck('rate_rappen')->all())->toEqualCanonicalizing([14500, 20000])
+        ->and(collect($lines)->sum('amount_rappen'))->toBe(34500);
+});
+
 test('createDraft persists submitted lines and recomputes amounts', function () {
     $e = makeEntry($this->user, $this->project, 'Work', 120);
 

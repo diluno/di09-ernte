@@ -32,9 +32,9 @@ class ProjectDetail
                 'description' => $project->description,
                 'billable' => (bool) $project->billable,
                 'retainer' => (bool) $project->retainer,
-                'rate' => (int) round($project->rate_rappen / 100),
+                'rate' => round($project->rate_rappen / 100, 2),
                 'budget_hours' => (int) $project->budget_hours,
-                'budget_amount' => (int) round($project->budget_amount_rappen / 100),
+                'budget_amount' => round($project->budget_amount_rappen / 100, 2),
                 'spent_hours' => $hours,
                 'spent_amount' => round($amount / 100, 2),
                 'pct_hours' => $pct,
@@ -51,7 +51,7 @@ class ProjectDetail
             'heatmap' => self::heatmap($project),
             'counts' => [
                 'entries' => TimeEntry::where('project_id', $project->id)->count(),
-                'tasks'   => Task::where('project_id', $project->id)->count(),
+                'tasks' => Task::where('project_id', $project->id)->count(),
             ],
         ];
     }
@@ -124,6 +124,7 @@ class ProjectDetail
             $key = $start->copy()->addDays($i)->toDateString();
             $cells[] = round(((int) ($byDay[$key] ?? 0)) / 3600, 1);
         }
+
         return $cells;
     }
 }

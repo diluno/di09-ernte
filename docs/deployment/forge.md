@@ -8,7 +8,7 @@ This is the Phase 3 production path for Ernte. It supersedes the older docker-co
 - PHP 8.3 or newer, Node 20, Composer 2, and MariaDB/MySQL are available on the Forge server.
 - Deploys are **zero-downtime** (the deploy script uses Forge release macros), so the live code is served from the `current` release symlink — e.g. `/home/forge/ernte.example.com/current` — not directly from the site root `/home/forge/ernte.example.com`. Any daemon or scheduled job must target the `current` path, otherwise it runs in a directory with no `artisan` and fails with `Could not open input file: artisan`.
 - `QUEUE_CONNECTION=database` is used; the reminder job queue is `emails`.
-- Generated invoice PDFs and backups stay on the local Forge server under `storage/app/private`.
+- Generated invoice and estimate PDFs stay under `storage/app/private`. Backups are kept there for the configured retention window and can also be mirrored to S3-compatible off-server storage.
 
 ## One-Time Server Recipe
 
@@ -37,6 +37,7 @@ Use `.env.forge.example` as the production checklist. In Forge, fill the real va
 - `ERNTE_USER_*`
 - `BUSINESS_*`
 - `BROWSERSHOT_CHROME_PATH`
+- `BACKUP_RETENTION_DAYS` and, for off-server copies, `BACKUP_MIRROR_DISK=s3` plus the `AWS_*` values
 
 Generate the key once in the site shell if Forge has not already done it:
 
@@ -93,6 +94,7 @@ After deploy, run these from the Forge site shell:
 ```bash
 php artisan ernte:doctor
 php artisan ernte:backup
+php artisan ernte:backup:verify
 php artisan ernte:invoices:stamp-overdue
 php artisan ernte:invoices:remind
 ```
@@ -118,9 +120,12 @@ Common `ernte:doctor` fixes:
 
 - `database.sql.gz`
 - `invoices.tar.gz`, when generated PDFs exist
+- `estimates.tar.gz`, when generated PDFs exist
 - `manifest.json`
 
-To restore, put the app in maintenance mode, import the SQL dump into the Forge database, extract `invoices.tar.gz` back under `storage/app/private/invoices`, run `php artisan optimize:clear`, then bring the app back up.
+Every new backup is structurally verified before it is recorded, and backups older than `BACKUP_RETENTION_DAYS` (30 by default) are removed. Set `BACKUP_MIRROR_DISK=s3` to copy every verified artifact to an S3-compatible bucket; a failed mirror makes the command fail and leaves the local artifacts available for investigation. `php artisan ernte:backup:verify [path]` rechecks the latest or named local backup without creating a new one.
+
+To restore, put the app in maintenance mode, import the SQL dump into the Forge database, extract `invoices.tar.gz` and `estimates.tar.gz` back under `storage/app/private`, run `php artisan optimize:clear`, then bring the app back up. Periodically perform this process against an isolated database and temporary storage directory; structural verification cannot prove that application-level restoration succeeds.
 
 ## MCP Server
 

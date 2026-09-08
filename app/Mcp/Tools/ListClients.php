@@ -47,7 +47,7 @@ class ListClients extends Tool
                 'projects' => $c->projects->map(fn ($p) => [
                     'id' => $p->id,
                     'name' => $p->name,
-                    'rate' => (int) round(($p->rate_rappen ?? 0) / 100),
+                    'rate' => round(($p->rate_rappen ?? 0) / 100, 2),
                 ])->values()->all(),
             ])->values()->all(),
         ]);
