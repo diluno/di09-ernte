@@ -94,16 +94,16 @@
     .meta .is-red { color: var(--red); }
 
     /* ── Title ── */
-    h1 { font-size: 20pt; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; margin: 0 0 5mm; padding-bottom: 3mm; border-bottom: 1px solid var(--ink); }
+    .doc h1 { font-size: 20pt; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; margin: 0 0 5mm; padding-bottom: 3mm; border-bottom: 1px solid var(--ink); }
 
     /* ── Lines ── */
-    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-    thead th { text-align: left; font-size: 7.5pt; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); font-weight: 400; padding: 0 0 2.5mm; border-bottom: 1px solid var(--border); }
-    thead th.num, tbody td.num { text-align: right; }
-    tbody td { padding: 2.5mm 0; border-bottom: 1px solid var(--border); vertical-align: top; }
-    tbody td.num { font-family: var(--mono); font-size: 9pt; color: var(--ink-3); white-space: nowrap; }
-    tbody td.amount { font-family: var(--mono); font-size: 10pt; color: var(--ink); }
-    tbody td.num, tbody td.amount { padding-left: 4mm; }
+    .doc table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    .doc thead th { text-align: left; font-size: 7.5pt; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); font-weight: 400; padding: 0 0 2.5mm; border-bottom: 1px solid var(--border); }
+    .doc thead th.num, .doc tbody td.num { text-align: right; }
+    .doc tbody td { padding: 2.5mm 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .doc tbody td.num { font-family: var(--mono); font-size: 9pt; color: var(--ink-3); white-space: nowrap; }
+    .doc tbody td.amount { font-family: var(--mono); font-size: 10pt; color: var(--ink); }
+    .doc tbody td.num, .doc tbody td.amount { padding-left: 4mm; }
     .line-desc p { margin: 0; }
     .line-desc p + p { margin-top: 1.5mm; }
     .line-desc ul, .line-desc ol { margin: 1mm 0 0; padding-left: 5mm; }
@@ -137,7 +137,7 @@
 </head>
 <body>
 <div class="sheet">
-  <div class="body">
+  <div class="body doc">
     <div class="logo">{!! \App\Support\GenerativeLogo::inlineSvg(crc32((string) $doc->number), color: '#141210') !!}</div>
     <div class="sender">{{ $senderLine }}</div>
 
@@ -247,7 +247,7 @@
     var pages = [], cur = null, y = 0, curTable = null, curNotes = null;
     function newPage() {
       cur = document.createElement('div'); cur.className = 'page';
-      cur.content = document.createElement('div'); cur.content.className = 'content';
+      cur.content = document.createElement('div'); cur.content.className = 'content doc';
       cur.appendChild(cur.content); pages.push(cur); y = 0; curTable = null; curNotes = null;
     }
     newPage();
