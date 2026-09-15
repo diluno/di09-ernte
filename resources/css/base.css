@@ -501,10 +501,13 @@ a { color: inherit; text-decoration: none; }
   text-transform: uppercase;
   color: var(--ink-3);
   font-weight: 400;
-  margin: 0;
+  margin: 0 0 16px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--rule);
 }
+/* Aside sections: the rows carry their own 10px padding, so they sit flush under the rule. */
+.invoice-side .section-title,
+.section-title.flush { margin-bottom: 0; }
 .side-row {
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
