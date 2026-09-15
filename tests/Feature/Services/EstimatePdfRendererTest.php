@@ -77,3 +77,13 @@ test('pdf caches the file on disk and stamps pdf_path', function () {
     expect(\Illuminate\Support\Facades\Storage::disk('local')->exists($path))->toBeTrue();
     expect($estimate->fresh()->pdf_path)->toBe('estimates/OF-2026-009.pdf');
 })->group('browsershot');
+
+test('html renders the estimate on the shared sheet without a payment part', function () {
+    $estimate = Estimate::factory()->create(['valid_until' => '2026-10-01']);
+
+    $html = app(EstimatePdfRenderer::class)->html($estimate);
+
+    expect($html)->toContain('Dieses Angebot ist gültig bis <b>01.10.2026</b>');
+    expect($html)->not->toContain('qr-bill-payment-part');
+    expect($html)->not->toContain('Zahlbar');
+});
