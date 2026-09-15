@@ -52,12 +52,11 @@ class InvoicePdfRenderer
         $shot = Browsershot::html($this->html($invoice))
             ->format('A4')
             ->showBackground()
-            // Side margins live in the sheet CSS (the payment part spans the full
-            // 210mm); the 10mm bottom margin hosts Chrome's running footer.
-            ->margins(0, 0, 10, 0)
-            ->showBrowserHeaderAndFooter()
-            ->headerHtml('<span></span>')
-            ->footerHtml($this->footer('Rechnung', $invoice->number))
+            // The sheet template paginates itself (explicit A4 pages, page line,
+            // payment slip flush at the bottom edge), so no printer margins/footer.
+            ->margins(0, 0, 0, 0)
+            // Give the inline pagination script (runs after fonts.ready) time to finish.
+            ->setDelay(150)
             // The DDEV/container Chromium has no usable sandbox; this is required to launch it.
             ->noSandbox();
 
@@ -68,11 +67,4 @@ class InvoicePdfRenderer
         return $shot;
     }
 
-    /** Chrome footer template: document number + page counter in the bottom margin. */
-    private function footer(string $label, string $number): string
-    {
-        return '<div style="width:100%;padding:0 20mm;font-family:DejaVu Sans Mono,Menlo,monospace;font-size:7pt;color:#7a7367;display:flex;justify-content:space-between">'
-            .'<span>'.e($label).' '.e($number).'</span>'
-            .'<span>Seite <span class="pageNumber"></span> / <span class="totalPages"></span></span></div>';
-    }
 }

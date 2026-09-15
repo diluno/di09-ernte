@@ -60,14 +60,23 @@
       width: 210mm;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
-    /* Page size + margins come from the renderer (A4, 10mm bottom for the running footer). */
+    @page { size: A4; margin: 0; }
+    /* The inline script below lays the document out into explicit A4 pages so
+       the running page line never collides with content and the payment slip
+       sits flush at the bottom edge of the last page. */
+    .sheet { display: flex; flex-direction: column; }
+    .body { padding: 0 20mm 6mm; }
+    .page { position: relative; height: 297mm; display: flex; flex-direction: column; overflow: hidden; break-after: page; page-break-after: always; }
+    .page:last-child { break-after: auto; page-break-after: auto; }
+    .page > .content { padding: 0 20mm; }
+    .page > .qr { margin-top: auto; }
+    .page-foot { position: absolute; left: 20mm; right: 20mm; bottom: 8mm; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 7.5pt; color: var(--ink-3); letter-spacing: .04em; }
     @media screen {
       /* In-app preview: fit the 210mm sheet into the ~640px frame. */
-      body { zoom: 0.8; background: #fbf9f4; }
+      html { overflow-x: hidden; }
+      body { zoom: 0.78; background: #fbf9f4; }
+      .page + .page { border-top: 1px dashed #c9c2b3; }
     }
-
-    .sheet { display: flex; flex-direction: column; min-height: 287mm; }
-    .body { padding: 0 20mm 4mm; flex: 1 0 auto; }
 
     /* ── Header: logo is the one expressive element; everything else is set small. ── */
     .logo { padding: 12mm 0 0; height: 27mm; }
@@ -205,19 +214,75 @@
   @endif
 </div>
 <script>
-  // Pad the sheet to whole pages so the payment part lands at the bottom of the
-  // last page, not mid-page. Runs before Chrome paginates; 287mm = A4 minus the
-  // 10mm footer margin the renderer sets.
-  (function () {
+  // Paginate into explicit 297mm pages (see .page). Runs once fonts are in,
+  // before Chrome prints. Units: the header block, each line row (tables are
+  // split with a repeated head), each block after the table, the slip.
+  document.fonts.ready.then(function () {
     var sheet = document.querySelector('.sheet'), body = document.querySelector('.body'), qr = document.querySelector('.qr');
-    var page = (document.body.offsetWidth / 210) * 287;
-    body.style.flex = '0 0 auto';            // measure the content, not the stretched box
-    var used = body.offsetHeight;
-    body.style.flex = '';
-    var pages = Math.max(1, Math.ceil(used / page));
-    if (qr && (pages * page - used) < qr.offsetHeight) pages++;
-    sheet.style.minHeight = (pages * page) + 'px';
-  })();
+    var mm = document.body.offsetWidth / 210, PAGE = 297 * mm, BAND = 12 * mm, AVAIL = PAGE - BAND;
+    var label = @json($label.' '.$doc->number);
+
+    var table = body.querySelector('table'), rows = [].slice.call(table.tBodies[0].rows);
+    var head = [body.querySelector('.logo'), body.querySelector('.sender'), body.querySelector('.window'), body.querySelector('h1')];
+    var after = [].slice.call(body.children).filter(function (el) { return head.indexOf(el) < 0 && el !== table; });
+    var units = [];
+    units.push({ nodes: head, h: table.offsetTop - head[0].offsetTop });
+    var theadH = table.tHead.offsetHeight;
+    rows.forEach(function (r, i) {
+      var next = rows[i + 1];
+      units.push({ row: r, h: (next ? next.offsetTop : table.offsetHeight) - r.offsetTop });
+    });
+    after.forEach(function (el, i) {
+      if (el.classList.contains('notes')) {
+        [].slice.call(el.children).forEach(function (c, j, all) {
+          var n = all[j + 1];
+          units.push({ nodes: [c], notes: true, h: (n ? n.offsetTop : el.offsetHeight) - c.offsetTop });
+        });
+        return;
+      }
+      var n = after[i + 1];
+      units.push({ nodes: [el], h: (n ? n.offsetTop : body.offsetHeight) - el.offsetTop });
+    });
+
+    var pages = [], cur = null, y = 0, curTable = null, curNotes = null;
+    function newPage() {
+      cur = document.createElement('div'); cur.className = 'page';
+      cur.content = document.createElement('div'); cur.content.className = 'content';
+      cur.appendChild(cur.content); pages.push(cur); y = 0; curTable = null; curNotes = null;
+    }
+    newPage();
+    units.forEach(function (u) {
+      if (y > 0 && y + u.h > AVAIL) newPage();
+      if (u.row) {
+        if (!curTable) {
+          curTable = table.cloneNode(false);
+          curTable.appendChild(table.tHead.cloneNode(true));
+          curTable.appendChild(document.createElement('tbody'));
+          cur.content.appendChild(curTable); y += theadH; curNotes = null;
+        }
+        curTable.tBodies[0].appendChild(u.row);
+      } else if (u.notes) {
+        if (!curNotes) { curNotes = document.createElement('div'); curNotes.className = 'notes'; cur.content.appendChild(curNotes); }
+        curNotes.appendChild(u.nodes[0]); curTable = null;
+      } else {
+        u.nodes.forEach(function (n) { cur.content.appendChild(n); }); curTable = null; curNotes = null;
+      }
+      y += u.h;
+    });
+
+    if (qr) {
+      if (y + qr.offsetHeight > PAGE) newPage();
+      cur.appendChild(qr); cur.slip = true;
+    }
+    pages.forEach(function (p, i) {
+      if (p.slip) return;
+      var f = document.createElement('div'); f.className = 'page-foot';
+      f.innerHTML = '<span>' + label + '</span><span>Seite ' + (i + 1) + ' / ' + pages.length + '</span>';
+      p.appendChild(f);
+    });
+    body.remove();
+    pages.forEach(function (p) { sheet.appendChild(p); });
+  });
 </script>
 </body>
 </html>
