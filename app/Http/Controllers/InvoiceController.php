@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreInvoiceRequest;
 use App\Http\Requests\UpdateInvoiceRequest;
+use App\Jobs\SendInvoiceReminderMail;
+use App\Models\BusinessProfile;
 use App\Models\Client;
 use App\Models\Contact;
 use App\Models\Invoice;
@@ -148,7 +150,7 @@ class InvoiceController extends Controller
         $invoice->load(['client', 'project', 'recurringInvoice:id,title', 'lines' => fn ($q) => $q->orderBy('sort_order'), 'events' => fn ($q) => $q->orderByDesc('occurred_at')]);
 
         $linked = $invoice->timeEntries()
-            ->selectRaw('COUNT(*) AS n, COALESCE(SUM(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, UTC_TIMESTAMP()))),0) AS secs')
+            ->selectRaw('COUNT(*) AS n, COALESCE(SUM(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, UTC_TIMESTAMP()))),0) AS secs, MIN(started_at) AS first_at, MAX(started_at) AS last_at')
             ->first();
 
         return Inertia::render('Invoices/Show', [
@@ -158,10 +160,51 @@ class InvoiceController extends Controller
                 'occurred_at' => $e->occurred_at->toIso8601String(),
                 'payload' => $e->payload,
             ]),
-            'linked_entries' => ['count' => (int) $linked->n, 'hours' => round(((int) $linked->secs) / 3600, 1)],
+            'linked_entries' => [
+                'count' => (int) $linked->n,
+                'hours' => round(((int) $linked->secs) / 3600, 1),
+                'from' => $linked->first_at ? Carbon::parse($linked->first_at)->toDateString() : null,
+                'to' => $linked->last_at ? Carbon::parse($linked->last_at)->toDateString() : null,
+                'project' => $invoice->project ? ['name' => $invoice->project->name, 'code' => $invoice->project->code] : null,
+            ],
+            'next_reminder_on' => $this->nextReminderOn($invoice),
             'preview_url' => "/invoices/{$invoice->number}/preview",
             'pdf_url' => "/invoices/{$invoice->number}/pdf",
         ]);
+    }
+
+    /**
+     * Date the scheduler will next queue a reminder: reminder_days_after_due
+     * past the due date, or past the last reminder if one went out already.
+     * Null unless the invoice is sent, overdue and not paused.
+     */
+    private function nextReminderOn(Invoice $invoice): ?string
+    {
+        if ($invoice->status !== 'sent' || ! $invoice->overdue || $invoice->reminders_paused_at) {
+            return null;
+        }
+
+        $days = max(1, BusinessProfile::current()->reminder_days_after_due ?? 7);
+        $lastReminded = $invoice->events->firstWhere('kind', 'reminded')?->occurred_at;
+        $anchor = $lastReminded ? $lastReminded->copy()->startOfDay() : $invoice->due_on->copy();
+
+        // Never in the past: a missed slot is picked up by the next nightly run.
+        return $anchor->addDays($days)->max(Carbon::today())->toDateString();
+    }
+
+    public function remind(Invoice $invoice): RedirectResponse
+    {
+        if ($invoice->status !== 'sent') {
+            return back()->with('error', 'Reminders only apply to sent invoices.');
+        }
+
+        if (empty($invoice->recipients ?: ($invoice->client?->defaultRecipients() ?? []))) {
+            return back()->with('error', 'No recipient email on this invoice.');
+        }
+
+        SendInvoiceReminderMail::dispatch($invoice->id, force: true);
+
+        return back()->with('success', "Reminder queued for invoice {$invoice->number}.");
     }
 
     public function edit(Invoice $invoice): RedirectResponse|Response

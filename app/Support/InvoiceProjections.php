@@ -120,7 +120,13 @@ class InvoiceProjections
     /** Full single-invoice detail array (shared by the web show page and the API). */
     public static function detail(Invoice $invoice): array
     {
-        $invoice->loadMissing(['client', 'project', 'recurringInvoice:id,title', 'lines']);
+        $invoice->loadMissing(['client', 'project', 'recurringInvoice:id,title', 'lines', 'events']);
+
+        $hours = (float) $invoice->lines->sum('hours');
+        $weightedRate = $hours > 0
+            ? $invoice->lines->sum(fn (InvoiceLine $l) => (float) $l->hours * $l->rate_rappen) / $hours
+            : null;
+        $sentEvent = $invoice->events->where('kind', 'sent')->sortByDesc('occurred_at')->first();
 
         return [
             'id' => $invoice->id,
@@ -130,6 +136,13 @@ class InvoiceProjections
             'reminders_paused' => $invoice->reminders_paused_at !== null,
             'title' => $invoice->title,
             'client' => $invoice->client->only('id', 'name'),
+            'recipients' => $invoice->recipients ?: $invoice->client->defaultRecipients(),
+            'terms_days' => ($invoice->issued_on && $invoice->due_on)
+                ? (int) $invoice->issued_on->diffInDays($invoice->due_on)
+                : null,
+            'days_late' => $invoice->overdue ? (int) $invoice->due_on->diffInDays(Carbon::today()) : 0,
+            'avg_rate' => $weightedRate !== null ? round($weightedRate / 100, 2) : null,
+            'issued_channel' => $sentEvent ? (($sentEvent->payload['manual'] ?? false) ? 'manual' : 'email') : null,
             'project_name' => $invoice->project?->name,
             'issued_on' => $invoice->issued_on?->toDateString(),
             'due_on' => $invoice->due_on?->toDateString(),

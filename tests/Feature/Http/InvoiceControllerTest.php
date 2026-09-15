@@ -492,3 +492,65 @@ test('GET /invoices/new without a client renders the client picker (not a 404)',
             ->where('client', null)
             ->has('clients'));
 });
+
+test('GET /invoices/{number} exposes Ledger detail data for a sent, overdue invoice', function () {
+    Contact::factory()->for($this->client)->create(['name' => 'Nina', 'email' => 'nina@example.test', 'is_default' => true]);
+    $inv = makeDraft();
+    $inv->update([
+        'status' => 'sent',
+        'issued_on' => now()->subDays(40)->toDateString(),
+        'due_on' => now()->subDays(10)->toDateString(),
+        'recipients' => null,
+    ]);
+    $inv->events()->create(['kind' => 'sent', 'occurred_at' => now()->subDays(40), 'payload' => ['manual' => true]]);
+    $inv->events()->create(['kind' => 'reminded', 'occurred_at' => now()->subDays(3), 'payload' => []]);
+
+    $this->get("/invoices/{$inv->number}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Invoices/Show')
+            ->where('invoice.recipients.0.email', 'nina@example.test')
+            ->where('invoice.terms_days', 30)
+            ->where('invoice.days_late', 10)
+            ->where('invoice.avg_rate', 145)
+            ->where('invoice.issued_channel', 'manual')
+            ->where('linked_entries.count', 1)
+            ->where('linked_entries.project.name', $this->project->name)
+            ->where('linked_entries.from', now()->subDays(20)->toDateString())
+            ->where('linked_entries.to', now()->subDays(20)->toDateString())
+            // last reminder 3 days ago + default 7-day cadence
+            ->where('next_reminder_on', now()->addDays(4)->toDateString()));
+});
+
+test('GET /invoices/{number} keeps detail extras null on a draft', function () {
+    $inv = makeDraft();
+
+    $this->get("/invoices/{$inv->number}")
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('invoice.terms_days', null)
+            ->where('invoice.days_late', 0)
+            ->where('invoice.issued_channel', null)
+            ->where('next_reminder_on', null));
+});
+
+test('POST /invoices/{id}/remind queues a forced reminder for a sent invoice', function () {
+    \Illuminate\Support\Facades\Queue::fake();
+    Contact::factory()->for($this->client)->create(['email' => 'nina@example.test', 'is_default' => true]);
+    $inv = makeDraft();
+    $inv->update(['status' => 'sent', 'reminders_paused_at' => now()]);
+
+    $this->post("/invoices/{$inv->id}/remind")
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\SendInvoiceReminderMail::class,
+        fn ($job) => $job->invoiceId === $inv->id && $job->force === true);
+});
+
+test('POST /invoices/{id}/remind refuses drafts', function () {
+    \Illuminate\Support\Facades\Queue::fake();
+    $inv = makeDraft();
+
+    $this->post("/invoices/{$inv->id}/remind")->assertSessionHas('error');
+    \Illuminate\Support\Facades\Queue::assertNothingPushed();
+});

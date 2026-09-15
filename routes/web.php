@@ -60,6 +60,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/invoices/{invoice}/void', [InvoiceController::class, 'void'])->name('invoices.void');
     Route::post('/invoices/{invoice}/pause-reminders', [InvoiceController::class, 'pauseReminders'])->name('invoices.pause-reminders');
     Route::post('/invoices/{invoice}/resume-reminders', [InvoiceController::class, 'resumeReminders'])->name('invoices.resume-reminders');
+    Route::post('/invoices/{invoice}/remind', [InvoiceController::class, 'remind'])->name('invoices.remind');
     Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
 
     Route::get('/estimates', [EstimateController::class, 'index'])->name('estimates.index');

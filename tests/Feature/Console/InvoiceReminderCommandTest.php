@@ -167,3 +167,22 @@ test('reminder job quietly skips invoices that no longer qualify', function () {
     Mail::assertNothingSent();
     expect($invoice->events()->where('kind', 'reminded')->count())->toBe(0);
 });
+
+test('a forced reminder job sends even when paused and not yet past the cadence', function () {
+    Mail::fake();
+
+    $client = Client::factory()->create();
+    Contact::factory()->for($client)->create(['email' => 'client@example.test', 'is_default' => true]);
+    $invoice = Invoice::factory()->create([
+        'client_id' => $client->id,
+        'status' => 'sent',
+        'issued_on' => now()->subDays(5)->toDateString(),
+        'due_on' => now()->addDays(25)->toDateString(),
+        'reminders_paused_at' => now(),
+    ]);
+
+    (new SendInvoiceReminderMail($invoice->id, force: true))->handle();
+
+    Mail::assertSent(InvoiceReminderMail::class);
+    expect(InvoiceEvent::where('invoice_id', $invoice->id)->where('kind', 'reminded')->exists())->toBeTrue();
+});

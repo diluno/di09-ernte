@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+@font-face{font-family:'Beausite';font-weight:400;font-style:normal;src:url('assets/BeausiteClassicWeb-Clear.woff') format('woff')}
+@font-face{font-family:'Beausite';font-weight:600 700;font-style:normal;src:url('assets/BeausiteClassicWeb-Semibold.woff') format('woff')}
+html,body{margin:0;background:#e9e6df;color:#1a1a1a;font-family:'Beausite','Helvetica Neue',Arial,system-ui,sans-serif;font-size:13px}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+</style>
+</helmet>
+<section style="padding:48px;display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;align-items:baseline;gap:16px;color:#3d3d3d"><span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;padding:2px 8px;border:1px solid #9a9a9a;border-radius:2px">Turn 1</span><span style="font-size:15px">Ledger direction — chosen. Cream stock, hairline rules, one red; Beausite + mono.</span></div>
+  <div style="display:flex;flex-wrap:wrap;gap:56px">
+
+    <!-- 1a Ledger -->
+    <div id="1a" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:baseline;gap:12px;color:#1a1a1a"><span style="font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:700;padding:3px 9px;background:#1a1a1a;color:#f5f1ea;border-radius:2px">1a</span><span style="font-size:18px;font-weight:600">Ledger</span><span style="color:#6b6b6b">Swiss print. Cream stock, hairline rules, one red. Numbers are the design.</span></div>
+      <div data-screen-label="1a Ledger" style="width:1440px;height:900px;display:grid;grid-template-columns:240px 1fr;grid-template-rows:52px 1fr;overflow:hidden;background:#f7f3ea;color:#141210;font-family:'Beausite','Helvetica Neue',Arial,system-ui,sans-serif;font-size:14px">
+        <header style="grid-column:1 / -1;display:flex;align-items:center;gap:24px;padding:0 32px;border-bottom:1px solid #141210">
+          <span style="display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;letter-spacing:-0.01em"><svg width="16" height="16" viewBox="0 0 24 24" style="color:#141210"><path fill="currentColor" d="M1 18h2v4H1zm2-2h2v2H3zm2-2h6v2H5zm6-2h2v2h-2zm-6 6h4v2H5zm4 2h4v2H9zm4-2h4v2h-4zm4-2h2v2h-2zm2-8h2v8h-2zm0-4h2v4h-2zm-2-2h2v2h-2zm-4 2h4v2h-4zM7 6h6v2H7zM5 8h2v2H5zm-2 2h2v4H3z"></path></svg>ernte<span style="font-weight:400;color:#7a7367;margin-left:4px">/ diluno</span></span>
+          <div style="flex:1"></div>
+          <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#7a7367;display:flex;gap:10px;align-items:center">Jump to… <span style="border:1px solid #c9c2b3;padding:1px 6px">⌘K</span></span>
+          <div style="flex:1"></div>
+          <a href="#" style="font-family:ui-monospace,Menlo,monospace;font-size:12px;display:flex;align-items:center;gap:10px;color:#141210;border:1px solid #141210;padding:5px 10px 5px 12px" style-hover="background:#141210;color:#f7f3ea"><span style="width:8px;height:8px;border-radius:50%;background:#c8341f"></span>Kollektiv Nord — Website <b>01:42:17</b><span title="Stop" style="width:9px;height:9px;background:currentColor;margin-left:4px"></span></a>
+          <span style="font-size:13px;color:#141210">Dominik Lüthi</span>
+        </header>
+        <aside style="border-right:1px solid #141210;padding:28px 0 0;display:flex;flex-direction:column">
+          <nav style="display:flex;flex-direction:column">
+            <sc-for list="{{ navA }}" as="n" hint-placeholder-count="6">
+              <a href="#" style="display:flex;align-items:center;gap:12px;padding:9px 32px;color:{{ n.color }};font-weight:{{ n.weight }};font-size:15px;border-bottom:1px solid #e3dccd;background:{{ n.bg }}" style-hover="background:#efe9dc;color:#141210"><svg width="14" height="14" viewBox="0 0 24 24" style="color:{{ n.color }};flex:0 0 auto" dangerouslySetInnerHTML="{{ n.icon }}"></svg><span style="flex:1">{{ n.label }}</span><span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#7a7367">{{ n.count }}</span></a>
+            </sc-for>
+          </nav>
+          <div style="padding:32px 32px 8px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#7a7367">Pinned</div>
+          <a href="#" style="padding:6px 32px;color:#141210;font-size:14px" style-hover="background:#efe9dc">Kollektiv Nord — Website</a>
+          <a href="#" style="padding:6px 32px;color:#141210;font-size:14px" style-hover="background:#efe9dc">Hofmann Retainer</a>
+          <a href="#" style="padding:6px 32px;color:#141210;font-size:14px" style-hover="background:#efe9dc">Alpstein Jahresbericht</a>
+          <div style="flex:1"></div>
+          <div style="padding:24px 32px;border-top:1px solid #141210">
+            <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#7a7367">This week</div>
+            <div style="font-family:ui-monospace,Menlo,monospace;font-size:34px;letter-spacing:-0.03em;margin-top:6px;line-height:1">11.4<span style="font-size:14px;color:#7a7367"> / 40 h</span></div>
+            <div style="display:flex;gap:2px;align-items:flex-end;height:24px;margin-top:12px;border-bottom:1px solid #141210"><div style="flex:1;height:82%;background:#141210"></div><div style="flex:1;height:32%;background:#c8341f"></div><div style="flex:1"></div><div style="flex:1"></div><div style="flex:1"></div><div style="flex:1"></div><div style="flex:1"></div></div>
+          </div>
+        </aside>
+        <main style="overflow:hidden;display:flex;flex-direction:column;min-width:0">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:36px 40px 24px;border-bottom:1px solid #141210">
+            <div>
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#7a7367;letter-spacing:.08em;text-transform:uppercase">Invoices · FY 2026 · 42 documents</div>
+              <h1 style="margin:10px 0 0;font-size:64px;letter-spacing:-0.04em;font-weight:600;line-height:.95">Invoices</h1>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <a href="#" style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#141210;padding:10px 14px;border:1px solid #141210" style-hover="background:#efe9dc">↓ Paid PDFs</a>
+              <a href="#" style="font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#141210;color:#f7f3ea;padding:11px 18px" style-hover="background:#2e2b26">+ New invoice</a>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid #141210">
+            <div style="padding:20px 40px 22px;border-right:1px solid #e3dccd"><div style="font-size:12px;color:#7a7367;letter-spacing:.08em;text-transform:uppercase">Outstanding</div><div style="font-family:ui-monospace,Menlo,monospace;font-size:40px;letter-spacing:-0.03em;line-height:1;margin-top:10px">9’360<span style="font-size:14px;color:#7a7367;margin-left:6px">CHF</span></div><div style="font-size:12px;color:#7a7367;margin-top:8px">2 sent</div></div>
+            <div style="padding:20px 40px 22px;border-right:1px solid #e3dccd"><div style="font-size:12px;color:#c8341f;letter-spacing:.08em;text-transform:uppercase">Overdue</div><div style="font-family:ui-monospace,Menlo,monospace;font-size:40px;letter-spacing:-0.03em;line-height:1;margin-top:10px;color:#c8341f">4’320<span style="font-size:14px;margin-left:6px">CHF</span></div><div style="font-size:12px;color:#c8341f;margin-top:8px">1 invoice · 2 days</div></div>
+            <div style="padding:20px 40px 22px;border-right:1px solid #e3dccd"><div style="font-size:12px;color:#7a7367;letter-spacing:.08em;text-transform:uppercase">Paid YTD</div><div style="font-family:ui-monospace,Menlo,monospace;font-size:40px;letter-spacing:-0.03em;line-height:1;margin-top:10px">142’800<span style="font-size:14px;color:#7a7367;margin-left:6px">CHF</span></div><div style="font-size:12px;color:#7a7367;margin-top:8px">38 paid</div></div>
+            <div style="padding:20px 40px 22px"><div style="font-size:12px;color:#7a7367;letter-spacing:.08em;text-transform:uppercase">Avg days to pay</div><div style="font-family:ui-monospace,Menlo,monospace;font-size:40px;letter-spacing:-0.03em;line-height:1;margin-top:10px">23</div><div style="font-size:12px;color:#7a7367;margin-top:8px">terms 30</div></div>
+          </div>
+          <div style="padding:20px 40px 18px;border-bottom:1px solid #e3dccd;display:grid;grid-template-columns:repeat(12,1fr) 120px;gap:0">
+            <sc-for list="{{ ledgerMonths }}" as="m" hint-placeholder-count="12">
+              <div style="border-left:1px solid #e3dccd;padding:0 0 0 10px;display:flex;flex-direction:column;gap:8px;background:{{ m.bg }}" style-hover="background:#efe9dc"><span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:{{ m.labelColor }}">{{ m.label }}</span><div style="display:flex;flex-direction:column;gap:2px;height:56px;justify-content:flex-end"><div style="height:{{ m.openPx }}px;background:#c8341f;width:22px"></div><div style="height:{{ m.paidPx }}px;background:#141210;width:22px"></div></div><span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#141210">{{ m.total }}</span></div>
+            </sc-for>
+            <div style="border-left:1px solid #141210;padding:0 0 0 14px;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#7a7367"><span style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;background:#141210"></span>Paid</span><span style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;background:#c8341f"></span>Open</span><span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#141210;letter-spacing:0;text-transform:none;margin-top:4px">Σ 155’360</span></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:24px;padding:16px 40px;border-bottom:1px solid #141210;font-size:13px">
+            <a href="#" style="font-weight:600;border-bottom:1px solid #141210;padding-bottom:2px;color:#141210">All 42</a><a href="#" style="color:#7a7367;padding-bottom:2px;border-bottom:1px solid transparent" style-hover="color:#141210;border-bottom-color:#c9c2b3">Draft 1</a><a href="#" style="color:#7a7367;padding-bottom:2px;border-bottom:1px solid transparent" style-hover="color:#141210;border-bottom-color:#c9c2b3">Sent 2</a><a href="#" style="color:#c8341f;padding-bottom:2px;border-bottom:1px solid transparent" style-hover="border-bottom-color:#c8341f">Overdue 1</a><a href="#" style="color:#7a7367;padding-bottom:2px;border-bottom:1px solid transparent" style-hover="color:#141210;border-bottom-color:#c9c2b3">Paid 38</a>
+            <span style="margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#7a7367;border-bottom:1px solid #c9c2b3;padding:2px 0;min-width:220px;display:flex;justify-content:space-between"><span>filter…</span><span style="border:1px solid #c9c2b3;padding:0 5px;font-size:11px">/</span></span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums">
+            <thead><tr>
+              <th style="text-align:left;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7a7367;font-weight:400;padding:12px 12px 12px 40px;border-bottom:1px solid #e3dccd;width:130px">No.</th>
+              <th style="text-align:left;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7a7367;font-weight:400;padding:12px;border-bottom:1px solid #e3dccd;width:260px">Subject</th>
+              <th style="text-align:left;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7a7367;font-weight:400;padding:12px;border-bottom:1px solid #e3dccd;width:220px">Client</th>
+              <th style="text-align:right;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7a7367;font-weight:400;padding:12px;border-bottom:1px solid #e3dccd;width:120px;color:#141210">Issued ↓</th>
+              <th style="text-align:right;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7a7367;font-weight:400;padding:12px;border-bottom:1px solid #e3dccd;width:120px">Due</th>
+              <th style="text-align:right;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7a7367;font-weight:400;padding:12px;border-bottom:1px solid #e3dccd;width:80px">Hours</th>
+              <th style="text-align:right;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7a7367;font-weight:400;padding:12px;border-bottom:1px solid #e3dccd;width:150px">CHF</th>
+              <th style="text-align:left;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7a7367;font-weight:400;padding:12px 40px 12px 12px;border-bottom:1px solid #e3dccd;width:130px">Status</th>
+            </tr></thead>
+            <tbody>
+              <sc-for list="{{ invA }}" as="inv" hint-placeholder-count="8">
+                <tr style="cursor:pointer;background:{{ inv.rowBg }}" style-hover="background:#efe9dc" onClick="{{ openDetail }}">
+                  <td style="padding:0 12px 0 40px;height:46px;border-bottom:1px solid #e3dccd;font-family:ui-monospace,Menlo,monospace;font-size:13px;color:{{ inv.ink }};box-shadow:{{ inv.edge }}">{{ inv.number }}</td>
+                  <td style="padding:0 12px;height:46px;border-bottom:1px solid #e3dccd;font-size:15px;color:{{ inv.ink }};font-style:{{ inv.titleStyle }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ inv.title }}</td>
+                  <td style="padding:0 12px;height:46px;border-bottom:1px solid #e3dccd;color:#7a7367;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ inv.client }}</td>
+                  <td style="padding:0 12px;height:46px;border-bottom:1px solid #e3dccd;text-align:right;font-family:ui-monospace,Menlo,monospace;font-size:13px;color:#7a7367">{{ inv.issued }}</td>
+                  <td style="padding:0 12px;height:46px;border-bottom:1px solid #e3dccd;text-align:right;font-family:ui-monospace,Menlo,monospace;font-size:13px;color:{{ inv.dueColor }}">{{ inv.due }}</td>
+                  <td style="padding:0 12px;height:46px;border-bottom:1px solid #e3dccd;text-align:right;font-family:ui-monospace,Menlo,monospace;font-size:13px;color:#7a7367">{{ inv.hours }}</td>
+                  <td style="padding:0 12px;height:46px;border-bottom:1px solid #e3dccd;text-align:right;font-family:ui-monospace,Menlo,monospace;font-size:14px;color:{{ inv.ink }};font-weight:{{ inv.totalWeight }}">{{ inv.amount }}</td>
+                  <td style="padding:0 40px 0 12px;height:46px;border-bottom:1px solid #e3dccd;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:{{ inv.statusColor }}">{{ inv.statusMark }} {{ inv.status }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </main>
+      </div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const NAV = [['Projects','briefcase','14'],['Timer','clock','3.2h'],['Clients','users','9'],['Invoices','receipt','',true],['Estimates','edit',''],['Recurring','repeat','']];
+    const ICON = {
+      briefcase: '<path fill="currentColor" d="M2 8h2v12H2zm18 0h2v12h-2zM4 6h16v2H4zm0 14h16v2H4zM8 4h2v2H8zm2-2h4v2h-4zm4 2h2v2h-2z"/>',
+      clock: '<path fill="currentColor" d="M6 2h12v2H6zM2 6h2v12H2zm18 0h2v12h-2zm-2-2h2v2h-2zM4 4h2v2H4zm2 18h12v-2H6zm12-2h2v-2h-2zM4 20h2v-2H4zm7-14h2v7h-2zm2 7h2v2h-2zm2 2h2v2h-2z"/>',
+      users: '<path fill="currentColor" d="M5 2h6v2H5zm10 0h4v2h-4zM5 10h6v2H5zm10 0h4v2h-4zm4-6h2v6h-2zm-8 0h2v6h-2zM3 4h2v6H3zM0 18h2v4H0zm14 0h2v4h-2zm8 0h2v4h-2zM4 14h8v2H4zm12 0h4v2h-4zM2 16h2v2H2zm10 0h2v2h-2zm8 0h2v2h-2z"/>',
+      receipt: '<path fill="currentColor" d="M3 2h2v18H3zm16 0h2v18h-2zM5 4h2v2H5zm4 0h2v2H9zM5 20h14v2H5zm8-16h2v2h-2zM7 2h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2zm2 2h2v2h-2zM7 8h10v2H7zm0 4h10v2H7zm0 4h4v2H7z"/>',
+      edit: '<path fill="currentColor" d="M18 2h-2v2h-2v2h-2v2h-2v2H8v2H6v2H4v2H2v6h6v-2h2v-2h2v-2h2v-2h2v-2h2v-2h2V8h2V6h-2V4h-2zm0 8h-2v2h-2v2h-2v2h-2v2H8v-2H6v-2h2v-2h2v-2h2V8h2V6h2v2h2zM6 16H4v4h4v-2H6z"/>',
+      repeat: '<g fill="currentColor"><path d="M17 5h2v2h-2zM5 17h2v2H5zm6-14h2v6h-2zM9 1h2v8H9zm0 8h2v2H9zm10 8H9v2h10zM5 7H3v10h2z"/><path d="M13 15h-2v6h2zm2-2h-2v8h2zm0 8h-2v2h2zM5 5h10v2H5zm14 12h2V7h-2z"/></g>',
+    };
+    const navA = NAV.map(([label,icon,count,a]) => ({ label, count, icon: { __html: ICON[icon] }, color: a ? '#141210' : '#7a7367', weight: a ? 600 : 400, bg: a ? '#efe9dc' : 'transparent' }));
+    const months = [[3200,9040],[0,7040],[0,12480],[0,8800],[0,11200],[0,14320],[0,10640],[0,13240],[9360,2000],[0,0],[0,0],[0,0]];
+    const labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const fmtK = (v) => v ? Math.round(v).toLocaleString('de-CH') : '—';
+    const scale = (px) => months.map(([open,paid],i) => ({ label: labels[i], openPx: Math.round(open/15000*px), paidPx: Math.round(paid/15000*px), total: fmtK(open+paid), bg: i === 8 ? '#f1ece1' : 'transparent', labelColor: i === 8 ? '#141210' : '#7a7367' }));
+    const ledgerMonths = scale(56);
+
+    const base = [
+      ['2026-0042','September retainer','Hofmann & Partner AG','—','—','0.0','0.00','draft'],
+      ['2026-0041','Website redesign — phase 2','Kollektiv Nord','02 Sep 2026','02 Oct 2026','38.5','6’160.00','sent'],
+      ['2026-0040','August retainer','Hofmann & Partner AG','31 Aug 2026','30 Sep 2026','20.0','3’200.00','sent'],
+      ['2026-0039','Brand guidelines','Alpstein Verlag','14 Aug 2026','13 Sep 2026','27.0','4’320.00','overdue'],
+      ['2026-0038','Q3 maintenance','Kollektiv Nord','01 Aug 2026','31 Aug 2026','12.5','2’000.00','paid'],
+      ['2026-0037','Shop checkout flow','Bäckerei Rüegg','28 Jul 2026','27 Aug 2026','44.0','7’040.00','paid'],
+      ['2026-0036','July retainer','Hofmann & Partner AG','31 Jul 2026','30 Aug 2026','20.0','3’200.00','paid'],
+      ['2026-0035','','Stadt Winterthur','15 Jul 2026','14 Aug 2026','9.0','1’440.00','paid'],
+      ['2026-0034','Annual report layout','Alpstein Verlag','30 Jun 2026','30 Jul 2026','56.5','9’040.00','paid'],
+      ['2026-0033','June retainer','Hofmann & Partner AG','30 Jun 2026','30 Jul 2026','20.0','3’200.00','paid'],
+    ];
+    const short = (d) => d === '—' ? '—' : d.slice(0,6);
+    const rows = base.map(([number,title,client,issued,due,hours,amount,status]) => ({ number, title: title || '—', titleOrNumber: title || `Invoice ${number}`, client, issued, due, issuedShort: short(issued), dueShort: short(due), hours, amount, amountCHF: 'CHF ' + amount, status, statusCap: status[0].toUpperCase() + status.slice(1) }));
+
+    const A = { draft:['#7a7367','○'], sent:['#141210','◐'], overdue:['#c8341f','●'], paid:['#7a7367','●'] };
+    const invA = rows.slice(0,8).map(r => ({ ...r, ink: r.status === 'paid' ? '#5a554b' : r.status === 'draft' ? '#7a7367' : '#141210', titleStyle: r.status === 'draft' ? 'italic' : 'normal', rowBg: r.status === 'overdue' ? '#f6e6e1' : 'transparent', edge: r.status === 'overdue' ? 'inset 3px 0 0 #c8341f' : 'none', totalWeight: r.status === 'paid' ? 400 : 600, statusColor: A[r.status][0], statusMark: A[r.status][1], dueColor: r.status === 'overdue' ? '#c8341f' : '#7a7367' }));
+    const openDetail = () => { window.location.href = 'Ernte Invoice Detail.dc.html'; };
+    return { navA, ledgerMonths, invA, openDetail };
+  }
+}
+</script>
+</body>
+</html>

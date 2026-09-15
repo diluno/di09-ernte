@@ -16,7 +16,11 @@ class SendInvoiceReminderMail implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public int $invoiceId)
+    /**
+     * $force skips the pause flag and the cadence check — used by the explicit
+     * "Send reminder now" action, where the click itself is the intent.
+     */
+    public function __construct(public int $invoiceId, public bool $force = false)
     {
         $this->onQueue('emails');
     }
@@ -47,11 +51,19 @@ class SendInvoiceReminderMail implements ShouldQueue
 
     private function shouldRemind(Invoice $invoice): bool
     {
-        if ($invoice->status !== 'sent' || $invoice->reminders_paused_at || ! $invoice->due_on || ! $invoice->due_on->lt(Carbon::today())) {
+        if ($invoice->status !== 'sent') {
             return false;
         }
 
         if (empty($invoice->recipients ?: ($invoice->client?->defaultRecipients() ?? []))) {
+            return false;
+        }
+
+        if ($this->force) {
+            return true;
+        }
+
+        if ($invoice->reminders_paused_at || ! $invoice->due_on || ! $invoice->due_on->lt(Carbon::today())) {
             return false;
         }
 
