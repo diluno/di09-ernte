@@ -22,9 +22,6 @@
   $date = fn ($d) => $d?->format('d.m.Y') ?? '—';
 
   $client = $doc->client;
-  $recipients = $doc->recipients ?: $client->defaultRecipients();
-  $attn = $recipients[0]['name'] ?? null;
-  if ($attn && mb_strtolower(trim($attn)) === mb_strtolower(trim($client->name))) { $attn = null; }
 
   $untilLabel = $isInvoice ? 'Fällig' : 'Gültig bis';
   $until = $isInvoice ? $doc->due_on : $doc->valid_until;
@@ -87,7 +84,6 @@
     .window { display: grid; grid-template-columns: 90mm 1fr; gap: 10mm; padding: 8mm 0 4mm; min-height: 36mm; }
     .address { font-size: 10.5pt; line-height: 1.45; }
     .address .name { font-weight: 600; }
-    .address .attn { color: var(--ink-2); }
     .meta { font-family: var(--mono); font-size: 8.5pt; line-height: 1.7; color: var(--ink-3); display: grid; grid-template-columns: max-content 1fr; gap: 0 5mm; align-content: start; }
     .meta b { color: var(--ink); font-weight: 600; }
     .meta .kind { grid-column: 1 / -1; font-family: var(--sans); font-size: 8pt; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 1.5mm; }
@@ -144,7 +140,6 @@
     <div class="window">
       <div class="address">
         <div class="name">{{ $client->name }}</div>
-        @if ($attn)<div class="attn">z.Hd. {{ $attn }}</div>@endif
         @if ($client->address_line_1)<div>{{ $client->address_line_1 }}</div>@endif
         @if ($client->address_line_2)<div>{{ $client->address_line_2 }}</div>@endif
         <div>{{ trim(($client->postal_code ?? '').' '.($client->city ?? '')) }}</div>

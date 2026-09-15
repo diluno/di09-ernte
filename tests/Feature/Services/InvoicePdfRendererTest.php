@@ -50,7 +50,7 @@ test('html uses the shared sheet: window address with contact, mono meta, terms 
 
     $html = app(InvoicePdfRenderer::class)->html($invoice);
 
-    expect($html)->toContain('z.Hd. Nina Bärtschi');
+    expect($html)->not->toContain('z.Hd.');
     expect($html)->toContain('Ernte Test · Bahnhofstrasse 1 · 8001 Zürich'); // sender line above the window
     expect($html)->toContain('Zahlbar bis <b>13.09.2026</b> (30 Tage)');
     expect($html)->toContain('<h1>Brand guidelines</h1>');
@@ -58,12 +58,4 @@ test('html uses the shared sheet: window address with contact, mono meta, terms 
     expect($html)->toContain('* ohne MwSt');
     expect($html)->not->toContain('CHF 888.00');
     expect($html)->toContain('Total CHF');
-});
-
-test('html omits the z.Hd. line when the recipient is the company itself', function () {
-    $client = Client::factory()->create(['name' => 'Atlas Robotics']);
-    \App\Models\Contact::factory()->for($client)->create(['name' => 'Atlas Robotics', 'email' => 'billing@example.test', 'is_default' => true]);
-    $invoice = Invoice::factory()->create(['client_id' => $client->id]);
-
-    expect(app(InvoicePdfRenderer::class)->html($invoice))->not->toContain('z.Hd.');
 });
