@@ -1,19 +1,25 @@
+@extends('emails.layout')
+
 @php
     $fmt = fn (int $rappen) => 'CHF ' . number_format($rappen / 100, 2, '.', "'");
     $contactName = $estimate->client->defaultRecipients()[0]['name'] ?? null;
 @endphp
 
-Guten Tag{{ $contactName ? ' ' . $contactName : '' }}
+@section('title', "Offerte {$estimate->number}")
+@section('kind', 'Offerte')
 
-Anbei senden wir Ihnen unsere Offerte {{ $estimate->number }} als PDF.
+@section('content')
+  <p>Guten Tag{{ $contactName ? ' ' . $contactName : '' }}</p>
 
-Offertbetrag: {!! $fmt((int) $estimate->total_rappen) !!}
-Gültig bis: {{ optional($estimate->valid_until)->format('d.m.Y') }}
+  <p>Anbei senden wir Ihnen unsere Offerte {{ $estimate->number }} als PDF.</p>
 
-Wir freuen uns auf Ihre Rückmeldung.
+  @include('emails.partials.meta', ['rows' => [
+      ['label' => 'Offerte', 'value' => $estimate->number],
+      ['label' => 'Offertbetrag', 'value' => $fmt((int) $estimate->total_rappen), 'strong' => true],
+      ['label' => 'Gültig bis', 'value' => optional($estimate->valid_until)->format('d.m.Y') ?? '—'],
+  ]])
 
-Freundliche Grüsse
-{{ $profile->name }}
-@if ($profile->email)
-{{ $profile->email }}
-@endif
+  <p>Wir freuen uns auf Ihre Rückmeldung.</p>
+
+  <p style="margin:0;">Freundliche Grüsse<br>{{ $profile->name }}</p>
+@endsection

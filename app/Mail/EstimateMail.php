@@ -32,8 +32,11 @@ class EstimateMail extends Mailable
         return $this
             ->from($from, $name)
             ->replyTo($from, $name)
+            // Copy every outgoing mail to the operator so the sent mail is on file.
+            ->bcc($from, $name)
             ->subject("Offerte {$this->estimate->number} - {$name}")
-            ->text('emails.estimates.sent')
+            ->view('emails.estimates.sent')
+            ->text('emails.estimates.sent-text')
             ->with([
                 'estimate' => $this->estimate,
                 'profile' => $this->profile,

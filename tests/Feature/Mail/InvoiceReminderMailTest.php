@@ -1,13 +1,13 @@
 <?php
 
-use App\Mail\InvoiceMail;
+use App\Mail\InvoiceReminderMail;
 use App\Models\BusinessProfile;
 use App\Models\Client;
 use App\Models\Contact;
 use App\Models\Invoice;
 use Illuminate\Support\Facades\Storage;
 
-test('invoice mail renders invoice details and attaches the pdf path', function () {
+test('reminder mail renders invoice details, copies the operator and attaches the stored pdf', function () {
     BusinessProfile::create([
         'name' => 'Ernte Test',
         'country' => 'CH',
@@ -18,28 +18,24 @@ test('invoice mail renders invoice details and attaches the pdf path', function 
 
     $client = Client::factory()->create();
     Contact::factory()->for($client)->create(['name' => 'Mira Okafor', 'is_default' => true]);
+    Storage::disk('local')->put('invoices/2026-014.pdf', '%PDF-test');
     $invoice = Invoice::factory()->create([
         'client_id' => $client->id,
         'number' => '2026-014',
         'status' => 'sent',
-        'due_on' => now()->addDays(30)->toDateString(),
+        'due_on' => now()->subDays(10)->toDateString(),
         'total_rappen' => 123450,
+        'pdf_path' => 'invoices/2026-014.pdf',
     ]);
 
-    Storage::disk('local')->put('invoices/2026-014.pdf', '%PDF-test');
-
-    $mail = new InvoiceMail($invoice, 'invoices/2026-014.pdf');
-    // HTML body plus a plain-text alternative; both must carry the facts.
+    $mail = new InvoiceReminderMail($invoice);
     $mail->assertSeeInHtml('Mira Okafor');
     $mail->assertSeeInHtml("CHF 1'234.50");
-    $mail->assertSeeInText('Mira Okafor');
     $mail->assertSeeInText('2026-014');
-    $mail->assertSeeInText("CHF 1'234.50");
     $mail->assertHasBcc('billing@ernte.test');
-    expect($mail->pdfPath)->toBe('invoices/2026-014.pdf');
     $mail->assertHasAttachment(
         \Illuminate\Mail\Mailables\Attachment::fromPath(Storage::disk('local')->path('invoices/2026-014.pdf'))
-            ->as('Ernte-Test-Rechnung-2026-014.pdf')
+            ->as('Rechnung-2026-014.pdf')
             ->withMime('application/pdf')
     );
 });

@@ -1,19 +1,25 @@
+@extends('emails.layout')
+
 @php
     $fmt = fn (int $rappen) => 'CHF ' . number_format($rappen / 100, 2, '.', "'");
     $contactName = $invoice->client->defaultRecipients()[0]['name'] ?? null;
 @endphp
 
-Guten Tag{{ $contactName ? ' ' . $contactName : '' }}
+@section('title', "Zahlungserinnerung Rechnung {$invoice->number}")
+@section('kind', 'Zahlungserinnerung')
 
-Wir möchten Sie freundlich an die noch offene Rechnung {{ $invoice->number }} erinnern.
+@section('content')
+  <p>Guten Tag{{ $contactName ? ' ' . $contactName : '' }}</p>
 
-Rechnungsbetrag: {!! $fmt((int) $invoice->total_rappen) !!}
-Fällig seit: {{ optional($invoice->due_on)->format('d.m.Y') }}
+  <p>Wir möchten Sie freundlich an die noch offene Rechnung {{ $invoice->number }} erinnern.</p>
 
-Falls die Zahlung bereits unterwegs ist, betrachten Sie diese Nachricht bitte als gegenstandslos.
+  @include('emails.partials.meta', ['rows' => [
+      ['label' => 'Rechnung', 'value' => $invoice->number],
+      ['label' => 'Rechnungsbetrag', 'value' => $fmt((int) $invoice->total_rappen), 'strong' => true],
+      ['label' => 'Fällig seit', 'value' => optional($invoice->due_on)->format('d.m.Y') ?? '—', 'red' => true],
+  ]])
 
-Freundliche Grüsse
-{{ $profile->name }}
-@if ($profile->email)
-{{ $profile->email }}
-@endif
+  <p>Falls die Zahlung bereits unterwegs ist, betrachten Sie diese Nachricht bitte als gegenstandslos.</p>
+
+  <p style="margin:0;">Freundliche Grüsse<br>{{ $profile->name }}</p>
+@endsection

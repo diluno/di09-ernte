@@ -32,8 +32,11 @@ class InvoiceMail extends Mailable
         return $this
             ->from($from, $name)
             ->replyTo($from, $name)
+            // Copy every outgoing mail to the operator so the sent mail is on file.
+            ->bcc($from, $name)
             ->subject("Rechnung {$this->invoice->number} - {$name}")
-            ->text('emails.invoices.sent')
+            ->view('emails.invoices.sent')
+            ->text('emails.invoices.sent-text')
             ->with([
                 'invoice' => $this->invoice,
                 'profile' => $this->profile,

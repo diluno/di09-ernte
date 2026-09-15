@@ -30,10 +30,13 @@ test('estimate mail renders details and attaches the pdf path', function () {
 
     $mail = new EstimateMail($estimate, 'estimates/OF-2026-014.pdf');
 
-    // Delivered as a plain-text email so the line breaks survive (HTML collapses them).
+    // HTML body plus a plain-text alternative; both must carry the facts.
+    $mail->assertSeeInHtml('Mira Okafor');
+    $mail->assertSeeInHtml("CHF 1'234.50");
     $mail->assertSeeInText('Mira Okafor');
     $mail->assertSeeInText('OF-2026-014');
     $mail->assertSeeInText("CHF 1'234.50");
+    $mail->assertHasBcc('offers@ernte.test');
     expect($mail->pdfPath)->toBe('estimates/OF-2026-014.pdf');
     $mail->assertHasAttachment(
         \Illuminate\Mail\Mailables\Attachment::fromPath(Storage::disk('local')->path('estimates/OF-2026-014.pdf'))
