@@ -4,26 +4,22 @@ defineProps({
   target: { type: Number, default: 40 },
 });
 
-const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const todayIdx = (new Date().getDay() + 6) % 7; // JS: Sun=0..Sat=6 → ISO Mon=0..Sun=6
+
+// Past days ink, today red, empty/future days no fill. Full height = 10h.
+function bar(h, i) {
+  if (!h) return { flex: 1 };
+  return {
+    flex: 1,
+    height: `${Math.min(100, Math.max(4, (h / 10) * 100))}%`,
+    background: i === todayIdx ? 'var(--red)' : 'var(--ink)',
+  };
+}
 </script>
 
 <template>
-  <div>
-    <div style="display: flex; gap: 3px; align-items: flex-end; height: 28px">
-      <div
-        v-for="(h, i) in hours" :key="i"
-        :title="`${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i]}: ${h}h`"
-        :style="{
-          flex: 1,
-          height: `${Math.max(2, (h / 10) * 100)}%`,
-          background: i === todayIdx ? 'var(--accent)' : h === 0 ? 'var(--bg-3)' : 'var(--ink-3)',
-          opacity: i === 5 || i === 6 ? 0.5 : 1,
-        }"
-      />
-    </div>
-    <div style="display: flex; justify-content: space-between; font-size: 9px; color: var(--ink-4); margin-top: 4px; letter-spacing: .05em">
-      <span v-for="(d, i) in DAYS" :key="i">{{ d }}</span>
-    </div>
+  <div class="week-bars">
+    <div v-for="(h, i) in hours" :key="i" :title="`${DAYS[i]}: ${h}h`" :style="bar(h, i)" />
   </div>
 </template>

@@ -2,12 +2,9 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Backup;
 use App\Models\BusinessProfile;
 use App\Support\SidebarProps;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -47,15 +44,6 @@ class HandleInertiaRequests extends Middleware
             'business' => fn () => [
                 'name' => BusinessProfile::query()->value('name'),
             ],
-            'system' => fn () => [
-                'db_driver' => DB::connection()->getDriverName(),
-                'db_version' => $this->dbVersion(),
-                'db_size_bytes' => Cache::remember(
-                    'system:db_size_bytes', now()->addSeconds(60), fn () => $this->dbSizeBytes()
-                ),
-                'backup_last_at' => Backup::latest()?->created_at?->toIso8601String(),
-                'uptime_seconds' => $this->uptimeSeconds(),
-            ],
             'running_entry' => fn () => $request->user()
                 ? SidebarProps::runningEntry($request->user())
                 : null,
@@ -67,44 +55,5 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
             ],
         ];
-    }
-
-    private function dbVersion(): string
-    {
-        try {
-            return DB::selectOne('SELECT VERSION() AS v')->v ?? 'unknown';
-        } catch (\Throwable) {
-            return 'unknown';
-        }
-    }
-
-    private function dbSizeBytes(): int
-    {
-        try {
-            $row = DB::selectOne('
-                SELECT COALESCE(SUM(data_length + index_length), 0) AS bytes
-                FROM information_schema.tables
-                WHERE table_schema = DATABASE()
-            ');
-
-            return (int) ($row->bytes ?? 0);
-        } catch (\Throwable) {
-            return 0;
-        }
-    }
-
-    private function uptimeSeconds(): int
-    {
-        // Linux/Docker: /proc/uptime first column = seconds since boot
-        if (is_readable('/proc/uptime')) {
-            return (int) (float) explode(' ', (string) file_get_contents('/proc/uptime'))[0];
-        }
-        // Fallback: remember first observation in cache, return seconds since then
-        $bootedAt = Cache::rememberForever(
-            'system:booted_at',
-            fn () => time(),
-        );
-
-        return max(0, time() - $bootedAt);
     }
 }

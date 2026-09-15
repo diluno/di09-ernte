@@ -6,11 +6,7 @@ import Icon from '@/Components/Icon.vue';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
-const businessName = computed(() => (page.props.business?.name || 'ernte').toLowerCase());
-const initials = computed(() => {
-  const n = user.value?.name ?? '?';
-  return n.split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase();
-});
+const businessName = computed(() => (page.props.business?.name || '').toLowerCase());
 
 defineEmits(['open-command']);
 </script>
@@ -20,19 +16,15 @@ defineEmits(['open-command']);
     <Link href="/projects" class="wordmark">
       <Icon name="leaf" class="wordmark-mark" />
       <span>ernte</span>
+      <span v-if="businessName" class="biz">/ {{ businessName }}</span>
     </Link>
-    <div class="mono-tag" title="Business">{{ businessName }}</div>
     <div class="topbar-spacer" />
     <button class="cmdk" title="Command palette" @click="$emit('open-command')">
-      <span style="color: var(--ink-4)">›</span>
-      <span style="flex: 1; text-align: left">Jump to project, client, invoice…</span>
+      <span>Jump to…</span>
       <span class="kbd">⌘K</span>
     </button>
     <div class="topbar-spacer" />
     <RunningTimerChip />
-    <Link href="/settings" class="user-chip" title="Settings" aria-label="Open settings">
-      <span class="avatar">{{ initials }}</span>
-      <span>{{ user?.name ?? 'guest' }}</span>
-    </Link>
+    <Link href="/settings" class="user-chip" title="Settings" aria-label="Open settings">{{ user?.name ?? 'guest' }}</Link>
   </header>
 </template>

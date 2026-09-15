@@ -2,7 +2,6 @@
 import { ref } from 'vue';
 import Topbar from '@/Components/Topbar.vue';
 import Sidebar from '@/Components/Sidebar.vue';
-import Statusbar from '@/Components/Statusbar.vue';
 import CommandPalette from '@/Components/CommandPalette.vue';
 import FlashMessages from '@/Components/FlashMessages.vue';
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts.js';
@@ -30,7 +29,6 @@ useKeyboardShortcuts({ openCommandPalette, openProjectPalette });
     <main class="content">
       <slot />
     </main>
-    <Statusbar />
     <CommandPalette :show="paletteOpen" :mode="paletteMode" @close="paletteOpen = false" />
     <FlashMessages />
   </div>

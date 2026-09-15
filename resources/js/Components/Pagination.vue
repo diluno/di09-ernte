@@ -16,8 +16,8 @@ function go(url) {
 }
 
 function label(raw) {
-  if (raw.includes('Previous')) return '‹ Prev';
-  if (raw.includes('Next')) return 'Next ›';
+  if (raw.includes('Previous')) return '← Prev';
+  if (raw.includes('Next')) return 'Next →';
   if (raw === '...') return '…';
   return raw;
 }
@@ -26,15 +26,15 @@ function label(raw) {
 <template>
   <div v-if="show" class="pagination">
     <div class="pagination__range">
-      Showing {{ paginator.from }}–{{ paginator.to }} of {{ paginator.total }}
+      {{ paginator.from }}–{{ paginator.to }} of {{ paginator.total }}
     </div>
     <div class="pagination__links">
       <button
         v-for="(link, i) in paginator.links"
         :key="i"
         type="button"
-        class="pagination__link"
-        :class="{ 'is-active': link.active, 'is-gap': !link.url && link.label === '...' }"
+        class="btn sm"
+        :class="{ primary: link.active, ghost: !link.url && link.label === '...' }"
         :disabled="!link.url"
         @click="go(link.url)"
       >{{ label(link.label) }}</button>
@@ -48,43 +48,11 @@ function label(raw) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 14px;
+  padding: 16px 40px;
   flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--ink-3);
 }
-.pagination__range {
-  color: var(--ink-4);
-  font-size: 13px;
-}
-.pagination__links {
-  display: flex;
-  gap: 4px;
-}
-.pagination__link {
-  min-width: 32px;
-  padding: 5px 9px;
-  border: 1px solid var(--border-strong);
-  background: var(--bg);
-  color: var(--ink);
-  border-radius: 6px;
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
-}
-.pagination__link:hover:not(:disabled):not(.is-active) {
-  background: var(--bg-hover);
-}
-.pagination__link.is-active {
-  background: var(--accent);
-  color: var(--accent-on);
-  border-color: var(--accent);
-  cursor: default;
-}
-.pagination__link:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-.pagination__link.is-gap {
-  border-color: transparent;
-  background: transparent;
-}
+.pagination__links { display: flex; gap: 4px; }
+.pagination__links .btn { min-width: 32px; justify-content: center; }
 </style>

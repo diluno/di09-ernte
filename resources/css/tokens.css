@@ -1,66 +1,49 @@
-:root,
-:root[data-theme="paper"] {
-  --bg: #f5f1ea;
-  --bg-2: #efe9dc;
-  --paper: #f5f1ea;
-  --paper-2: #efe9dc;
-  --ink: #1a1a1a;
-  --ink-2: #3d3d3d;
-  --ink-3: #6b6b6b;
-  --ink-4: #9a9a9a;
-  --bg-3: #efe9dc;
-  --border: #e8e1d4;
-  --border-strong: #c9c0ad;
-  --forest: #2d4a3a;
-  --rust: #c97b3c;
-  --red: #b54834;
-  --gold: #b8941f;
-  --accent: var(--forest);
-  --accent-on: #f5f1ea;
-  --bg-hover: rgba(26, 26, 26, 0.04);
-  --bg-active: rgba(26, 26, 26, 0.08);
-}
-
-:root[data-theme="dark"] {
-  --bg: #1a1a1a;
-  --bg-2: #232323;
-  --paper: #1a1a1a;
-  --paper-2: #232323;
-  --ink: #f5f1ea;
-  --ink-2: #c9c0ad;
-  --ink-3: #9a9a9a;
-  --ink-4: #6b6b6b;
-  --bg-3: #232323;
-  --border: #2d2d2d;
-  --border-strong: #3d3d3d;
-  --forest: #6b8c7a;
-  --rust: #e09a5f;
-  --red: #d36651;
-  --gold: #d4af4a;
-  --accent: var(--forest);
-  --accent-on: #f5f1ea;
-  --bg-hover: rgba(245, 241, 234, 0.05);
-  --bg-active: rgba(245, 241, 234, 0.09);
-}
-
-:root[data-density="comfortable"] {
-  --row-h: 36px;
-  --pad-y: 10px;
-  --pad-x: 14px;
-}
-
-:root[data-density="compact"] {
-  --row-h: 28px;
-  --pad-y: 6px;
-  --pad-x: 10px;
-}
-
+/* Ledger palette — Swiss print: cream stock, hairline ink rules, one red. */
 :root {
+  --paper: #f7f3ea;
+  --paper-2: #efe9dc;
+  --paper-3: #f1ece1;
+  --sheet: #fbf9f4;
+  --ink: #141210;
+  --ink-2: #5a554b;
+  --ink-3: #7a7367;
+  --ink-4: #7a7367;
+  --ink-hover: #2e2b26;
+  --border: #e3dccd;
+  --border-strong: #c9c2b3;
+  --rule: var(--ink);
+  --red: #c8341f;
+  --red-bg: #f6e6e1;
+
+  /* Aliases kept for the editor/settings pages. */
+  --bg: var(--paper);
+  --bg-2: var(--paper-2);
+  --bg-3: var(--paper-3);
+  --bg-hover: var(--paper-2);
+  --bg-active: var(--paper-2);
+
+  /* Legacy accents collapsed onto the Ledger palette; retire page by page. */
+  --forest: var(--ink);
+  --rust: var(--red);
+  --gold: var(--ink-3);
+  --accent: var(--ink);
+  --accent-on: var(--paper);
+
+  --row-h: 46px;
+  --pad-y: 10px;
+  --pad-x: 12px;
+
   --fs-xs: 11px;
   --fs-sm: 13px;
-  --fs-md: 15px;
-  --fs-lg: 24px;
-  --fs-xl: 36px;
+  --fs-md: 14px;
+  --fs-lg: 15px;
+  --fs-xl: 64px;
+  --fs-stat: 40px;
+  --fs-week: 34px;
+  --track-label: .08em;
+  --track-th: .12em;
+  --track-section: .14em;
+
   --font-mono: 'Iosevka Aile', ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-sans: 'Beausite', 'Helvetica Neue', Arial, system-ui, sans-serif;
 }
