@@ -16,6 +16,9 @@ Fällig seit: {{ optional($invoice->due_on)->format('d.m.Y') }}
 Falls die Zahlung bereits unterwegs ist, betrachten Sie diese Nachricht bitte als gegenstandslos.
 
 Freundliche Grüsse
+@if ($profile->sender_name)
+{{ $profile->sender_name }}
+@endif
 {{ $profile->name }}
 @if ($profile->email)
 {{ $profile->email }}

@@ -15,7 +15,7 @@ class SettingsController extends Controller
         return Inertia::render('Settings/Profile', [
             'profile' => BusinessProfile::current()->only([
                 'name', 'address_line_1', 'address_line_2', 'postal_code', 'city', 'country',
-                'uid', 'vat_id', 'iban', 'qr_iban', 'email', 'logo_path',
+                'uid', 'vat_id', 'iban', 'qr_iban', 'email', 'sender_name', 'logo_path',
                 'default_currency', 'default_vat_rate', 'invoice_number_prefix', 'reminder_days_after_due',
             ]),
         ]);

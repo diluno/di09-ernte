@@ -22,5 +22,5 @@
 
   <p>Vielen Dank.</p>
 
-  <p style="margin:0;">Freundliche Grüsse<br>{{ $profile->name }}</p>
+  <p style="margin:0;">Freundliche Grüsse<br>@if ($profile->sender_name){{ $profile->sender_name }}<br>@endif{{ $profile->name }}</p>
 @endsection

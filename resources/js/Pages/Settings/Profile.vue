@@ -20,6 +20,7 @@ const form = useForm({
   iban: props.profile.iban ?? '',
   qr_iban: props.profile.qr_iban ?? '',
   email: props.profile.email ?? '',
+  sender_name: props.profile.sender_name ?? '',
   logo_path: props.profile.logo_path ?? '',
   default_currency: props.profile.default_currency ?? 'CHF',
   default_vat_rate: props.profile.default_vat_rate ?? '8.10',
@@ -61,6 +62,11 @@ function submit() {
           <span>Email</span>
           <input v-model="form.email" class="input" type="email" />
           <small v-if="form.errors.email" class="error">{{ form.errors.email }}</small>
+        </label>
+        <label class="field">
+          <span>Sender name (mail sign-off)</span>
+          <input v-model="form.sender_name" class="input" placeholder="Samuel Alder" />
+          <small v-if="form.errors.sender_name" class="error">{{ form.errors.sender_name }}</small>
         </label>
         <label class="field">
           <span>Logo path</span>

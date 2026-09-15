@@ -16,6 +16,9 @@ Fällig am: {{ optional($invoice->due_on)->format('d.m.Y') }}
 Vielen Dank.
 
 Freundliche Grüsse
+@if ($profile->sender_name)
+{{ $profile->sender_name }}
+@endif
 {{ $profile->name }}
 @if ($profile->email)
 {{ $profile->email }}

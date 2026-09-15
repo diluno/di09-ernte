@@ -27,6 +27,7 @@ class UpdateBusinessProfileRequest extends FormRequest
             'iban' => 'nullable|string|max:64',
             'qr_iban' => 'nullable|string|max:64',
             'email' => 'nullable|email|max:255',
+            'sender_name' => 'nullable|string|max:255',
             'logo_path' => 'nullable|string|max:255',
             'default_currency' => 'required|in:CHF',
             'default_vat_rate' => 'required|numeric|min:0|max:100',

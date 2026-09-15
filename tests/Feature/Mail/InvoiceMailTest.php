@@ -47,3 +47,21 @@ test('invoice mail renders invoice details and attaches the pdf path', function 
             ->withMime('application/pdf')
     );
 });
+
+test('invoice mail signs off with the sender name when set', function () {
+    BusinessProfile::create([
+        'name' => 'Ernte Test',
+        'sender_name' => 'Samuel Alder',
+        'country' => 'CH',
+        'default_currency' => 'CHF',
+        'default_vat_rate' => 8.10,
+    ]);
+
+    $invoice = Invoice::factory()->create(['number' => '2026-015']);
+    Storage::disk('local')->put('invoices/2026-015.pdf', '%PDF-test');
+
+    $mail = new InvoiceMail($invoice, 'invoices/2026-015.pdf');
+
+    $mail->assertSeeInHtml('Freundliche Grüsse<br>Samuel Alder<br>Ernte Test', false);
+    $mail->assertSeeInText("Samuel Alder\nErnte Test");
+});
