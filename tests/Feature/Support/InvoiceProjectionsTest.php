@@ -149,3 +149,36 @@ test('monthlyIssued falls min_year back to the requested year when there are no 
     expect($chart['min_year'])->toBe(2026);
     expect($chart['max_year'])->toBe((int) now()->year);
 });
+
+test('stats expose overdue count and age, paid-ytd count, and average payment terms', function () {
+    // overdue 3 days and 10 days -> count 2, max age 10
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent',
+        'issued_on' => now()->subDays(33)->toDateString(), 'due_on' => now()->subDays(3)->toDateString(), 'total_rappen' => 100_00]);
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent',
+        'issued_on' => now()->subDays(30)->toDateString(), 'due_on' => now()->subDays(10)->toDateString(), 'total_rappen' => 100_00]);
+    // paid this year, terms 40 -> paid_ytd_count 1; avg terms = (30 + 20 + 40) / 3 = 30
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'paid',
+        'issued_on' => now()->startOfYear()->addDays(5)->toDateString(),
+        'due_on' => now()->startOfYear()->addDays(45)->toDateString(),
+        'paid_at' => now()->startOfYear()->addDays(20), 'total_rappen' => 100_00]);
+    // draft: never counts toward terms
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'draft']);
+
+    $stats = InvoiceProjections::stats();
+
+    expect($stats['overdue_count'])->toBe(2);
+    expect($stats['overdue_max_days'])->toBe(10);
+    expect($stats['paid_ytd_count'])->toBe(1);
+    expect($stats['avg_terms_days'])->toBe(30);
+});
+
+test('stats terms and overdue age are null/zero without issued invoices', function () {
+    Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'draft']);
+
+    $stats = InvoiceProjections::stats();
+
+    expect($stats['overdue_count'])->toBe(0);
+    expect($stats['overdue_max_days'])->toBe(0);
+    expect($stats['paid_ytd_count'])->toBe(0);
+    expect($stats['avg_terms_days'])->toBeNull();
+});

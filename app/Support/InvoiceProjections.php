@@ -82,11 +82,37 @@ class InvoiceProjections
             ->selectRaw('AVG(DATEDIFF(paid_at, issued_on)) AS d')
             ->value('d');
 
+        $overdueRow = Invoice::query()
+            ->where('status', 'sent')
+            ->whereDate('due_on', '<', Carbon::today())
+            ->selectRaw('COUNT(*) AS n, MIN(due_on) AS oldest')
+            ->first();
+
+        $paidYtdCount = Invoice::query()
+            ->where('status', 'paid')
+            ->whereYear('issued_on', Carbon::now()->year)
+            ->count();
+
+        // Mean payment terms (due − issued) over every issued invoice, so the
+        // "Avg days to pay" stat has something to be compared against.
+        $terms = Invoice::query()
+            ->whereNotNull('issued_on')
+            ->whereNotNull('due_on')
+            ->where('status', '!=', 'draft')
+            ->selectRaw('AVG(DATEDIFF(due_on, issued_on)) AS d')
+            ->value('d');
+
         return [
             'outstanding' => round($outstanding / 100, 2),
             'overdue' => round($overdue / 100, 2),
+            'overdue_count' => (int) ($overdueRow->n ?? 0),
+            'overdue_max_days' => $overdueRow?->oldest
+                ? (int) Carbon::parse($overdueRow->oldest)->diffInDays(Carbon::today())
+                : 0,
             'paid_ytd' => round($paidYtd / 100, 2),
+            'paid_ytd_count' => $paidYtdCount,
             'avg_days_to_pay' => $avg !== null ? (int) round((float) $avg) : null,
+            'avg_terms_days' => $terms !== null ? (int) round((float) $terms) : null,
             'count' => Invoice::count(),
         ];
     }

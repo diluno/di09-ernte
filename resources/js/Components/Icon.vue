@@ -19,6 +19,8 @@ import IconRepeat from '~icons/pixelarticons/repeat';
 import IconLeaf from '~icons/pixelarticons/leaf';
 import IconArrowLeft from '~icons/pixelarticons/arrow-left';
 import IconArrowRight from '~icons/pixelarticons/arrow-right';
+import IconDownload from '~icons/pixelarticons/download';
+import IconMoreHorizontal from '~icons/pixelarticons/more-horizontal';
 
 const MAP = {
   search: IconSearch,
@@ -38,6 +40,8 @@ const MAP = {
   leaf: IconLeaf,
   'arrow-left': IconArrowLeft,
   'arrow-right': IconArrowRight,
+  download: IconDownload,
+  'more-horizontal': IconMoreHorizontal,
 };
 
 defineProps({ name: { type: String, required: true } });
