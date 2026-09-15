@@ -66,7 +66,14 @@ function openManualEntry() {
   showManual.value = true;
 }
 
-onMounted(() => window.addEventListener('ernte:open-manual-entry', openManualEntry));
+onMounted(() => {
+  window.addEventListener('ernte:open-manual-entry', openManualEntry);
+
+  const query = new URLSearchParams(page.url.split('?')[1] ?? '');
+  const requestedEditId = Number(query.get('edit'));
+  const requestedEntry = props.entries.find((entry) => entry.id === requestedEditId);
+  if (requestedEntry) startEdit(requestedEntry);
+});
 onUnmounted(() => window.removeEventListener('ernte:open-manual-entry', openManualEntry));
 
 const pad = (n) => String(n).padStart(2, '0');

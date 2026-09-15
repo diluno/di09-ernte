@@ -53,6 +53,20 @@ function startTimer() {
   });
 }
 
+function editEntry(entry) {
+  const date = new Date(entry.started_at);
+  const pad = (value) => String(value).padStart(2, '0');
+  const dateString = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
+  router.get('/timer', { date: dateString, edit: entry.id });
+}
+
+function deleteEntry(entry) {
+  if (window.confirm('Delete this entry?')) {
+    router.delete(`/entries/${entry.id}`, { preserveScroll: true });
+  }
+}
+
 function fmtHours(h) { return `${h.toFixed(1)}h`; }
 function fmtMoneyShort(v) { return formatChf(v); }
 
@@ -133,7 +147,7 @@ const remaining = computed(() => Math.max(0, props.project.budget_hours - props.
 
       <h3 class="section-title" style="margin-top: 28px">Recent entries</h3>
       <div>
-        <EntryRow v-for="(e, i) in recent_entries" :key="e.id" :entry="e" :color-index="i" />
+        <EntryRow v-for="(e, i) in recent_entries" :key="e.id" :entry="e" :color-index="i" show-date @edit="editEntry" @delete="deleteEntry" />
         <div v-if="recent_entries.length === 0" class="muted" style="padding: 12px">No entries yet</div>
       </div>
     </div>

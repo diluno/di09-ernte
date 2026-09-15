@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import BudgetBar from '@/Components/BudgetBar.vue';
 import EntryRow from '@/Components/EntryRow.vue';
@@ -31,6 +31,20 @@ onMounted(() => {
 
 function fmtDate(d) {
   return d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '-';
+}
+
+function editEntry(entry) {
+  const date = new Date(entry.started_at);
+  const pad = (value) => String(value).padStart(2, '0');
+  const dateString = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
+  router.get('/timer', { date: dateString, edit: entry.id });
+}
+
+function deleteEntry(entry) {
+  if (window.confirm('Delete this entry?')) {
+    router.delete(`/entries/${entry.id}`, { preserveScroll: true });
+  }
 }
 </script>
 
@@ -195,7 +209,7 @@ function fmtDate(d) {
 
       <h3 class="section-title" style="margin-top: 24px">Recent entries</h3>
       <div>
-        <EntryRow v-for="(entry, i) in recent_entries" :key="entry.id" :entry="entry" :color-index="i" />
+        <EntryRow v-for="(entry, i) in recent_entries" :key="entry.id" :entry="entry" :color-index="i" show-date @edit="editEntry" @delete="deleteEntry" />
         <div v-if="recent_entries.length === 0" class="muted" style="padding: 12px">No entries yet.</div>
       </div>
     </aside>

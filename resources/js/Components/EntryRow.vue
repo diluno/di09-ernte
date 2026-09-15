@@ -6,6 +6,7 @@ import { formatDuration } from '@/formatters/duration.js';
 const props = defineProps({
   entry: { type: Object, required: true },
   colorIndex: { type: Number, default: 0 },
+  showDate: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['edit', 'delete']);
@@ -17,15 +18,31 @@ const COLORS = ['#2d4a3a', '#c97b3c', '#b8941f', '#1a1a1a', '#7a8c5c', '#b54834'
 // to an unreadable blank.
 const label = computed(() => props.entry.description || props.entry.task_name || '');
 
-// Secondary line: always the project, so every row stays identifiable. When a
+const dateLabel = computed(() => {
+  if (!props.showDate || !props.entry.started_at) return '';
+
+  return new Date(props.entry.started_at).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+});
+
+// Secondary line: the optional date plus project/task context. When a
 // description occupies the main line, append the task for extra context.
 const context = computed(() => {
   const project = props.entry.project?.name;
   const task = props.entry.task_name;
+  const details = dateLabel.value ? [dateLabel.value] : [];
+
   if (task && props.entry.description && task !== props.entry.description) {
-    return project ? `${project} · ${task}` : task;
+    if (project) details.push(project);
+    details.push(task);
+  } else if (project) {
+    details.push(project);
   }
-  return project || '';
+
+  return details.join(' · ');
 });
 
 const durationLabel = computed(() => formatDuration(Math.round(props.entry.duration_seconds / 60)));
