@@ -15,6 +15,7 @@
 
   @include('emails.partials.meta', ['rows' => [
       ['label' => 'Rechnung', 'value' => $invoice->number],
+      ...($invoice->title ? [['label' => 'Betreff', 'value' => $invoice->title, 'wrap' => true]] : []),
       ['label' => 'Rechnungsbetrag', 'value' => $fmt((int) $invoice->total_rappen), 'strong' => true],
       ['label' => 'Fällig am', 'value' => optional($invoice->due_on)->format('d.m.Y') ?? '—'],
   ]])

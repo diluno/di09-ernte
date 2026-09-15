@@ -21,6 +21,7 @@ test('invoice mail renders invoice details and attaches the pdf path', function 
     $invoice = Invoice::factory()->create([
         'client_id' => $client->id,
         'number' => '2026-014',
+        'title' => 'Website Relaunch',
         'status' => 'sent',
         'due_on' => now()->addDays(30)->toDateString(),
         'total_rappen' => 123450,
@@ -31,6 +32,9 @@ test('invoice mail renders invoice details and attaches the pdf path', function 
     $mail = new InvoiceMail($invoice, 'invoices/2026-014.pdf');
     // HTML body plus a plain-text alternative; both must carry the facts.
     $mail->assertSeeInHtml('Mira Okafor');
+    $mail->assertSeeInHtml('Website Relaunch');
+    $mail->assertSeeInText('Website Relaunch');
+    expect($mail->build()->subject)->toBe('Rechnung 2026-014 - Website Relaunch - Ernte Test');
     $mail->assertSeeInHtml("CHF 1'234.50");
     $mail->assertSeeInText('Mira Okafor');
     $mail->assertSeeInText('2026-014');

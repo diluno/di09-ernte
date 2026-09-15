@@ -15,6 +15,7 @@
 
   @include('emails.partials.meta', ['rows' => [
       ['label' => 'Offerte', 'value' => $estimate->number],
+      ...($estimate->title ? [['label' => 'Betreff', 'value' => $estimate->title, 'wrap' => true]] : []),
       ['label' => 'Offertbetrag', 'value' => $fmt((int) $estimate->total_rappen), 'strong' => true],
       ['label' => 'Gültig bis', 'value' => optional($estimate->valid_until)->format('d.m.Y') ?? '—'],
   ]])

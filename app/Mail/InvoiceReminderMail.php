@@ -32,7 +32,7 @@ class InvoiceReminderMail extends Mailable
             ->replyTo($from, $name)
             // Copy every outgoing mail to the operator so the sent mail is on file.
             ->bcc($from, $name)
-            ->subject("Zahlungserinnerung Rechnung {$this->invoice->number}")
+            ->subject(implode(' - ', array_filter(["Zahlungserinnerung Rechnung {$this->invoice->number}", $this->invoice->title])))
             ->view('emails.invoices.reminder')
             ->text('emails.invoices.reminder-text')
             ->with([

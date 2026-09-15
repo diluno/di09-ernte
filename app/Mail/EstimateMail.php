@@ -34,7 +34,7 @@ class EstimateMail extends Mailable
             ->replyTo($from, $name)
             // Copy every outgoing mail to the operator so the sent mail is on file.
             ->bcc($from, $name)
-            ->subject("Offerte {$this->estimate->number} - {$name}")
+            ->subject(implode(' - ', array_filter(["Offerte {$this->estimate->number}", $this->estimate->title, $name])))
             ->view('emails.estimates.sent')
             ->text('emails.estimates.sent-text')
             ->with([

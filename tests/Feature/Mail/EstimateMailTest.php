@@ -21,6 +21,7 @@ test('estimate mail renders details and attaches the pdf path', function () {
     $estimate = Estimate::factory()->create([
         'client_id' => $client->id,
         'number' => 'OF-2026-014',
+        'title' => 'Website Relaunch',
         'status' => 'sent',
         'valid_until' => now()->addDays(30)->toDateString(),
         'total_rappen' => 123450,
@@ -32,6 +33,8 @@ test('estimate mail renders details and attaches the pdf path', function () {
 
     // HTML body plus a plain-text alternative; both must carry the facts.
     $mail->assertSeeInHtml('Mira Okafor');
+    $mail->assertSeeInHtml('Website Relaunch');
+    $mail->assertSeeInText('Website Relaunch');
     $mail->assertSeeInHtml("CHF 1'234.50");
     $mail->assertSeeInText('Mira Okafor');
     $mail->assertSeeInText('OF-2026-014');

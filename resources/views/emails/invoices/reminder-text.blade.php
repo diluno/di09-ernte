@@ -7,6 +7,9 @@ Guten Tag{{ $contactName ? ' ' . $contactName : '' }}
 
 Wir möchten Sie freundlich an die noch offene Rechnung {{ $invoice->number }} erinnern.
 
+@if ($invoice->title)
+Betreff: {{ $invoice->title }}
+@endif
 Rechnungsbetrag: {!! $fmt((int) $invoice->total_rappen) !!}
 Fällig seit: {{ optional($invoice->due_on)->format('d.m.Y') }}
 

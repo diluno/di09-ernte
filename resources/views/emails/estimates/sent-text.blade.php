@@ -7,6 +7,9 @@ Guten Tag{{ $contactName ? ' ' . $contactName : '' }}
 
 Anbei senden wir Ihnen unsere Offerte {{ $estimate->number }} als PDF.
 
+@if ($estimate->title)
+Betreff: {{ $estimate->title }}
+@endif
 Offertbetrag: {!! $fmt((int) $estimate->total_rappen) !!}
 Gültig bis: {{ optional($estimate->valid_until)->format('d.m.Y') }}
 

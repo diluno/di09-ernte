@@ -7,6 +7,9 @@ Guten Tag{{ $contactName ? ' ' . $contactName : '' }}
 
 Anbei senden wir Ihnen die Rechnung {{ $invoice->number }} als PDF.
 
+@if ($invoice->title)
+Betreff: {{ $invoice->title }}
+@endif
 Rechnungsbetrag: {!! $fmt((int) $invoice->total_rappen) !!}
 Fällig am: {{ optional($invoice->due_on)->format('d.m.Y') }}
 
