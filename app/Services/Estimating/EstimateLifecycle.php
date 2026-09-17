@@ -116,8 +116,10 @@ class EstimateLifecycle
         $estimate->loadMissing(['client', 'project', 'lines' => fn ($q) => $q->orderBy('sort_order')]);
 
         return DB::transaction(function () use ($estimate) {
+            // Invoice lines have a single text field; titled lines fold their
+            // title in as a bold first line.
             $lines = $estimate->lines->map(fn ($l) => [
-                'description' => $l->description,
+                'description' => $l->combinedDescription(),
                 'hours' => (float) $l->hours,
                 'rate_rappen' => (int) $l->rate_rappen,
             ])->all();

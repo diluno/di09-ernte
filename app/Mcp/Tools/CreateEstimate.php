@@ -15,6 +15,8 @@ use Laravel\Mcp\Server\Tool;
 
 class CreateEstimate extends Tool
 {
+    use MapsEstimateLines;
+
     protected string $name = 'create_estimate';
 
     protected string $description = 'Create a draft estimate from a set of line items. The draft is a real record but is not sent to anyone. Rates are in francs per hour; totals, VAT and rounding are computed server-side.';
@@ -26,13 +28,17 @@ class CreateEstimate extends Tool
             'project_id' => $schema->integer()->description('Optional project to attach it to.'),
             'title' => $schema->string()->description('Shown at the top of the PDF.'),
             'notes' => $schema->string()->description('Optional notes shown on the PDF.'),
-            'lines' => $schema->array()->required()->min(1)->description('Line items, in order.')->items(
+            'lines' => $schema->array()->description('Line items, in order. Each needs a title or a description. Required unless `sections` is given.')->items(
+                self::lineSchema($schema)
+            ),
+            'sections' => $schema->array()->description('Alternative to `lines`: line items grouped into named sections, shown on the PDF with a heading, subtotal and a package overview. Use this for multi-part proposals.')->items(
                 $schema->object([
-                    'description' => $schema->string()->required()->max(1000),
-                    'hours' => $schema->number()->required()->min(0),
-                    'rate' => $schema->number()->required()->min(0)->description('Hourly rate in francs.'),
+                    'label' => $schema->string()->max(120)->description('Short section label, e.g. "Bündel 1". Do not repeat it in line titles.'),
+                    'title' => $schema->string()->max(255)->description('Optional descriptive title, e.g. "Regionale Webapp".'),
+                    'lines' => $schema->array()->required()->min(1)->items(self::lineSchema($schema)),
                 ])
             ),
+            'assumptions' => $schema->array()->items($schema->string()->max(500))->description('Short bullet points shown as "Grundlagen der Schätzung" after the totals.'),
         ];
     }
 
@@ -41,17 +47,11 @@ class CreateEstimate extends Tool
         $data = $request->validate(EstimateInputRules::create($request->get('client_id'), 'rate'));
         $client = Client::findOrFail($data['client_id']);
 
-        $lines = [];
-        foreach ($data['lines'] as $line) {
-            $description = trim($line['description']);
-            if ($description === '') {
-                return Response::error('Every line needs a description.');
-            }
-            $lines[] = [
-                'description' => $description,
-                'hours' => (float) $line['hours'],
-                'rate_rappen' => (int) round(((float) $line['rate']) * 100),
-            ];
+        try {
+            $lines = isset($data['lines']) ? self::toRappenLines($data['lines']) : [];
+            $sections = isset($data['sections']) ? self::toRappenSections($data['sections']) : null;
+        } catch (\InvalidArgumentException $e) {
+            return Response::error($e->getMessage());
         }
 
         $estimate = $builder->createDraft(
@@ -60,6 +60,8 @@ class CreateEstimate extends Tool
             lines: $lines,
             notes: $data['notes'] ?? null,
             title: $data['title'] ?? null,
+            sections: $sections,
+            assumptions: $data['assumptions'] ?? null,
         );
 
         return Response::structured(EstimateProjections::detail($estimate));

@@ -2,9 +2,11 @@
 import { computed, ref, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import Icon from '@/Components/Icon.vue';
 import AutoTextarea from '@/Components/AutoTextarea.vue';
 import RecipientPicker from '@/Components/RecipientPicker.vue';
+import EstimateScopeEditor from '@/Components/EstimateScopeEditor.vue';
+import AssumptionsEditor from '@/Components/AssumptionsEditor.vue';
+import { assumptionsPayload, flattenLines, makeLine, makeSection, sectionsPayload } from '@/formatters/estimateScope.js';
 import { totalsForLines } from '@/formatters/vat.js';
 
 defineOptions({ layout: AppLayout });
@@ -33,22 +35,11 @@ watch(selectedClientContacts, (contacts) => {
   form.recipients = contacts.filter((c) => c.is_default).map(({ name, email }) => ({ name, email }));
 });
 
-// Editable lines (manual entry).
-const lines = ref([]);
-let nextKey = 0;
-function addLine() {
-  lines.value.push({
-    key: nextKey++,
-    description: '',
-    hours: 0,
-    rate: selectedProject.value?.rate ?? 0,
-  });
-}
-function removeLine(key) { lines.value = lines.value.filter((l) => l.key !== key); }
-function moveUp(i) { if (i > 0) { const a = lines.value; [a[i - 1], a[i]] = [a[i], a[i - 1]]; } }
-
-// Seed one empty line on mount for convenience.
-addLine();
+// Editable scope: sections with lines, plus assumptions. Starts as one
+// unnamed section with an empty line.
+const sections = ref([makeSection(0)]);
+const assumptions = ref([]);
+const defaultRate = computed(() => selectedProject.value?.rate ?? 0);
 
 // ---- AI drafting -----------------------------------------------------------
 // Sends a prose brief to the server, which asks Claude for line items and
@@ -84,13 +75,14 @@ async function draftWithAi() {
     const payload = await res.json();
     if (!res.ok) throw new Error(payload.message || 'Drafting failed.');
 
-    // Replace the lines wholesale — the draft is the starting point, not an addition.
-    lines.value = payload.lines.map((l) => ({
-      key: nextKey++,
-      description: l.description,
-      hours: l.hours,
-      rate: l.rate || selectedProject.value?.rate || 0,
-    }));
+    // Replace the scope wholesale — the draft is the starting point, not an addition.
+    sections.value = [makeSection(defaultRate.value, {
+      lines: payload.lines.map((l) => makeLine(defaultRate.value, {
+        description: l.description,
+        hours: l.hours,
+        rate: l.rate || defaultRate.value,
+      })),
+    })];
     if (payload.title && !title.value) title.value = payload.title;
     if (payload.notes && !notes.value) notes.value = payload.notes;
   } catch (e) {
@@ -103,6 +95,7 @@ async function draftWithAi() {
 function fmtMoney(rappen) { return 'CHF ' + (rappen / 100).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function fmtRate(rate) { return Number(rate).toFixed(2).replace(/\.?0+$/, ''); }
 
+const lines = computed(() => flattenLines(sections.value));
 const totals = computed(() => totalsForLines(lines.value, props.vat_rates));
 const subtotalRappen = computed(() => totals.value.subtotal);
 const totalRappen = computed(() => totals.value.total);
@@ -117,11 +110,8 @@ function save() {
     title: title.value || null,
     notes: notes.value || null,
     recipients: form.recipients,
-    lines: lines.value.map((l) => ({
-      description: l.description,
-      hours: Number(l.hours),
-      rate_rappen: Math.round(Number(l.rate) * 100),
-    })),
+    assumptions: assumptionsPayload(assumptions.value),
+    sections: sectionsPayload(sections.value),
   })).post('/estimates');
 }
 </script>
@@ -184,34 +174,11 @@ function save() {
         <p v-if="draftError" style="color: var(--red); font-size: var(--fs-sm); margin-top: 8px">{{ draftError }}</p>
       </div>
 
-      <h3 class="section-title" style="margin-top: 28px">Lines</h3>
-      <div class="lines-card">
-      <table class="table table--lines">
-        <thead>
-          <tr>
-            <th class="pad-l">Description</th>
-            <th class="num" style="width: 80px">Hours</th>
-            <th class="num" style="width: 100px">Rate</th>
-            <th class="num" style="width: 120px">Amount</th>
-            <th style="width: 70px"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(l, i) in lines" :key="l.key">
-            <td class="pad-l"><AutoTextarea v-model="l.description" class="cell-input" placeholder="description" /></td>
-            <td class="num"><input v-model="l.hours" type="number" min="0" step="0.25" class="cell-input num" /></td>
-            <td class="num"><input v-model="l.rate" type="number" min="0" step="0.01" class="cell-input num" /></td>
-            <td class="num strong">{{ fmtMoney(Math.round(Number(l.hours) * Number(l.rate) * 100)) }}</td>
-            <td>
-              <button class="icon-btn" title="move up" @click="moveUp(i)"><Icon name="chevron-up" /></button>
-              <button class="icon-btn icon-btn--danger" title="remove" @click="removeLine(l.key)"><Icon name="close" /></button>
-            </td>
-          </tr>
-          <tr v-if="lines.length === 0"><td colspan="5" class="pad-l muted" style="padding: 16px">No lines. Add one to start.</td></tr>
-        </tbody>
-      </table>
-      <button class="add-line" @click="addLine"><span style="font-family: var(--font-mono)">+</span> Add line</button>
-      </div>
+      <h3 class="section-title" style="margin-top: 28px">Scope</h3>
+      <EstimateScopeEditor v-model="sections" :default-rate="defaultRate" />
+
+      <h3 class="section-title" style="margin-top: 28px">Assumptions</h3>
+      <AssumptionsEditor v-model="assumptions" />
 
       <h3 class="section-title" style="margin-top: 28px">Notes</h3>
       <textarea v-model="notes" class="cell-input" rows="3" style="width: 100%; border: 1px solid var(--border-strong); padding: 8px" placeholder="Optional notes shown on the estimate PDF…"></textarea>

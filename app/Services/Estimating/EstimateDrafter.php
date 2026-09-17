@@ -215,7 +215,7 @@ class EstimateDrafter
             foreach ($estimate->lines->take(self::MAX_LINES_PER_ESTIMATE) as $line) {
                 $lines[] = sprintf(
                     '  - %s — %sh @ %s',
-                    $line->description,
+                    str_replace("\n", ' ', $line->combinedDescription()),
                     rtrim(rtrim((string) $line->hours, '0'), '.'),
                     round($line->rate_rappen / 100, 2),
                 );

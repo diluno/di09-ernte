@@ -1,0 +1,45 @@
+{
+  "title": "Cash or Crash Bern–Solothurn – Regionale Webapp",
+  "assumptions": [
+    "Basis ist die bestehende Plattform mit Nuxt-Frontend, Craft CMS und Rechenmodell-API.",
+    "Die inhaltliche Recherche zu Beratungsangeboten und kommunalen Reglementen erfolgt durch alliance F und die Partnerorganisationen.",
+    "Anpassungen am Rechenmodell erfolgen in Abstimmung mit den wissenschaftlichen Partnern."
+  ],
+  "sections": [
+    {"label": "Konzeption & Projektleitung", "title": null, "lines": [
+      {"title": "Konzeption & Grobspezifikation", "description": "Kickoff und Workshops mit alliance F, Definition Funktionsumfang, Nutzerführung und regionale Ausspielung, Spezifikation der Schnittstellen zum Rechenmodell", "hours": 24, "rate": 150},
+      {"title": "Projektleitung & Koordination", "description": "Planung, Abstimmung mit Partnerorganisationen und wissenschaftlichen Partnern, Reviews, Sitzungen", "hours": 30, "rate": 150}
+    ]},
+    {"label": "Bündel 1", "title": "Regionale Webapp", "lines": [
+      {"title": "Technische Grundlage", "description": "Aufsetzen der eigenständigen regionalen Webapp (Frontend-Instanz, CMS-Site, Domain, Staging/Produktion), Konfiguration je Region als Basis für weitere Regionalprojekte", "hours": 16, "rate": 150},
+      {"title": "Wohnort- und Kantonslogik", "description": "PLZ-/Gemeinde-Eingabe im Profil, Zuordnung zu Kanton und Gemeinde (BFS-Nr.), Speicherung im Nutzerprofil, Weitergabe an Rechenmodell und Inhalte", "hours": 24, "rate": 150},
+      {"title": "Regionale Einstiegsseite", "description": "Konzept, Gestaltung und Umsetzung (regionaler Auftritt, Modulübersicht, Einordnung des Angebots, Partner)", "hours": 24, "rate": 150},
+      {"title": "Navigation & Nutzerführung", "description": "Anpassung Header, Footer, Modulnavigation und Profil-Flow; Verweise auf die nationale Plattform", "hours": 12, "rate": 150},
+      {"title": "Regionale Adaption bestehender Module", "description": "CMS-Struktur für regionale Textvarianten, Ausspielung nach Kanton, Übernahme und Anpassung ausgewählter Inhalte der Berechnungsmodule", "hours": 20, "rate": 150},
+      {"title": "Mehrsprachigkeit", "description": "Struktur für DE/FR (Kanton Bern), Übersetzungs-Workflow und Sprachumschaltung", "hours": 8, "rate": 150}
+    ]},
+    {"label": "Bündel 2", "title": "Beratungs- & Anlaufstellen", "lines": [
+      {"title": "Datenmodell im CMS", "description": "Angebot, Trägerschaft, Themen, Einzugsgebiet (Kanton/PLZ), Kontakt, Sprache; Redaktionsoberfläche", "hours": 18, "rate": 150},
+      {"title": "Thematische Zuordnung", "description": "Verknüpfung der Angebote mit Themen und Berechnungsmodulen, Anzeige passender Angebote in Modulen und Detailseiten", "hours": 18, "rate": 150},
+      {"title": "PLZ-basierte Filterung", "description": "Ermittlung relevanter Anlaufstellen nach Wohnort, Übersichtsseite «Beratung & Anlaufstellen» mit Themen- und Regionsfilter", "hours": 20, "rate": 150},
+      {"title": "Erfassung & Import", "description": "Erfassungsvorlage und Import für die Angebotsrecherche der Partnerorganisationen, Einführung in die Datenpflege", "hours": 10, "rate": 150}
+    ]},
+    {"label": "Bündel 3", "title": "Steuermodul Bern & Solothurn", "lines": [
+      {"title": "Fachliche Analyse Steuern", "description": "Kantonale Tarife BE/SO, relevante Abzüge (Kinder, Betreuung, Berufskosten), Gemeindesteuerfüsse; Abgleich mit dem bestehenden Rechenmodell", "hours": 20, "rate": 150},
+      {"title": "Integration ins Rechenmodell", "description": "Kantonale Steuerregeln BE/SO, Gemeindesteuerfüsse nach BFS-Nr., Berechnung Bund/Kanton/Gemeinde je Wohnort; Erweiterung der API", "hours": 32, "rate": 150},
+      {"title": "Frontend", "description": "Steuerschätzung nach Wohnort in Profil und Modulen, Darstellung der Steuerbelastung, Vergleich verschiedener Erwerbs- und Familienmodelle", "hours": 16, "rate": 150},
+      {"title": "Datenpflege", "description": "Datenformat und Import für die jährliche Aktualisierung von Tarifen und Steuerfüssen", "hours": 8, "rate": 150}
+    ]},
+    {"label": "Bündel 4", "title": "Kinderbetreuungskosten", "lines": [
+      {"title": "Fachliche Analyse Kinderbetreuung", "description": "Betreuungsgutscheine Kanton Bern (Einkommens- und Vermögensgrenzen, Pensum, Tarife), Erhebungsraster für die Solothurner Gemeinden", "hours": 16, "rate": 150},
+      {"title": "Berechnungsmodell Bern", "description": "Gutscheinlogik inkl. kommunaler Zusätze, Berechnung der Unterstützung und der verbleibenden Betreuungskosten", "hours": 20, "rate": 150},
+      {"title": "Berechnungsmodell Solothurn", "description": "Gemeindekategorien, Zuordnung nach Wohnort, Berechnung der Unterstützung und der verbleibenden Betreuungskosten", "hours": 20, "rate": 150},
+      {"title": "Frontend", "description": "Betreuungskosten nach Abzug der Unterstützung in den Modulen Kinder, Arbeitsteilung und Teilzeit; Darstellung und Erläuterungen", "hours": 16, "rate": 150}
+    ]},
+    {"label": "QA, Launch & Reserve", "title": null, "lines": [
+      {"title": "Testing & QA", "description": "Validierung der Berechnungen mit Referenzfällen, Browser- und Mobile-Tests, Barrierefreiheit", "hours": 24, "rate": 150},
+      {"title": "Launch", "description": "Deployment, Domain und Monitoring, Übergabe und Dokumentation", "hours": 10, "rate": 150},
+      {"title": "Reserve", "description": null, "hours": 16, "rate": 150}
+    ]}
+  ]
+}

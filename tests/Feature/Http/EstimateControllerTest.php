@@ -162,7 +162,9 @@ test('GET /estimates/{number}/edit renders Estimates/Edit prefilled for a draft'
             ->where('estimate.number', $est->number)
             ->where('estimate.client_id', $est->client_id)
             ->where('estimate.project_id', $est->project_id)
-            ->has('estimate.lines', 1)
+            ->has('estimate.sections', 1)
+            ->has('estimate.sections.0.lines', 1)
+            ->where('estimate.sections.0.label', null)
             ->has('clients')
             ->has('projects'));
 });

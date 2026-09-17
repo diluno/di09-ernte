@@ -59,7 +59,7 @@ class EstimateProjections
     /** Full single-estimate detail array (shared by the web show page and the API). */
     public static function detail(Estimate $estimate): array
     {
-        $estimate->loadMissing(['client', 'project', 'convertedInvoice:id,number', 'lines']);
+        $estimate->loadMissing(['client', 'project', 'convertedInvoice:id,number', 'lines', 'sections']);
 
         return [
             'id' => $estimate->id,
@@ -77,11 +77,26 @@ class EstimateProjections
             'total' => round($estimate->total_rappen / 100, 2),
             'vat_rate' => (float) $estimate->vat_rate,
             'notes' => $estimate->notes,
+            'assumptions' => $estimate->assumptions ?? [],
+            'hours' => EstimateScope::totalHours($estimate),
+            // Flat line list, kept for existing consumers; `section` names the group.
             'lines' => $estimate->lines->sortBy('sort_order')->values()->map(fn (EstimateLine $l) => [
-                'id' => $l->id, 'description' => $l->description,
+                'id' => $l->id,
+                'section' => $l->estimate_section_id ? $estimate->sections->firstWhere('id', $l->estimate_section_id)?->heading() : null,
+                'title' => $l->title,
+                'description' => $l->description,
                 'hours' => (float) $l->hours, 'rate' => round($l->rate_rappen / 100, 2),
                 'amount' => round($l->amount_rappen / 100, 2),
             ])->all(),
+            'sections' => collect(EstimateScope::groups($estimate))
+                ->filter(fn (array $g) => $g['section'] !== null)
+                ->map(fn (array $g) => [
+                    'label' => $g['section']->label,
+                    'title' => $g['section']->title,
+                    'hours' => $g['hours'],
+                    'amount' => round($g['amount_rappen'] / 100, 2),
+                    'lines_count' => $g['lines']->count(),
+                ])->values()->all(),
             'converted_invoice' => $estimate->convertedInvoice
                 ? ['id' => $estimate->convertedInvoice->id, 'number' => $estimate->convertedInvoice->number]
                 : null,

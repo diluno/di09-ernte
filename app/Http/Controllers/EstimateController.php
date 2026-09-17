@@ -16,6 +16,7 @@ use App\Services\Estimating\EstimateDrafter;
 use App\Services\Estimating\EstimateLifecycle;
 use App\Services\Estimating\EstimatePdfRenderer;
 use App\Support\EstimateProjections;
+use App\Support\EstimateScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -99,10 +100,12 @@ class EstimateController extends Controller
         $estimate = $builder->createDraft(
             client: $client,
             project: $project,
-            lines: $data['lines'],
+            lines: $data['lines'] ?? [],
             notes: $data['notes'] ?? null,
             title: $data['title'] ?? null,
             recipients: $data['recipients'] ?? null,
+            sections: $data['sections'] ?? null,
+            assumptions: $data['assumptions'] ?? null,
         );
 
         return redirect("/estimates/{$estimate->number}")->with('success', "Draft {$estimate->number} created.");
@@ -135,7 +138,7 @@ class EstimateController extends Controller
             return redirect("/estimates/{$estimate->number}")->with('error', 'Only draft estimates can be edited.');
         }
 
-        $estimate->load(['lines' => fn ($q) => $q->orderBy('sort_order')]);
+        $estimate->load(['sections', 'lines' => fn ($q) => $q->orderBy('sort_order')]);
 
         return Inertia::render('Estimates/Edit', [
             'estimate' => [
@@ -145,12 +148,18 @@ class EstimateController extends Controller
                 'project_id' => $estimate->project_id,
                 'title' => $estimate->title,
                 'notes' => $estimate->notes,
+                'assumptions' => $estimate->assumptions ?? [],
                 'tax_date' => ($estimate->issued_on ?? $estimate->created_at)?->toDateString(),
                 'recipients' => $estimate->recipients ?? [],
-                'lines' => $estimate->lines->map(fn (EstimateLine $l) => [
-                    'description' => $l->description,
-                    'hours' => (float) $l->hours,
-                    'rate' => round($l->rate_rappen / 100, 2),
+                'sections' => collect(EstimateScope::groups($estimate))->map(fn (array $g) => [
+                    'label' => $g['section']?->label,
+                    'title' => $g['section']?->title,
+                    'lines' => $g['lines']->map(fn (EstimateLine $l) => [
+                        'title' => $l->title,
+                        'description' => $l->description,
+                        'hours' => (float) $l->hours,
+                        'rate' => round($l->rate_rappen / 100, 2),
+                    ])->values(),
                 ])->values(),
             ],
             'clients' => Client::active()->with('contacts')->orderBy('name')->get(['id', 'name'])

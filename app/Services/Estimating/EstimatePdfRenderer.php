@@ -53,6 +53,10 @@ class EstimatePdfRenderer
             // The sheet template paginates itself (explicit A4 pages, page line,
             // payment slip flush at the bottom edge), so no printer margins/footer.
             ->margins(0, 0, 0, 0)
+            // Lay out with print CSS from the start, so the pagination script
+            // measures rows at print size rather than under the preview zoom
+            // (the zoom changes line wrapping slightly and the error adds up).
+            ->emulateMedia('print')
             // Give the inline pagination script (runs after fonts.ready) time to finish.
             ->setDelay(150)
             // The DDEV/container Chromium has no usable sandbox; this is required to launch it.

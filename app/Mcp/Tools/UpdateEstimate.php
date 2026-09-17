@@ -13,6 +13,7 @@ use Laravel\Mcp\Server\Tool;
 
 class UpdateEstimate extends Tool
 {
+    use MapsEstimateLines;
     use ResolvesEstimates;
 
     protected string $name = 'update_estimate';
@@ -25,13 +26,17 @@ class UpdateEstimate extends Tool
             'number' => $schema->string()->required()->description('The estimate number, e.g. OF-2026-004.'),
             'title' => $schema->string()->description('Replaces the title.'),
             'notes' => $schema->string()->description('Replaces the notes.'),
-            'lines' => $schema->array()->description('Replaces all line items, in order.')->items(
+            'lines' => $schema->array()->description('Replaces all line items (and any sections), in order. Each needs a title or a description.')->items(
+                self::lineSchema($schema)
+            ),
+            'sections' => $schema->array()->description('Alternative to `lines`: line items grouped into named sections, shown on the PDF with a heading, subtotal and a package overview. Replaces all sections and lines.')->items(
                 $schema->object([
-                    'description' => $schema->string()->required()->max(1000),
-                    'hours' => $schema->number()->required()->min(0),
-                    'rate' => $schema->number()->required()->min(0)->description('Hourly rate in francs.'),
+                    'label' => $schema->string()->max(120)->description('Short section label, e.g. "Bündel 1". Do not repeat it in line titles.'),
+                    'title' => $schema->string()->max(255)->description('Optional descriptive title, e.g. "Regionale Webapp".'),
+                    'lines' => $schema->array()->required()->min(1)->items(self::lineSchema($schema)),
                 ])
             ),
+            'assumptions' => $schema->array()->items($schema->string()->max(500))->description('Short bullet points shown as "Grundlagen der Schätzung" after the totals.'),
         ];
     }
 
@@ -48,24 +53,19 @@ class UpdateEstimate extends Tool
 
         $data = $request->validate(EstimateInputRules::update($estimate->client_id, 'rate'));
 
-        if (array_key_exists('lines', $data)) {
-            $lines = [];
-            foreach ($data['lines'] as $line) {
-                $description = trim($line['description']);
-                if ($description === '') {
-                    return Response::error('Every line needs a description.');
-                }
-                $lines[] = [
-                    'description' => $description,
-                    'hours' => (float) $line['hours'],
-                    'rate_rappen' => (int) round(((float) $line['rate']) * 100),
-                ];
+        try {
+            if (array_key_exists('lines', $data)) {
+                $data['lines'] = self::toRappenLines($data['lines']);
             }
-            $data['lines'] = $lines;
+            if (array_key_exists('sections', $data)) {
+                $data['sections'] = self::toRappenSections($data['sections']);
+            }
+        } catch (\InvalidArgumentException $e) {
+            return Response::error($e->getMessage());
         }
 
         if ($data === []) {
-            return Response::error('Nothing to update — pass title, notes, or lines.');
+            return Response::error('Nothing to update — pass title, notes, assumptions, lines, or sections.');
         }
 
         return Response::structured(EstimateProjections::detail($builder->updateDraft($estimate, $data)));

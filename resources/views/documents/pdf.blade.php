@@ -19,7 +19,7 @@
   $chf = fn ($rappen) => number_format($rappen / 100, 2, '.', '’');
   $rateLabel = fn ($rate) => rtrim(rtrim(number_format((float) $rate, 2), '0'), '.');
   $hours = fn ($h) => number_format((float) $h, 1, '.', '’');
-  $date = fn ($d) => $d?->format('d.m.Y') ?? '—';
+  $date = fn ($d) => $d?->format('d.m.Y') ?? '';
 
   $client = $doc->client;
 
@@ -33,6 +33,23 @@
   $senderLine = implode(' · ', array_filter([
       $profile->name, $profile->address_line_1, trim(($profile->postal_code ?? '').' '.($profile->city ?? '')),
   ]));
+
+  // ── Estimates only: structured scope (sections, titled lines, shared rate). ──
+  // Lines without a section form one unnamed group, so estimates written
+  // before sections existed render as a single plain list.
+  $groups = $isInvoice ? [] : \App\Support\EstimateScope::groups($doc);
+  $hasSections = ! $isInvoice && \App\Support\EstimateScope::hasNamedSections($groups);
+  $uniformRate = $isInvoice ? null : \App\Support\EstimateScope::uniformRateRappen($doc);
+  $showRateColumn = $isInvoice || ($uniformRate === null && $doc->lines->isNotEmpty());
+  $detailCols = $showRateColumn ? 4 : 3;
+  // Whole francs as "15’600.–", otherwise "5’127.30".
+  $money = fn ($rappen) => $rappen % 100 === 0
+      ? number_format(intdiv((int) $rappen, 100), 0, '.', '’').'.–'
+      : number_format($rappen / 100, 2, '.', '’');
+  // Totals block: invoices keep "1’234.00"; estimates match the rest of the sheet.
+  $sum = fn ($rappen) => $isInvoice ? $chf($rappen) : $money($rappen);
+  $effort = fn ($h) => rtrim(rtrim(number_format((float) $h, 2, '.', '’'), '0'), '.').' h';
+  $assumptions = $isInvoice ? [] : array_values(array_filter((array) ($doc->assumptions ?? []), fn ($a) => filled($a)));
 @endphp
 <!doctype html>
 <html lang="de">
@@ -125,6 +142,59 @@
     .foot { margin-top: 5mm; padding-top: 3mm; border-top: 1px solid var(--border); font-size: 8.5pt; color: var(--ink-3); display: flex; justify-content: space-between; gap: 6mm; }
     .foot b { color: var(--ink); font-weight: 600; }
 
+    /* ── Estimates: compact header, summary, package overview, sectioned scope. ── */
+    .is-estimate .logo { padding-top: 10mm; height: 23mm; }
+    .is-estimate .logo svg { height: 13mm; }
+    .is-estimate .window { min-height: 30mm; padding-bottom: 8mm; }
+    .is-estimate h1 { margin-bottom: 0; padding-bottom: 4mm; }
+
+    .summary { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--border); margin: 8mm 0 8mm; }
+    .summary .kpi { padding: 1mm 4mm 4mm; text-align: right; }
+    .summary .kpi:first-child { padding-left: 0; }
+    .summary .kpi:last-child { padding-right: 0; }
+    .summary .kpi + .kpi { border-left: 1px solid var(--border); }
+    .summary .kpi:first-child { text-align: left; }
+    .summary .kpi span { display: block; font-size: 7.5pt; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 2mm; }
+    .summary .kpi b { font-family: var(--mono); font-size: 13pt; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .summary .kpi.grand b { font-size: 15pt; }
+
+    .caption { font-size: 7.5pt; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 2mm; font-weight: 400; }
+    .doc table.overview { margin-bottom: 2mm; }
+    .doc table.overview thead th, .doc table.detail thead th { padding-bottom: 3mm; }
+    .doc table.overview tbody tr:first-child td { padding-top: 2.5mm; }
+    .doc table.overview td { padding: 1.6mm 0; }
+    .overview .ov-label { font-weight: 600; }
+    .overview .ov-title { color: var(--ink-2); margin-left: 2mm; }
+    .rate-note { font-family: var(--mono); font-size: 8.5pt; color: var(--ink-3); margin: 0 0 7mm; text-align: right; }
+    .rate-note b { color: var(--ink); font-weight: 600; }
+    .scope-h { margin: 0 0 4mm; font-size: 8pt; color: var(--ink-2); }
+    .overview + .scope-h { margin-top: 9mm; }
+    .rate-note + .scope-h { margin-top: 2mm; }
+    .doc tbody tr.sec-total + tr.sec-head td { border-top: 0; }
+
+    .doc tbody tr.sec-head td { background: #f3efe6; border-bottom: 1px solid var(--border-strong); border-top: 1px solid var(--border-strong); padding: 3mm 3mm; }
+    .doc tbody tr.sec-head + tr td { padding-top: 3.5mm; }
+    .sec-label { font-weight: 600; }
+    .sec-title { color: var(--ink-2); }
+    .sec-label + .sec-title::before { content: ' — '; }
+    .sec-cont { display: none; color: var(--ink-3); font-size: 8.5pt; }
+    tr.sec-head.is-cont .sec-cont { display: inline; }
+    .doc tbody tr.item td { padding: 2.5mm 0; }
+    .item-title { font-weight: 600; line-height: 1.3; }
+    .item-desc { color: var(--ink-2); font-size: 9.5pt; line-height: 1.35; margin-top: .8mm; }
+    .item-desc p { margin: 0; }
+    .item-desc p + p { margin-top: 1mm; }
+    .item-desc ul, .item-desc ol { margin: .5mm 0 0; padding-left: 5mm; }
+    .doc tbody tr.sec-total td { padding: 2.5mm 0 7mm; border-bottom: 1px solid var(--ink); font-size: 9pt; }
+    .doc tbody tr.sec-total td.sec-total-l { color: var(--ink-3); font-size: 8pt; letter-spacing: .08em; text-transform: uppercase; }
+    .doc tbody tr.sec-total td.amount { font-weight: 600; }
+    .is-estimate .doc tbody tr.item td.amount { font-weight: 500; }
+
+    .assumptions { margin-top: 9mm; font-size: 9.5pt; line-height: 1.4; }
+    .assumptions h3 { font-size: 10.5pt; font-weight: 600; margin: 0 0 3mm; padding-bottom: 2.5mm; border-bottom: 1px solid var(--border); }
+    .assumption { position: relative; padding-left: 4.5mm; margin-bottom: 1.4mm; color: var(--ink-2); }
+    .assumption::before { content: '–'; position: absolute; left: 0; color: var(--ink-3); }
+
     /* ── Payment part: full 210mm width, kept whole, pushed to the sheet bottom. ── */
     /* separator (5mm) + payment part (105mm) = 110mm; no extra margin so a short
        invoice still fits the 287mm sheet with the slip at the bottom edge. */
@@ -133,7 +203,7 @@
   </style>
 </head>
 <body>
-<div class="sheet">
+<div @class(["sheet", "is-estimate" => ! $isInvoice])>
   <div class="body doc">
     <div class="logo">{!! \App\Support\GenerativeLogo::inlineSvg(crc32((string) $doc->number), color: '#141210') !!}</div>
     <div class="sender">{{ $senderLine }}</div>
@@ -148,8 +218,8 @@
       <div class="meta">
         <span class="kind">{{ $label }}</span>
         <span>Nr.</span><b>{{ $doc->number }}</b>
-        <span>Datum</span><b>{{ $date($doc->issued_on) }}</b>
-        <span>{{ $untilLabel }}</span><b @class(['is-red' => $isInvoice && $doc->overdue])>{{ $date($until) }}</b>
+        @if ($doc->issued_on)<span>Datum</span><b>{{ $date($doc->issued_on) }}</b>@endif
+        @if ($until)<span>{{ $untilLabel }}</span><b @class(['is-red' => $isInvoice && $doc->overdue])>{{ $date($until) }}</b>@endif
         @if ($doc->project)<span>Projekt</span><span>{{ $doc->project->name }}</span>@endif
         @if ($showPeriod)<span>Periode</span><span>{{ $doc->period_start->format('d.m.') }} – {{ $doc->period_end->format('d.m.Y') }}</span>@endif
         @if ($profile->uid)<span>UID</span><span>{{ $profile->uid }}</span>@endif
@@ -158,6 +228,7 @@
 
     <h1>{{ $doc->title ?: $label.' '.$doc->number }}</h1>
 
+    @if ($isInvoice)
     <table>
       <thead>
         <tr>
@@ -178,19 +249,111 @@
         @endforeach
       </tbody>
     </table>
+    @else
+      <div class="summary">
+        <div class="kpi"><span>Aufwand</span><b>{{ $effort(\App\Support\EstimateScope::totalHours($doc)) }}</b></div>
+        <div class="kpi"><span>Exkl. MwSt</span><b>CHF {{ $money($doc->subtotal_rappen) }}</b></div>
+        <div class="kpi grand"><span>Inkl. MwSt</span><b>CHF {{ $money($doc->total_rappen) }}</b></div>
+      </div>
+
+      @if ($hasSections)
+        <table class="overview" data-glue>
+          <thead>
+            <tr>
+              <th>Übersicht</th>
+              <th class="num" style="width: 22mm">Aufwand</th>
+              <th class="num" style="width: 30mm">Betrag</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach ($groups as $g)
+              <tr>
+                <td>
+                  @if ($g['section']?->label)<span class="ov-label">{{ $g['section']->label }}</span>@endif
+                  @if ($g['section']?->title)<span @class(['ov-title' => (bool) $g['section']?->label, 'ov-label' => ! $g['section']?->label])>{{ $g['section']->title }}</span>@endif
+                  @if (! $g['heading'])<span class="ov-label">Weitere Leistungen</span>@endif
+                </td>
+                <td class="num">{{ $effort($g['hours']) }}</td>
+                <td class="num amount">CHF {{ $money($g['amount_rappen']) }}</td>
+              </tr>
+            @endforeach
+          </tbody>
+        </table>
+      @endif
+      @if ($uniformRate !== null)
+        <div class="rate-note">Stundensatz: <b>CHF {{ $money($uniformRate) }}</b></div>
+      @endif
+
+      @if ($hasSections)<h2 class="caption scope-h" data-glue>Leistungen im Detail</h2>@endif
+      <table class="detail">
+        <thead>
+          <tr>
+            <th>Leistung</th>
+            <th class="num" style="width: 20mm">Aufwand</th>
+            @if ($showRateColumn)<th class="num" style="width: 20mm">Ansatz</th>@endif
+            <th class="num" style="width: 28mm">Betrag</th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach ($groups as $k => $g)
+            @if ($g['heading'])
+              <tr class="sec-head" data-section="{{ $k }}" data-glue>
+                <td colspan="{{ $detailCols }}">
+                  @if ($g['section']->label)<span class="sec-label">{{ $g['section']->label }}</span>@endif
+                  @if ($g['section']->title)<span @class(['sec-title' => (bool) $g['section']->label, 'sec-label' => ! $g['section']->label])>{{ $g['section']->title }}</span>@endif
+                  <span class="sec-cont">(Fortsetzung)</span>
+                </td>
+              </tr>
+            @endif
+            @foreach ($g['lines'] as $line)
+              <tr class="item" data-section="{{ $k }}" @if ($g['heading'] && $loop->last) data-glue @endif>
+                <td class="line-desc">
+                  @if (filled($line->title))
+                    <div class="item-title">{{ $line->title }}</div>
+                    @if (filled($line->description))<div class="item-desc">{!! \App\Support\Markdown::toHtml($line->description) !!}</div>@endif
+                  @else
+                    {!! \App\Support\Markdown::toHtml($line->description) !!}
+                  @endif
+                </td>
+                <td class="num">{{ $effort($line->hours) }}</td>
+                @if ($showRateColumn)<td class="num">{{ $money($line->rate_rappen) }}</td>@endif
+                <td class="num amount">{{ $money($line->amount_rappen) }}</td>
+              </tr>
+            @endforeach
+            @if ($g['heading'])
+              <tr class="sec-total" data-section="{{ $k }}">
+                <td class="sec-total-l">Total {{ $g['section']->label ?: $g['section']->title }}</td>
+                <td class="num">{{ $effort($g['hours']) }}</td>
+                @if ($showRateColumn)<td></td>@endif
+                <td class="num amount">{{ $money($g['amount_rappen']) }}</td>
+              </tr>
+            @endif
+          @endforeach
+        </tbody>
+      </table>
+    @endif
     @if ($anyExempt)<div class="exempt-note">* ohne MwSt</div>@endif
 
     <div class="totals">
-      <span class="l">Zwischensumme</span><span class="v">{{ $chf($doc->subtotal_rappen) }}</span>
-      <span class="l">MwSt {{ $rateLabel($doc->vat_rate) }}%</span><span class="v">{{ $chf($doc->vat_rappen) }}</span>
+      <span class="l">{{ $isInvoice ? 'Zwischensumme' : 'Total exkl. MwSt' }}</span><span class="v">{{ $sum($doc->subtotal_rappen) }}</span>
+      <span class="l">MwSt {{ $rateLabel($doc->vat_rate) }}%</span><span class="v">{{ $sum($doc->vat_rappen) }}</span>
       @if ($doc->rounding_rappen != 0)
-        <span class="l">Rundung</span><span class="v">{{ $chf($doc->rounding_rappen) }}</span>
+        <span class="l">Rundung</span><span class="v">{{ $sum($doc->rounding_rappen) }}</span>
       @endif
-      <span class="grand-l">Total CHF</span><span class="v grand">{{ $chf($doc->total_rappen) }}</span>
+      <span class="grand-l">{{ $isInvoice ? 'Total CHF' : 'Total inkl. MwSt' }}</span><span class="v grand">{{ $sum($doc->total_rappen) }}</span>
     </div>
 
+    @if ($assumptions)
+      <div class="assumptions" data-split>
+        <h3 data-glue>Grundlagen der Schätzung</h3>
+        @foreach ($assumptions as $assumption)
+          <div class="assumption">{{ $assumption }}</div>
+        @endforeach
+      </div>
+    @endif
+
     @if ($doc->notes)
-      <div class="notes">{!! \App\Support\Markdown::toHtml($doc->notes) !!}</div>
+      <div class="notes" data-split>{!! \App\Support\Markdown::toHtml($doc->notes) !!}</div>
     @endif
 
     <div class="foot">
@@ -211,59 +374,128 @@
 </div>
 <script>
   // Paginate into explicit 297mm pages (see .page). Runs once fonts are in,
-  // before Chrome prints. Units: the header block, each line row (tables are
-  // split with a repeated head), each block after the table, the slip.
+  // before Chrome prints.
+  //
+  // The body is flattened into atoms in document order: the header block,
+  // each table row, each child of a [data-split] container, and every other
+  // block. Heights come from the gap to the next atom, so margins are counted.
+  // [data-glue] ties an atom to the next one (a section head to its first
+  // item, a section's last item to its subtotal). Rows sharing
+  // [data-section] form a section that moves to a fresh page as a whole when
+  // it fits there and little room is left; otherwise it splits and the next
+  // page repeats the column header and the section head marked "Fortsetzung".
   document.fonts.ready.then(function () {
     var sheet = document.querySelector('.sheet'), body = document.querySelector('.body'), qr = document.querySelector('.qr');
-    var mm = document.body.offsetWidth / 210, PAGE = 297 * mm, BAND = 12 * mm, TOP = 12 * mm, AVAIL = PAGE - BAND;
+    function rect(el) { return el.getBoundingClientRect(); }
+    var mm = rect(body).width / 210, PAGE = 297 * mm, BAND = 12 * mm, TOP = 12 * mm, AVAIL = PAGE - BAND;
     var label = @json($label.' '.$doc->number);
 
-    var table = body.querySelector('table'), rows = [].slice.call(table.tBodies[0].rows);
     var head = [body.querySelector('.logo'), body.querySelector('.sender'), body.querySelector('.window'), body.querySelector('h1')];
-    var after = [].slice.call(body.children).filter(function (el) { return head.indexOf(el) < 0 && el !== table; });
-    var units = [];
-    units.push({ nodes: head, h: table.offsetTop - head[0].offsetTop });
-    var theadH = table.tHead.offsetHeight;
-    rows.forEach(function (r, i) {
-      var next = rows[i + 1];
-      units.push({ row: r, h: (next ? next.offsetTop : table.offsetHeight) - r.offsetTop });
-    });
-    after.forEach(function (el, i) {
-      if (el.classList.contains('notes')) {
-        [].slice.call(el.children).forEach(function (c, j, all) {
-          var n = all[j + 1];
-          units.push({ nodes: [c], notes: true, h: (n ? n.offsetTop : el.offsetHeight) - c.offsetTop });
+    var atoms = [];
+    [].slice.call(body.children).forEach(function (el) {
+      if (head.indexOf(el) >= 0) { atoms.push({ el: el, kind: 'head', top: rect(el).top }); return; }
+      if (el.tagName === 'TABLE' && el.tBodies[0] && el.tBodies[0].rows.length) {
+        var tableTop = rect(el).top;
+        [].slice.call(el.tBodies[0].rows).forEach(function (r, i) {
+          atoms.push({ el: r, kind: 'row', parent: el, glue: r.hasAttribute('data-glue'), section: r.getAttribute('data-section'), top: rect(r).top, startTop: i === 0 ? tableTop : null });
+        });
+        el.theadH = rect(el.tBodies[0].rows[0]).top - tableTop;
+        if (el.hasAttribute('data-glue')) atoms[atoms.length - 1].glue = true;
+        return;
+      }
+      if (el.hasAttribute('data-split') && el.children.length) {
+        var boxTop = rect(el).top;
+        [].slice.call(el.children).forEach(function (c, i) {
+          atoms.push({ el: c, kind: 'child', parent: el, glue: c.hasAttribute('data-glue'), top: rect(c).top, startTop: i === 0 ? boxTop : null });
         });
         return;
       }
-      var n = after[i + 1];
-      units.push({ nodes: [el], h: (n ? n.offsetTop : body.offsetHeight) - el.offsetTop });
+      atoms.push({ el: el, kind: 'block', glue: el.hasAttribute('data-glue'), top: rect(el).top });
+    });
+    var bodyBottom = rect(body).bottom;
+    atoms.forEach(function (a, i) {
+      var n = atoms[i + 1];
+      a.h = (n ? (n.startTop !== null && n.startTop !== undefined ? n.startTop : n.top) : bodyBottom) - a.top;
     });
 
-    var pages = [], cur = null, y = 0, pageStart = 0, curTable = null, curNotes = null;
+    // Units: the whole header is one; glued atoms merge with their successor.
+    var units = [], u = null;
+    atoms.forEach(function (a) {
+      if (!u) u = { atoms: [], h: 0, section: null };
+      u.atoms.push(a); u.h += a.h;
+      if (u.section === null && a.section !== null && a.section !== undefined) u.section = a.section;
+      var nextIsHead = a.kind === 'head' && atoms[atoms.indexOf(a) + 1] && atoms[atoms.indexOf(a) + 1].kind === 'head';
+      if (!a.glue && !nextIsHead) { units.push(u); u = null; }
+    });
+    if (u) units.push(u);
+
+    var sections = {};
+    units.forEach(function (unit, i) {
+      if (unit.section === null) return;
+      var s = sections[unit.section] || (sections[unit.section] = { first: i, h: 0, head: null });
+      s.h += unit.h;
+      unit.atoms.forEach(function (a) { if (a.el.classList && a.el.classList.contains('sec-head')) s.head = a; });
+    });
+
+    var pages = [], cur = null, y = 0, pageStart = 0, openParent = null, openBox = null;
     function newPage() {
       cur = document.createElement('div'); cur.className = 'page';
       cur.content = document.createElement('div'); cur.content.className = 'content doc';
-      cur.appendChild(cur.content); pages.push(cur); y = pageStart = pages.length > 1 ? TOP : 0; curTable = null; curNotes = null;
+      cur.appendChild(cur.content); pages.push(cur);
+      y = pageStart = pages.length > 1 ? TOP : 0; openParent = null; openBox = null;
     }
-    newPage();
-    units.forEach(function (u) {
-      if (y > pageStart && y + u.h > AVAIL) newPage();
-      if (u.row) {
-        if (!curTable) {
-          curTable = table.cloneNode(false);
-          curTable.appendChild(table.tHead.cloneNode(true));
-          curTable.appendChild(document.createElement('tbody'));
-          cur.content.appendChild(curTable); y += theadH; curNotes = null;
-        }
-        curTable.tBodies[0].appendChild(u.row);
-      } else if (u.notes) {
-        if (!curNotes) { curNotes = document.createElement('div'); curNotes.className = 'notes'; cur.content.appendChild(curNotes); }
-        curNotes.appendChild(u.nodes[0]); curTable = null;
-      } else {
-        u.nodes.forEach(function (n) { cur.content.appendChild(n); }); curTable = null; curNotes = null;
+    function firstContainerAtom(unit) {
+      for (var i = 0; i < unit.atoms.length; i++) if (unit.atoms[i].parent) return unit.atoms[i];
+      return null;
+    }
+    // Extra height the unit costs on the current page: a repeated column
+    // header when its table is not open here, plus a continuation head.
+    function extra(unit, index) {
+      var a = unit.atoms[0], cost = 0;
+      if (a.kind === 'row' && openParent !== a.parent) {
+        cost += a.parent.theadH;
+        var s = unit.section !== null ? sections[unit.section] : null;
+        if (s && s.first !== index && s.head) cost += s.head.h;
       }
-      y += u.h;
+      return cost;
+    }
+    // Start a shallow copy of a table / split container on the current page.
+    function open(parent, kind) {
+      if (openParent === parent) return;
+      openBox = parent.cloneNode(false);
+      if (kind === 'row') {
+        openBox.appendChild(parent.tHead.cloneNode(true));
+        openBox.appendChild(document.createElement('tbody'));
+      }
+      cur.content.appendChild(openBox); openParent = parent;
+    }
+    function place(a) {
+      if (!a.parent) { cur.content.appendChild(a.el); openParent = null; openBox = null; return; }
+      open(a.parent, a.kind);
+      (a.kind === 'row' ? openBox.tBodies[0] : openBox).appendChild(a.el);
+    }
+
+    newPage();
+    units.forEach(function (unit, index) {
+      var s = unit.section !== null ? sections[unit.section] : null;
+      if (s && s.first === index && y > pageStart) {
+        var fresh = AVAIL - TOP;
+        var roomLeft = AVAIL - y - extra(unit, index);
+        if (s.h > roomLeft && s.h + (unit.atoms[0].parent ? unit.atoms[0].parent.theadH || 0 : 0) <= fresh && roomLeft < fresh / 3) newPage();
+      }
+      if (y > pageStart && y + unit.h + extra(unit, index) > AVAIL) newPage();
+
+      var a0 = unit.atoms[0];
+      if (a0.kind === 'row' && openParent !== a0.parent) {
+        y += a0.parent.theadH;
+        if (s && s.first !== index && s.head) {
+          open(a0.parent, 'row');
+          var cont = s.head.el.cloneNode(true); cont.classList.add('is-cont');
+          openBox.tBodies[0].appendChild(cont); y += s.head.h;
+        }
+      }
+      unit.atoms.forEach(function (a) { place(a); });
+      y += unit.h;
     });
 
     if (qr) {

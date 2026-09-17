@@ -14,11 +14,12 @@ class Estimate extends Model
         'issued_on', 'valid_until',
         'status', 'currency', 'vat_rate',
         'subtotal_rappen', 'vat_rappen', 'rounding_rappen', 'total_rappen',
-        'notes', 'title', 'sent_at', 'decided_at', 'converted_invoice_id', 'pdf_path', 'recipients',
+        'notes', 'assumptions', 'title', 'sent_at', 'decided_at', 'converted_invoice_id', 'pdf_path', 'recipients',
     ];
 
     protected $casts = [
         'recipients' => 'array',
+        'assumptions' => 'array',
         'issued_on' => 'date',
         'valid_until' => 'date',
         'sent_at' => 'datetime',
@@ -33,6 +34,7 @@ class Estimate extends Model
     public function client() { return $this->belongsTo(Client::class); }
     public function project() { return $this->belongsTo(Project::class); }
     public function lines() { return $this->hasMany(EstimateLine::class); }
+    public function sections() { return $this->hasMany(EstimateSection::class)->orderBy('sort_order'); }
     public function events() { return $this->hasMany(EstimateEvent::class); }
     public function convertedInvoice() { return $this->belongsTo(Invoice::class, 'converted_invoice_id'); }
 
