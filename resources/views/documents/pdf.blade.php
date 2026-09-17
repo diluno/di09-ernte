@@ -66,6 +66,7 @@
     .page { position: relative; height: 297mm; display: flex; flex-direction: column; overflow: hidden; break-after: page; page-break-after: always; }
     .page:last-child { break-after: auto; page-break-after: auto; }
     .page > .content { padding: 0 20mm; }
+    .page + .page > .content { padding-top: 12mm; }
     .page > .qr { margin-top: auto; }
     .page-foot { position: absolute; left: 20mm; right: 20mm; bottom: 8mm; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 7.5pt; color: var(--ink-3); letter-spacing: .04em; }
     @media screen {
@@ -214,7 +215,7 @@
   // split with a repeated head), each block after the table, the slip.
   document.fonts.ready.then(function () {
     var sheet = document.querySelector('.sheet'), body = document.querySelector('.body'), qr = document.querySelector('.qr');
-    var mm = document.body.offsetWidth / 210, PAGE = 297 * mm, BAND = 12 * mm, AVAIL = PAGE - BAND;
+    var mm = document.body.offsetWidth / 210, PAGE = 297 * mm, BAND = 12 * mm, TOP = 12 * mm, AVAIL = PAGE - BAND;
     var label = @json($label.' '.$doc->number);
 
     var table = body.querySelector('table'), rows = [].slice.call(table.tBodies[0].rows);
@@ -239,15 +240,15 @@
       units.push({ nodes: [el], h: (n ? n.offsetTop : body.offsetHeight) - el.offsetTop });
     });
 
-    var pages = [], cur = null, y = 0, curTable = null, curNotes = null;
+    var pages = [], cur = null, y = 0, pageStart = 0, curTable = null, curNotes = null;
     function newPage() {
       cur = document.createElement('div'); cur.className = 'page';
       cur.content = document.createElement('div'); cur.content.className = 'content doc';
-      cur.appendChild(cur.content); pages.push(cur); y = 0; curTable = null; curNotes = null;
+      cur.appendChild(cur.content); pages.push(cur); y = pageStart = pages.length > 1 ? TOP : 0; curTable = null; curNotes = null;
     }
     newPage();
     units.forEach(function (u) {
-      if (y > 0 && y + u.h > AVAIL) newPage();
+      if (y > pageStart && y + u.h > AVAIL) newPage();
       if (u.row) {
         if (!curTable) {
           curTable = table.cloneNode(false);
