@@ -24,6 +24,7 @@ _Last audited: 2026-07-08 (verified over SSH)._
   (installed via `deploy/forge/provision-chrome-and-backups.sh`; `PUPPETEER_SKIP_DOWNLOAD=true`)
 
 ## Deploys
+- **Auto-deploy is on:** every push to `main` triggers a Forge deploy.
 - **Zero-downtime** Forge releases: script in `deploy/forge/deploy.sh` (pasted into the Forge deploy-script editor; uses `$CREATE_RELEASE()` macro).
 - Steps: composer install (no-dev) → npm ci + `npm run build` (Vite) → storage dirs → `migrate --force` → `db:seed --class=BootstrapSeeder` → `artisan optimize` → `ernte:doctor --advisory` → swap `current` symlink → keep 3 releases → `queue:restart`.
 - Live code served from `/home/forge/ernte.dil.uno/current` — daemons/cron must target `current`, not the site root.
