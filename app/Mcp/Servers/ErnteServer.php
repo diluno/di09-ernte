@@ -5,12 +5,16 @@ namespace App\Mcp\Servers;
 use App\Mcp\Tools\AcceptEstimate;
 use App\Mcp\Tools\ConvertEstimateToInvoice;
 use App\Mcp\Tools\CreateEstimate;
+use App\Mcp\Tools\CreateInvoice;
 use App\Mcp\Tools\DeclineEstimate;
 use App\Mcp\Tools\DraftEstimateLines;
 use App\Mcp\Tools\GetEstimate;
+use App\Mcp\Tools\GetInvoice;
 use App\Mcp\Tools\ListClients;
 use App\Mcp\Tools\ListEstimates;
+use App\Mcp\Tools\ListInvoices;
 use App\Mcp\Tools\SendEstimate;
+use App\Mcp\Tools\SendInvoice;
 use App\Mcp\Tools\UpdateEstimate;
 use Laravel\Mcp\Server;
 
@@ -22,7 +26,7 @@ class ErnteServer extends Server
 
     protected string $instructions = <<<'TEXT'
     ernte is a single-operator studio admin app for a Swiss design and development
-    studio. This server exposes its estimates ("Offerten").
+    studio. This server exposes its estimates ("Offerten") and invoices.
 
     A typical flow: list_clients to find the client, draft_estimate_lines to turn a
     prose brief into proposed line items, then create_estimate to save it as a draft.
@@ -35,6 +39,12 @@ class ErnteServer extends Server
     send_estimate emails the client and stamps the validity date. It is not
     reversible. Only call it when the operator has asked for that specific estimate
     to be sent, by number.
+
+    Invoices: create_invoice saves a draft, either from explicit lines or from the
+    client's unbilled time in a period (from_time_entries). Confirm lines and totals
+    with the operator first, as with estimates. send_invoice emails the invoice with
+    its QR bill and is not reversible — only call it when the operator asked for that
+    specific invoice, by number.
     TEXT;
 
     protected function boot(): void
@@ -49,5 +59,9 @@ class ErnteServer extends Server
         $this->tools[] = new AcceptEstimate;
         $this->tools[] = new DeclineEstimate;
         $this->tools[] = new ConvertEstimateToInvoice;
+        $this->tools[] = new ListInvoices;
+        $this->tools[] = new GetInvoice;
+        $this->tools[] = new CreateInvoice;
+        $this->tools[] = new SendInvoice;
     }
 }

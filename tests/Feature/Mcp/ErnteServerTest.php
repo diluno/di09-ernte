@@ -4,6 +4,10 @@ use App\Mcp\Servers\ErnteServer;
 use App\Mcp\Tools\AcceptEstimate;
 use App\Mcp\Tools\ConvertEstimateToInvoice;
 use App\Mcp\Tools\CreateEstimate;
+use App\Mcp\Tools\CreateInvoice;
+use App\Mcp\Tools\GetInvoice;
+use App\Mcp\Tools\ListInvoices;
+use App\Mcp\Tools\SendInvoice;
 use App\Mcp\Tools\GetEstimate;
 use App\Mcp\Tools\ListClients;
 use App\Mcp\Tools\ListEstimates;
@@ -13,6 +17,8 @@ use App\Models\BusinessProfile;
 use App\Models\Client;
 use App\Models\Contact;
 use App\Models\Estimate;
+use App\Models\Invoice;
+use App\Models\TimeEntry;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\Estimating\EstimateBuilder;
@@ -205,5 +211,96 @@ test('convert refuses an estimate that has not been accepted', function () {
 
     ErnteServer::actingAs($this->user)
         ->tool(ConvertEstimateToInvoice::class, ['number' => $estimate->number])
+        ->assertHasErrors();
+});
+
+test('create_invoice persists a draft from explicit lines and computes totals', function () {
+    ErnteServer::actingAs($this->user)->tool(CreateInvoice::class, [
+        'client_id' => $this->client->id,
+        'title' => 'Wartung',
+        'lines' => [
+            ['description' => 'Hosting', 'hours' => 1, 'rate' => 120.5, 'vat_exempt' => false],
+            ['description' => 'Support', 'hours' => 2, 'rate' => 145],
+        ],
+    ])->assertOk();
+
+    $invoice = Invoice::latest('id')->first();
+    expect($invoice->status)->toBe('draft')
+        ->and($invoice->lines)->toHaveCount(2)
+        ->and($invoice->subtotal_rappen)->toBe(12050 + 2 * 14500);
+});
+
+test('create_invoice bills unbilled time in the period and links the entries', function () {
+    $entry = TimeEntry::factory()->create([
+        'project_id' => $this->project->id,
+        'description' => 'Umsetzung',
+        'started_at' => '2026-08-10 09:00:00',
+        'ended_at' => '2026-08-10 11:00:00',
+    ]);
+    $outside = TimeEntry::factory()->create([
+        'project_id' => $this->project->id,
+        'started_at' => '2026-07-10 09:00:00',
+        'ended_at' => '2026-07-10 10:00:00',
+    ]);
+
+    ErnteServer::actingAs($this->user)->tool(CreateInvoice::class, [
+        'client_id' => $this->client->id,
+        'from_time_entries' => true,
+        'period_start' => '2026-08-01',
+        'period_end' => '2026-08-31',
+    ])->assertOk()->assertSee('Umsetzung');
+
+    $invoice = Invoice::latest('id')->first();
+    expect($entry->fresh()->invoice_id)->toBe($invoice->id)
+        ->and($outside->fresh()->invoice_id)->toBeNull()
+        ->and($invoice->subtotal_rappen)->toBe(2 * 14500);
+});
+
+test('create_invoice errors when there is no unbilled time', function () {
+    ErnteServer::actingAs($this->user)
+        ->tool(CreateInvoice::class, ['client_id' => $this->client->id, 'from_time_entries' => true, 'period_start' => '2026-01-01', 'period_end' => '2026-01-31'])
+        ->assertHasErrors();
+
+    expect(Invoice::count())->toBe(0);
+});
+
+test('create_invoice requires lines unless billing time, and rejects foreign projects', function () {
+    ErnteServer::actingAs($this->user)
+        ->tool(CreateInvoice::class, ['client_id' => $this->client->id])
+        ->assertHasErrors();
+
+    ErnteServer::actingAs($this->user)
+        ->tool(CreateInvoice::class, [
+            'client_id' => $this->client->id,
+            'project_id' => Project::factory()->create()->id,
+            'lines' => [['description' => 'x', 'hours' => 1, 'rate' => 100]],
+        ])
+        ->assertHasErrors();
+
+    expect(Invoice::count())->toBe(0);
+});
+
+test('list_invoices filters by status and get_invoice returns lines', function () {
+    $sent = Invoice::factory()->sent()->create(['client_id' => $this->client->id]);
+
+    ErnteServer::actingAs($this->user)
+        ->tool(ListInvoices::class, ['status' => 'sent'])
+        ->assertOk()
+        ->assertSee($sent->number);
+
+    ErnteServer::actingAs($this->user)
+        ->tool(GetInvoice::class, ['number' => 'nope'])
+        ->assertHasErrors();
+});
+
+test('send_invoice refuses unknown and non-draft invoices', function () {
+    $sent = Invoice::factory()->sent()->create(['client_id' => $this->client->id]);
+
+    ErnteServer::actingAs($this->user)
+        ->tool(SendInvoice::class, ['number' => 'nope'])
+        ->assertHasErrors();
+
+    ErnteServer::actingAs($this->user)
+        ->tool(SendInvoice::class, ['number' => $sent->number])
         ->assertHasErrors();
 });
