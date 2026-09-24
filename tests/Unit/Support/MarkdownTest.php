@@ -35,3 +35,10 @@ test('escapes raw HTML to prevent injection', function () {
 test('returns an empty string for empty input', function () {
     expect(Markdown::toHtml(''))->toBe('');
 });
+
+test('renders tables with column alignment', function () {
+    $html = Markdown::toHtml("| Jahr | CHF |\n|---|--:|\n| Jahr 1 | 960.– |");
+
+    expect($html)->toContain('<table>');
+    expect($html)->toContain('<td align="right">960.–</td>');
+});

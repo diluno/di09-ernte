@@ -4,6 +4,7 @@ namespace App\Support;
 
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\Table\TableExtension;
 use League\CommonMark\MarkdownConverter;
 
 class Markdown
@@ -28,6 +29,7 @@ class Markdown
             ],
         ]);
         $environment->addExtension(new CommonMarkCoreExtension);
+        $environment->addExtension(new TableExtension);
 
         return (string) (new MarkdownConverter($environment))->convert($markdown);
     }

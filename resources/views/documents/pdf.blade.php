@@ -133,12 +133,30 @@
     .totals .grand { font-size: 12pt; }
 
     /* ── Notes / foot ── */
+    /* Notes are markdown. ## is a chapter (starts a new page, see the pagination
+       script), ### a section, #### a subsection; headings stay with what follows. */
     .notes { margin-top: 8mm; font-size: 10pt; line-height: 1.5; }
     .notes p { margin: 0 0 2.5mm; }
-    .notes ul, .notes ol { margin: 0 0 2.5mm; padding-left: 5mm; }
+    .notes strong { font-weight: 600; }
+    .notes a { color: inherit; text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: .6mm; }
+    .notes ul, .notes ol { margin: 0 0 3mm; padding-left: 0; }
+    .notes ol { padding-left: 5mm; }
+    .notes ul { list-style: none; }
+    .notes ul li { position: relative; padding-left: 4.5mm; }
+    .notes ul li::before { content: '–'; position: absolute; left: 0; color: var(--ink-3); }
     .notes li { margin-bottom: .8mm; }
-    .notes hr { border: none; border-top: 1px solid var(--border); margin: 5mm 0; }
-    .notes h1, .notes h2, .notes h3 { font-size: 10.5pt; margin: 4mm 0 1.5mm; padding: 0; border: 0; letter-spacing: 0; }
+    .notes hr { border: none; border-top: 1px solid var(--border); margin: 6mm 0; }
+    .notes h1, .notes h2 { font-size: 15pt; font-weight: 600; letter-spacing: -0.015em; line-height: 1.15; margin: 0 0 6mm; padding-bottom: 3mm; border-bottom: 1px solid var(--ink); }
+    .notes h3 { font-size: 10.5pt; font-weight: 600; margin: 8mm 0 3mm; padding-bottom: 2mm; border-bottom: 1px solid var(--border); }
+    .notes h4, .notes h5, .notes h6 { font-size: 10pt; font-weight: 600; margin: 5mm 0 1.5mm; }
+    .notes h2 + h3 { margin-top: 0; }
+    .notes h3 + h4 { margin-top: 0; }
+    .notes table { margin: 1mm 0 4mm; font-size: 9.5pt; }
+    .notes thead th { padding: 0 0 2mm; }
+    .notes tbody td { padding: 1.6mm 4mm 1.6mm 0; }
+    .notes tbody td:first-child { color: var(--ink-2); }
+    .notes th[align="right"], .notes td[align="right"] { text-align: right; padding-right: 0; font-family: var(--mono); font-size: 9pt; font-variant-numeric: tabular-nums; }
+    .notes th[align="right"] { font-family: var(--sans); font-size: 7.5pt; }
     .foot { margin-top: 5mm; padding-top: 3mm; border-top: 1px solid var(--border); font-size: 8.5pt; color: var(--ink-3); display: flex; justify-content: space-between; gap: 6mm; }
     .foot b { color: var(--ink); font-weight: 600; }
 
@@ -406,7 +424,9 @@
       if (el.hasAttribute('data-split') && el.children.length) {
         var boxTop = rect(el).top;
         [].slice.call(el.children).forEach(function (c, i) {
-          atoms.push({ el: c, kind: 'child', parent: el, glue: c.hasAttribute('data-glue'), top: rect(c).top, startTop: i === 0 ? boxTop : null });
+          // Headings, and a lead-in paragraph ending in ':', never end a page.
+          var lead = /^H[1-6]$/.test(c.tagName) || (c.tagName === 'P' && /:\s*$/.test(c.textContent));
+          atoms.push({ el: c, kind: 'child', parent: el, glue: lead || c.hasAttribute('data-glue'), chapter: el.classList.contains('notes') && /^H[12]$/.test(c.tagName), top: rect(c).top, startTop: i === 0 ? boxTop : null });
         });
         return;
       }
@@ -483,7 +503,7 @@
         var roomLeft = AVAIL - y - extra(unit, index);
         if (s.h > roomLeft && s.h + (unit.atoms[0].parent ? unit.atoms[0].parent.theadH || 0 : 0) <= fresh && roomLeft < fresh / 3) newPage();
       }
-      if (y > pageStart && y + unit.h + extra(unit, index) > AVAIL) newPage();
+      if (y > pageStart && (unit.atoms[0].chapter || y + unit.h + extra(unit, index) > AVAIL)) newPage();
 
       var a0 = unit.atoms[0];
       if (a0.kind === 'row' && openParent !== a0.parent) {
