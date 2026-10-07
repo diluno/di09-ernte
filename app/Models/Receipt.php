@@ -56,7 +56,8 @@ class Receipt extends Model
     {
         return $this->extraction_status === 'failed'
             || $this->confidence === 'low'
-            || ($this->extraction_status === 'done' && $this->document_date === null)
+            // A standing copy (the rent contract) is not read and has no date of its own.
+            || ($this->extraction_status === 'done' && $this->document_date === null && $this->source !== 'standing')
             || in_array($this->filing_status, ['failed', 'missing'], true);
     }
 
@@ -65,7 +66,7 @@ class Receipt extends Model
         return $q->where(fn (Builder $w) => $w
             ->where('extraction_status', 'failed')
             ->orWhere('confidence', 'low')
-            ->orWhere(fn (Builder $d) => $d->where('extraction_status', 'done')->whereNull('document_date'))
+            ->orWhere(fn (Builder $d) => $d->where('extraction_status', 'done')->whereNull('document_date')->where('source', '!=', 'standing'))
             ->orWhereIn('filing_status', ['failed', 'missing']));
     }
 

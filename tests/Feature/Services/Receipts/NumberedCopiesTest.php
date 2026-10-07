@@ -65,6 +65,9 @@ test('the rent contract is copied into the month under the row number and record
     expect($receipt)->source->toBe('standing')->statement_line_id->toBe($this->rent->id)->match_state->toBe('matched')
         ->filing_status->toBe('filed')->vendor->toBe('Office rent');
     expect($receipt->numbered_at)->not->toBeNull();
+    // Nothing to check on a copy: it must not show up as needing attention.
+    expect($receipt->isFlagged())->toBeFalse();
+    expect(Receipt::needsAttention()->count())->toBe(0);
 
     // The row now has its document: nothing more to create.
     expect($this->copies->standingFor($this->rent->fresh()))->toBeNull();
