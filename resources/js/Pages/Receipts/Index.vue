@@ -180,26 +180,26 @@ onBeforeUnmount(() => clearInterval(timer));
     <table class="table table--docs">
       <thead>
         <tr>
-          <th class="pad-l rc-wide" style="width: 150px">Date</th>
-          <th style="width: 30%">Vendor</th>
-          <th class="rc-wide">File</th>
-          <th class="num" style="width: 160px">Total</th>
-          <th class="rc-wide" style="width: 130px">Folder</th>
-          <th class="rc-wide" style="width: 150px">Paid by</th>
-          <th class="pad-r" style="width: 190px">Status</th>
+          <th class="pad-l rc-date">Date</th>
+          <th>Vendor</th>
+          <th class="rc-file">File</th>
+          <th class="num rc-total">Total</th>
+          <th class="rc-folder">Folder</th>
+          <th class="rc-paidby">Paid by</th>
+          <th class="pad-r rc-status">Status</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="r in receipts.data" :key="r.id" :class="{ 'is-overdue': status(r).kind === 'attention' }" @click="router.visit(`/receipts/${r.id}`)">
-          <td class="pad-l code rc-wide">{{ fmtDate(r.document_date) }}</td>
-          <td class="subject"><div class="vendor-name"><VendorMark :name="r.vendor" :logo="r.logo_url" /><span>{{ r.vendor ?? '—' }}</span></div></td>
-          <td class="trunc rc-wide" :title="r.filename ?? r.original_name">{{ r.filename ?? r.original_name }}</td>
+          <td class="pad-l code rc-date">{{ fmtDate(r.document_date) }}</td>
+          <td class="subject" :title="r.filename ?? r.original_name"><div class="vendor-name"><VendorMark :name="r.vendor" :logo="r.logo_url" /><span>{{ r.vendor ?? '—' }}</span></div></td>
+          <td class="trunc rc-file" :title="r.filename ?? r.original_name">{{ r.filename ?? r.original_name }}</td>
           <td class="money">
             <template v-if="r.total !== null">{{ fmtAmount(r.total) }}<span class="rc-unit">{{ r.currency }}</span></template>
             <template v-else>—</template>
           </td>
-          <td class="code rc-wide">{{ r.folder ?? '—' }}</td>
-          <td class="dim rc-wide">
+          <td class="code rc-folder">{{ r.folder ?? '—' }}</td>
+          <td class="dim rc-paidby">
             <span class="rc-paid" :title="r.paid_by_card ? 'Paid by credit card' : undefined">
               <Icon v-if="r.paid_by_card" name="credit-card" class="rc-card" />
               <span class="sr-only" v-if="r.paid_by_card">Credit card · </span>{{ paidBy(r) }}
@@ -226,7 +226,20 @@ onBeforeUnmount(() => clearInterval(timer));
 .rc-card { font-size: 15px; color: var(--ink); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .rc-unit { margin-left: 6px; font-size: 12px; font-weight: 400; color: var(--ink-3); }
+/* Fixed columns stay narrow enough that the vendor always has room; the least needed
+   columns drop out as the window narrows, so the table never scrolls sideways. */
+th.rc-date { width: 132px; }
+th.rc-file { width: 30%; }
+th.rc-total { width: 140px; }
+th.rc-folder { width: 112px; }
+th.rc-paidby { width: 132px; }
+th.rc-status { width: 172px; }
+@media (max-width: 1560px) { .rc-file { display: none; } }
+@media (max-width: 1180px) { .rc-folder { display: none; } }
+@media (max-width: 1020px) { .rc-paidby { display: none; } }
 @media (max-width: 900px) {
-  .rc-wide { display: none; }
+  .rc-date { display: none; }
+  th.rc-status { width: 132px; }
+  th.rc-total { width: 112px; }
 }
 </style>

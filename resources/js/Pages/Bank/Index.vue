@@ -247,8 +247,8 @@ function saveNote(line) {
           <th class="pad-l" style="width: 150px">Booked</th>
           <th>Payer</th>
           <th class="num" style="width: 150px">CHF</th>
-          <th style="width: 380px">Invoice</th>
-          <th class="pad-r" style="width: 190px"></th>
+          <th style="width: 34%">Invoice</th>
+          <th class="pad-r" style="width: 170px"></th>
         </tr>
       </thead>
       <tbody>
@@ -306,8 +306,8 @@ function saveNote(line) {
             <th style="width: 84px">{{ section.kind === 'card' ? 'Date' : 'Booked' }}</th>
             <th>Entry</th>
             <th class="num" style="width: 150px">CHF</th>
-            <th style="width: 380px">Document</th>
-            <th class="pad-r" style="width: 130px"></th>
+            <th style="width: 36%">Document</th>
+            <th class="pad-r" style="width: 118px"></th>
           </tr>
         </thead>
         <tbody>
@@ -408,7 +408,7 @@ function saveNote(line) {
           <td class="pad-l folio" style="width: 168px">{{ fmtDate(line.booked_on) }}</td>
           <td><div class="cell-trunc">{{ line.counterparty }}</div></td>
           <td class="money" style="width: 150px">{{ fmtChf(line.amount) }}<div v-if="line.original" class="sub">{{ fmtChf(line.original.amount) }} {{ line.original.currency }}</div></td>
-          <td class="pad-r doc" style="width: 510px">
+          <td class="pad-r doc" style="width: 40%">
             <div v-for="r in line.receipts" :key="r.id" class="doc-line"><span class="doc-mark">{{ r.state === 'proposed' ? '?' : '◐' }}</span><Link :href="`/receipts/${r.id}`" class="link-ink cell-trunc">{{ r.label }}</Link></div>
           </td>
         </tr>
