@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Invoice;
+use App\Models\MonthList;
 use App\Models\Receipt;
 use App\Models\StandingDocument;
 use App\Models\Statement;
@@ -13,6 +14,7 @@ use App\Services\Banking\StatementImporter;
 use App\Services\Banking\StatementPositions;
 use App\Services\Banking\VisecaImporter;
 use App\Services\Dropbox\DropboxException;
+use App\Services\Receipts\MonthListWriter;
 use App\Services\Receipts\NumberedCopies;
 use App\Services\Receipts\ReceiptNumberer;
 use App\Services\Receipts\ReceiptRowMatcher;
@@ -50,6 +52,8 @@ class BankController extends Controller
             ->whereIn(\Illuminate\Support\Facades\DB::raw('MONTH(booked_on)'), $quarter->months())
             ->selectRaw('DISTINCT MONTH(booked_on) AS m')->orderByDesc('m')->pluck('m');
 
+        $lists = MonthList::where('year', $year)->get()->mapWithKeys(fn (MonthList $l) => [$l->month => $l->written_at->toIso8601String()]);
+
         $months = [];
         foreach ($monthKeys as $m) {
             $key = sprintf('%d-%02d', $year, $m);
@@ -72,6 +76,7 @@ class BankController extends Controller
                 'key' => $key,
                 'label' => Carbon::create($year, (int) $m, 1)->format('F Y'),
                 'complete' => $positions->bankMonthComplete($year, (int) $m),
+                'list_written_at' => $lists[(int) $m] ?? null,
                 // Kept for the original flat list; the page renders `sections`.
                 'lines' => $sections[0]['lines'],
                 'sections' => $sections,
@@ -227,6 +232,20 @@ class BankController extends Controller
         } catch (\DomainException|DropboxException $e) {
             return back()->with('error', $e->getMessage());
         }
+    }
+
+    /** Write (or replace) the month's list for the accountant in its Dropbox folder. */
+    public function writeList(string $month, MonthListWriter $writer): RedirectResponse
+    {
+        abort_unless(preg_match('/^(\d{4})-(\d{2})$/', $month, $m), 404);
+
+        try {
+            $list = $writer->write((int) $m[1], (int) $m[2]);
+        } catch (\DomainException|DropboxException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'List written: '.basename($list->dropbox_path));
     }
 
     public function numberReceipt(Receipt $receipt, ReceiptNumberer $numberer): RedirectResponse

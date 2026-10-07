@@ -10,8 +10,9 @@ use Illuminate\Support\Facades\Http;
 
 /**
  * The only door to Dropbox. The OAuth token can reach the whole account, so every path
- * is checked against the configured receipts root before a request is made, and there is
- * deliberately no delete and no overwrite.
+ * is checked against the configured receipts root before a request is made. There is
+ * deliberately no delete, and nothing is overwritten except a file ernte generated
+ * itself (see replace()).
  */
 class DropboxClient
 {
@@ -165,6 +166,29 @@ class DropboxClient
     public function upload(string $path, string $contents): array
     {
         $arg = ['path' => $this->guard($path), 'mode' => 'add', 'autorename' => false, 'mute' => true];
+
+        $response = $this->send(fn (PendingRequest $http) => $http
+            ->withHeaders(['Dropbox-API-Arg' => $this->headerJson($arg)])
+            ->withBody($contents, 'application/octet-stream')
+            ->post(self::CONTENT.'/2/files/upload'));
+
+        return $this->entry($response->json() + ['.tag' => 'file']);
+    }
+
+    /**
+     * Replace the contents of a file ernte wrote itself, addressed by its ID. This is the
+     * one exception to "never overwrite", used solely for the monthly list ernte generates;
+     * Dropbox keeps the earlier versions.
+     *
+     * @return array{id: ?string, name: string, path: string, is_folder: bool}
+     */
+    public function replace(string $fileId, string $contents): array
+    {
+        if (! str_starts_with($fileId, 'id:')) {
+            throw new DropboxException('A file can only be replaced by its id.');
+        }
+        $current = $this->metadata($fileId);
+        $arg = ['path' => $this->guard($current['path']), 'mode' => 'overwrite', 'autorename' => false, 'mute' => true];
 
         $response = $this->send(fn (PendingRequest $http) => $http
             ->withHeaders(['Dropbox-API-Arg' => $this->headerJson($arg)])

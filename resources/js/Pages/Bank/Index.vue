@@ -128,6 +128,8 @@ function numberMonth(month) {
   if (!window.confirm(`Number ${month.to_number} file(s) of ${month.label} in Dropbox? Receipts get their row number as a prefix, card receipts move into Kreditkarte, and standing documents and paid invoices are added as numbered PDFs.`)) return;
   router.post(`/bank/months/${month.key}/number`, {}, { preserveScroll: true });
 }
+function writeList(month) { router.post(`/bank/months/${month.key}/list`, {}, { preserveScroll: true }); }
+function fmtWritten(iso) { const d = new Date(iso); return `${fmtDayMonth(iso)} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`; }
 function numberLine(line) { router.post(`/bank/lines/${line.id}/number`, {}, { preserveScroll: true }); }
 function numberReceipt(receipt) { router.post(`/bank/receipts/${receipt.id}/number`, {}, { preserveScroll: true }); }
 function unnumberReceipt(receipt) {
@@ -286,8 +288,10 @@ function saveNote(line) {
       <div class="ledger-tally">
         <span :class="{ 'is-red': month.missing > 0 }">{{ month.missing ? `${month.missing} without document` : 'every row documented' }}</span>
         <template v-if="!month.complete"> · numbers provisional until next month's statements are in</template>
+        <template v-if="month.list_written_at"> · list for the accountant written {{ fmtWritten(month.list_written_at) }}</template>
       </div>
       <div class="ledger-head__actions">
+        <button class="btn sm" :disabled="!month.complete" :title="month.complete ? 'Write the Belegliste PDF with all rows, documents and your notes into this month\'s Dropbox folder' : 'Import the following month\'s statements first'" @click="writeList(month)">{{ month.list_written_at ? 'Update list for accountant' : 'Write list for accountant' }}</button>
         <button v-if="month.confident" class="btn sm" @click="confirmMonth(month)">Confirm {{ plural(month.confident, 'proposal', 'proposals') }}</button>
         <button v-if="month.to_number" class="btn sm primary" :disabled="!month.complete" :title="month.complete ? 'Write the numbers into Dropbox' : 'Import the following month\'s statements first'" @click="numberMonth(month)">Number {{ plural(month.to_number, 'file', 'files') }} in Dropbox</button>
       </div>
