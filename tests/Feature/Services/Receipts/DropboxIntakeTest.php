@@ -241,3 +241,14 @@ test('the inbox check does nothing while Dropbox is not connected', function () 
     $this->artisan('ernte:receipts:check-inbox')->assertExitCode(0);
     Http::assertNothingSent();
 });
+
+test('the timed inbox check can be switched off per installation', function () {
+    $event = collect(app(Illuminate\Console\Scheduling\Schedule::class)->events())
+        ->first(fn ($e) => str_contains($e->command, 'ernte:receipts:check-inbox'));
+
+    expect($event)->not->toBeNull();
+    config(['services.dropbox.inbox_check' => true]);
+    expect($event->filtersPass(app()))->toBeTrue();
+    config(['services.dropbox.inbox_check' => false]);
+    expect($event->filtersPass(app()))->toBeFalse();
+});

@@ -54,6 +54,8 @@ return [
         'app_secret' => env('DROPBOX_APP_SECRET'),
         'receipts_root' => env('DROPBOX_RECEIPTS_ROOT'),
         'inbox_folder' => env('DROPBOX_INBOX_FOLDER', '_Inbox'),
+        // Only one installation should watch the inbox; switch the timed check off elsewhere.
+        'inbox_check' => env('DROPBOX_INBOX_CHECK', true),
     ],
 
     'harvest' => [
