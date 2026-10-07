@@ -189,6 +189,24 @@ test('existing files of a quarter are listed, without statements and without kno
     expect($files[1])->toMatchArray(['year' => 2026, 'month' => 7]);
 });
 
+test('files can be left out of adoption by name pattern', function () {
+    Http::fake(['api.dropboxapi.com/2/files/list_folder' => fn (Request $r) => $r['path'] === '/Diluno/Receipts/2026_Q1/02'
+        ? Http::response(['entries' => [
+            dbxFile('id:a', '05_Rechnung_415896317.pdf', '/Diluno/Receipts/2026_Q1/02'),
+            dbxFile('id:s', '14_Lohnabrechnung SA 6000 - Vorlage.pdf', '/Diluno/Receipts/2026_Q1/02'),
+            dbxFile('id:t', '10_steuern.pdf', '/Diluno/Receipts/2026_Q1/02'),
+        ], 'has_more' => false])
+        : Http::response(['error_summary' => 'path/not_found/.'], 409)]);
+
+    $files = app(DropboxIntake::class)->unknownInQuarter(2026, 1, ['*lohnabrechnung*', '*_steuern.pdf']);
+    expect(array_column($files, 'id'))->toBe(['id:a']);
+
+    $this->artisan('ernte:receipts:adopt 2026 1 --dry-run --except="*Lohnabrechnung*"')
+        ->expectsOutputToContain('Leaving out: *Lohnabrechnung*')
+        ->expectsOutputToContain('2 file(s) in 2026 Q1')
+        ->assertExitCode(0);
+});
+
 test('adopting registers a file where it is, numbered or not, and only queues reading', function () {
     fakeDropboxFolder([dbxFile('id:a', '03_Swisscom.pdf', '/Diluno/Receipts/2026_Q3/07')], ['id:a' => '%PDF swisscom']);
 

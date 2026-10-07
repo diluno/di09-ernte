@@ -149,14 +149,44 @@ test('rows outside the date window, fees, credits and rows marked as needing no 
     expect($receipt->fresh()->statement_line_id)->toBeNull();
 });
 
-test('a file already numbered in Dropbox is linked to the row with that number', function () {
+function numbered(string $vendor, int $total, string $name, array $attrs = []): Receipt
+{
+    return readReceipt($vendor, '2026-06-20', $total, 'CHF', $attrs + ['filename' => $name, 'dropbox_path' => "/Diluno/Receipts/2026_Q3/07/{$name}"]);
+}
+
+test('a file already numbered is linked to the row with that number when the amount agrees', function () {
     bankDebit('2026-07-01', 100, 'First');
     $second = bankDebit('2026-07-02', 200, 'Second');
-    $receipt = readReceipt('Anything', '2026-06-20', 777, 'CHF', ['filename' => '02_Rechnung.pdf', 'dropbox_path' => '/Diluno/Receipts/2026_Q3/07/02_Rechnung.pdf']);
+    $receipt = numbered('Anything', 200, '02_Rechnung.pdf');
 
     $this->matcher->run();
 
-    expect($receipt->fresh())->statement_line_id->toBe($second->id)->match_method->toBe('existing_prefix');
+    expect($receipt->fresh())->statement_line_id->toBe($second->id)->match_method->toBe('existing_prefix')->match_confident->toBeTrue()->match_note->toBeNull();
+});
+
+test('when the numbered row shows another amount, the row with the right amount is offered and flagged', function () {
+    // The old PDF order and the bank's order differ by one: file 02 belongs to the third row.
+    bankDebit('2026-07-01', 100, 'First');
+    $second = bankDebit('2026-07-02', 55500, 'Somebody Else');
+    $third = bankDebit('2026-07-03', 24435, 'Mobility Genossenschaft');
+    $receipt = numbered('Mobility', 24435, '02_Mobility-Rechnung.pdf');
+
+    $this->matcher->run();
+
+    expect($receipt->fresh())->statement_line_id->toBe($third->id)->match_method->toBe('total_and_name')
+        ->match_note->toBe('number_differs')->match_confident->toBeFalse();
+    expect($second->receipts()->count())->toBe(0);
+});
+
+test('a numbered file whose amount fits no row keeps the row its number names, unconfirmed', function () {
+    bankDebit('2026-07-01', 100, 'First');
+    $rent = bankDebit('2026-07-02', 59455, 'Hausverwaltung', ['remittance_text' => 'Miete']);
+    $contract = numbered('Mietvertrag', 0, '02_mietvertrag-buero.pdf', ['total_minor' => null]);
+
+    $this->matcher->run();
+
+    expect($contract->fresh())->statement_line_id->toBe($rent->id)->match_method->toBe('existing_prefix')
+        ->match_note->toBe('number_only')->match_confident->toBeFalse();
 });
 
 test('running again changes nothing; confirmed and undone matches are respected', function () {

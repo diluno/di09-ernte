@@ -26,7 +26,10 @@ const RECEIPT_METHOD = {
   existing_prefix: 'already numbered', reference: 'payment reference', total_and_name: 'total + name', total: 'total',
   amount_and_name: 'amount + name', name_and_date: 'name + date', manual: 'by hand',
 };
-const RECEIPT_NOTE = { several_rows: 'several rows fit', amount_differs: 'amount differs (foreign currency)' };
+const RECEIPT_NOTE = {
+  several_rows: 'several rows fit', amount_differs: 'amount differs (foreign currency)',
+  number_only: 'number fits, amount does not', number_differs: 'file carries another number',
+};
 
 function fmtChf(v) { return Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function plural(n, one, many) { return `${n} ${n === 1 ? one : many}`; }

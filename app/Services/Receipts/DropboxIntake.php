@@ -101,12 +101,14 @@ class DropboxIntake
     /**
      * Files already sitting in a quarter's month folders (and their Kreditkarte subfolders)
      * that ernte does not know yet. Statements (leading underscore) are not receipts.
+     * $except holds filename patterns to leave out, e.g. "*Lohnabrechnung*".
      *
      * @return list<array{id: string, name: string, path: string, year: int, month: int}>
      */
-    public function unknownInQuarter(int $year, int $quarter): array
+    public function unknownInQuarter(int $year, int $quarter, array $except = []): array
     {
         $found = [];
+        $excluded = fn (string $name) => collect($except)->contains(fn (string $pattern) => fnmatch(mb_strtolower($pattern), mb_strtolower($name)));
         foreach (range(($quarter - 1) * 3 + 1, $quarter * 3) as $month) {
             $folder = ReceiptPaths::monthFolder($this->dropbox->root(), $year, $month);
             foreach ([$folder, "{$folder}/Kreditkarte"] as $path) {
@@ -118,6 +120,7 @@ class DropboxIntake
                 foreach ($entries as $entry) {
                     if ($entry['is_folder'] || ! $entry['id'] || str_starts_with($entry['name'], '_')
                         || ! preg_match('/\.pdf$/i', $entry['name'])
+                        || $excluded($entry['name'])
                         || Receipt::where('dropbox_file_id', $entry['id'])->exists()) {
                         continue;
                     }

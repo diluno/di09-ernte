@@ -7,7 +7,9 @@ use Illuminate\Console\Command;
 
 class AdoptReceiptsCommand extends Command
 {
-    protected $signature = 'ernte:receipts:adopt {year} {quarter} {--dry-run : Only list the files}';
+    protected $signature = 'ernte:receipts:adopt {year} {quarter}
+        {--except=* : Filename pattern to leave out, e.g. --except="*Lohnabrechnung*" (repeatable; number prefixes are part of the name)}
+        {--dry-run : Only list the files}';
 
     protected $description = 'Register receipts that already sit in a quarter\'s Dropbox folders. Files are read with Claude and never moved.';
 
@@ -21,7 +23,11 @@ class AdoptReceiptsCommand extends Command
             return self::FAILURE;
         }
 
-        $files = $intake->unknownInQuarter($year, $quarter);
+        $except = array_values(array_filter((array) $this->option('except')));
+        $files = $intake->unknownInQuarter($year, $quarter, $except);
+        if ($except) {
+            $this->line('Leaving out: '.implode(', ', $except));
+        }
         foreach ($files as $file) {
             $this->line($file['path']);
         }

@@ -57,7 +57,14 @@ class ReceiptRowMatcher
                 ->orderBy('booked_on')->orderBy('id')->get()->keyBy('id');
 
             $proposed = $confident = 0;
-            $propose = function (Receipt $receipt, StatementLine $row, string $method, bool $sure, ?string $note) use (&$receipts, &$rows, &$proposed, &$confident) {
+            $numbers = $this->numberIndex();
+            $propose = function (Receipt $receipt, StatementLine $row, string $method, bool $sure, ?string $note) use (&$receipts, &$rows, &$proposed, &$confident, $numbers) {
+                // The file already carries a number, but the amounts point at another row:
+                // the old PDF order and the bank's order differ here. Never confident.
+                if ($method !== 'existing_prefix' && $receipt->numberPrefix() !== null && $this->rowForExistingPrefix($receipt, $numbers) !== $row->id) {
+                    $sure = false;
+                    $note = 'number_differs';
+                }
                 $receipt->update([
                     'statement_line_id' => $row->id, 'match_state' => 'proposed', 'match_method' => $method,
                     'match_confident' => $sure, 'match_note' => $note,
@@ -68,12 +75,19 @@ class ReceiptRowMatcher
                 $confident += $sure ? 1 : 0;
             };
 
-            // Pass 1 — the file already carries a number (from the scripts or by hand).
-            $numbers = $this->numberIndex();
+            // Pass 1 — the file already carries a number (from the scripts or by hand), and
+            // an amount on it equals the row with that number. A number whose row shows a
+            // different amount is held back: the amount passes below may find the true row.
+            $numberOnly = [];
             foreach ($receipts->all() as $receipt) {
                 $row = $this->rowForExistingPrefix($receipt, $numbers);
-                if ($row && $rows->has($row)) {
+                if (! $row || ! $rows->has($row)) {
+                    continue;
+                }
+                if ($this->anyAmount($receipt, $rows[$row], true)) {
                     $propose($receipt, $rows[$row], 'existing_prefix', true, null);
+                } else {
+                    $numberOnly[$receipt->id] = $row;
                 }
             }
 
@@ -115,6 +129,14 @@ class ReceiptRowMatcher
                             }
                         }
                     }
+                }
+            }
+
+            // Numbered files no amount could place: offer the row their number names, flagged.
+            // Contracts and salary slips legitimately show other figures than the payment.
+            foreach ($numberOnly as $receiptId => $rowId) {
+                if ($receipts->has($receiptId) && $rows->has($rowId)) {
+                    $propose($receipts[$receiptId], $rows[$rowId], 'existing_prefix', false, 'number_only');
                 }
             }
 
