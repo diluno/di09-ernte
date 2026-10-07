@@ -124,14 +124,7 @@ class ReceiptNumberer
      */
     public function numberMonth(int $year, int $month): array
     {
-        $billIds = Statement::where('source', VisecaImporter::SOURCE)->whereNotNull('bank_line_id')
-            ->whereHas('bankLine', fn ($q) => $q->whereYear('booked_on', $year)->whereMonth('booked_on', $month))->pluck('id');
-
-        $receipts = Receipt::where('match_state', 'matched')->whereNull('numbered_at')
-            ->whereHas('statementLine', fn ($q) => $q
-                ->where(fn ($b) => $b->where('source', StatementImporter::SOURCE)->whereYear('booked_on', $year)->whereMonth('booked_on', $month))
-                ->orWhereIn('statement_id', $billIds))
-            ->with('statementLine')->orderBy('id')->get();
+        $receipts = $this->pending($year, $month);
 
         $result = ['numbered' => 0, 'skipped' => []];
         foreach ($receipts as $receipt) {
@@ -144,6 +137,24 @@ class ReceiptNumberer
         }
 
         return $result;
+    }
+
+    /**
+     * Confirmed receipts of a month (its bank rows and the card bills paid in it) that
+     * are not numbered yet.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, Receipt>
+     */
+    public function pending(int $year, int $month)
+    {
+        $billIds = Statement::where('source', VisecaImporter::SOURCE)->whereNotNull('bank_line_id')
+            ->whereHas('bankLine', fn ($q) => $q->whereYear('booked_on', $year)->whereMonth('booked_on', $month))->pluck('id');
+
+        return Receipt::where('match_state', 'matched')->whereNull('numbered_at')
+            ->whereHas('statementLine', fn ($q) => $q
+                ->where(fn ($b) => $b->where('source', StatementImporter::SOURCE)->whereYear('booked_on', $year)->whereMonth('booked_on', $month))
+                ->orWhereIn('statement_id', $billIds))
+            ->with('statementLine')->orderBy('id')->get();
     }
 
     /** Whether a row's number is final, and if not, why. Null means it can be used. */
@@ -219,6 +230,13 @@ class ReceiptNumberer
 
     public function ensureFolder(string $folder): void
     {
+        // Once per process is enough; a month's files all go to the same two folders.
+        static $ensured = [];
+        if (isset($ensured[$folder]) && ! app()->runningUnitTests()) {
+            return;
+        }
+        $ensured[$folder] = true;
+
         $root = $this->dropbox->root();
         $path = $root;
         foreach (explode('/', trim(substr($folder, strlen($root)), '/')) as $segment) {

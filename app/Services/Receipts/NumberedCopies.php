@@ -74,15 +74,8 @@ class NumberedCopies
         $result = ['numbered' => 0, 'skipped' => []];
         $documents = StandingDocument::where('active', true)->get();
 
-        $rows = StatementLine::where('source', StatementImporter::SOURCE)
-            ->whereYear('booked_on', $year)->whereMonth('booked_on', $month)
-            ->with('invoice')->orderBy('booked_on')->orderBy('id')->get();
-
-        foreach ($rows as $row) {
+        foreach ($this->pending($year, $month) as $row) {
             $standing = $this->standingFor($row, $documents);
-            if (! $standing && ! $this->invoiceToFile($row)) {
-                continue;
-            }
             try {
                 $standing ? $this->copyStanding($row, $standing) : $this->fileInvoice($row);
                 $result['numbered']++;
@@ -92,6 +85,22 @@ class NumberedCopies
         }
 
         return $result;
+    }
+
+    /**
+     * Bank rows of a month for which ernte creates the numbered file itself.
+     *
+     * @return Collection<int, StatementLine>
+     */
+    public function pending(int $year, int $month): Collection
+    {
+        $documents = StandingDocument::where('active', true)->get();
+
+        return StatementLine::where('source', StatementImporter::SOURCE)
+            ->whereYear('booked_on', $year)->whereMonth('booked_on', $month)
+            ->with('invoice')->orderBy('booked_on')->orderBy('id')->get()
+            ->filter(fn (StatementLine $row) => $this->invoiceToFile($row) || $this->standingFor($row, $documents) !== null)
+            ->values();
     }
 
     private function copyStanding(StatementLine $row, StandingDocument $document): string
@@ -104,7 +113,9 @@ class NumberedCopies
         try {
             $entry = $this->dropbox->copy($source, "{$folder}/{$name}");
         } catch (DropboxConflict) {
-            throw new \DomainException("A file named \"{$name}\" already exists in its folder.");
+            // The exact numbered name is there already: an earlier run was cut off after
+            // Dropbox had made the copy. Take that file instead of failing for ever.
+            $entry = $this->existing("{$folder}/{$name}");
         } catch (DropboxNotFound) {
             throw new \DomainException("The standing document {$document->source_path} was not found in Dropbox.");
         }
@@ -135,6 +146,19 @@ class NumberedCopies
         return $entry['name'];
     }
 
+    /** The file already sitting at a numbered path, unless another record of ernte's owns it. */
+    private function existing(string $path): array
+    {
+        $entry = $this->dropbox->metadata($path);
+        $taken = Receipt::where('dropbox_file_id', $entry['id'])->exists()
+            || \App\Models\Invoice::where('dropbox_file_id', $entry['id'])->exists();
+        if ($taken || $entry['is_folder']) {
+            throw new \DomainException('A file named "'.basename($path).'" already exists in its folder.');
+        }
+
+        return $entry;
+    }
+
     private function fileInvoice(StatementLine $row): string
     {
         [$folder, $number] = $this->numberer->place($row);
@@ -145,7 +169,7 @@ class NumberedCopies
         try {
             $entry = $this->dropbox->upload("{$folder}/{$name}", $this->invoices->pdfBytes($invoice));
         } catch (DropboxConflict) {
-            throw new \DomainException("A file named \"{$name}\" already exists in its folder.");
+            $entry = $this->existing("{$folder}/{$name}");
         }
 
         $invoice->update(['dropbox_file_id' => $entry['id'], 'dropbox_path' => $entry['path']]);

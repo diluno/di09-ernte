@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, reactive, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
@@ -141,6 +141,15 @@ function dissolveBill(section) {
   if (!window.confirm('Dissolve this card bill? Its rows become unbilled again; nothing changes in Dropbox.')) return;
   router.post(`/bank/bills/${section.bill_id}/dissolve`, {}, { preserveScroll: true });
 }
+// While a month is being numbered in the background, keep its progress fresh.
+const numberingRunning = computed(() => props.months.some((m) => m.numbering?.running));
+let numberingTimer = null;
+watch(numberingRunning, (on) => {
+  clearInterval(numberingTimer);
+  if (on) numberingTimer = setInterval(() => router.reload({ only: ['months'] }), 3000);
+}, { immediate: true });
+onBeforeUnmount(() => clearInterval(numberingTimer));
+
 const totals = computed(() => ({
   missing: props.months.reduce((n, m) => n + m.missing, 0),
   proposed: props.months.reduce((n, m) => n + m.proposed, 0),
@@ -293,9 +302,15 @@ function saveNote(line) {
       <div class="ledger-head__actions">
         <button class="btn sm" :disabled="!month.complete" :title="month.complete ? 'Write the Belegliste PDF with all rows, documents and your notes into this month\'s Dropbox folder' : 'Import the following month\'s statements first'" @click="writeList(month)">{{ month.list_written_at ? 'Update list for accountant' : 'Write list for accountant' }}</button>
         <button v-if="month.confident" class="btn sm" @click="confirmMonth(month)">Confirm {{ plural(month.confident, 'proposal', 'proposals') }}</button>
-        <button v-if="month.to_number" class="btn sm primary" :disabled="!month.complete" :title="month.complete ? 'Write the numbers into Dropbox' : 'Import the following month\'s statements first'" @click="numberMonth(month)">Number {{ plural(month.to_number, 'file', 'files') }} in Dropbox</button>
+        <button v-if="month.to_number" class="btn sm primary" :disabled="!month.complete || month.numbering?.running" :title="month.complete ? 'Write the numbers into Dropbox' : 'Import the following month\'s statements first'" @click="numberMonth(month)">Number {{ plural(month.to_number, 'file', 'files') }} in Dropbox</button>
       </div>
     </header>
+
+    <div v-if="month.numbering && (month.numbering.running || month.numbering.skipped.length)" class="ledger-progress" :class="{ 'is-red': !month.numbering.running && month.numbering.skipped.length }">
+      <template v-if="month.numbering.running">Numbering in Dropbox: {{ month.numbering.done }} of {{ month.numbering.total }} files…</template>
+      <template v-else>{{ month.numbering.total - month.numbering.skipped.length }} of {{ month.numbering.total }} files numbered. Not numbered:</template>
+      <div v-for="(reason, i) in month.numbering.skipped" :key="i">{{ reason }}</div>
+    </div>
 
     <template v-for="section in month.sections" :key="section.bill_id ?? 'bank'">
       <div v-if="section.kind === 'card'" class="ledger-sub">

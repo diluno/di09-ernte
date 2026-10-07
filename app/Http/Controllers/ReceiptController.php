@@ -285,24 +285,10 @@ class ReceiptController extends Controller
             return back()->with('error', 'Dropbox is not connected.');
         }
 
-        try {
-            $result = $intake->scanInbox();
-        } catch (DropboxException $e) {
-            return back()->with('error', $e->getMessage());
-        }
+        // Each new file is downloaded to be read; several at once outlast a web request.
+        \Illuminate\Support\Facades\Artisan::queue('ernte:receipts:check-inbox');
 
-        $message = $result['new'] === 0 ? 'Nothing new in the Dropbox inbox.' : "{$result['new']} new receipt(s) found in the Dropbox inbox.";
-        if ($result['resorted']) {
-            $message .= " {$result['resorted']} file(s) that had been put back are being sorted again.";
-        }
-        if ($result['duplicates']) {
-            $message .= " {$result['duplicates']} duplicate(s).";
-        }
-        if ($result['skipped']) {
-            $message .= " {$result['skipped']} file(s) skipped: only PDFs are picked up.";
-        }
-
-        return back()->with('success', $message);
+        return back()->with('success', 'Checking the Dropbox inbox. New receipts appear here in a moment.');
     }
 
     /** Removes the record only. ernte never deletes from Dropbox. */

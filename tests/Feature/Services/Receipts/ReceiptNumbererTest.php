@@ -21,6 +21,7 @@ final class NumbererDropbox
 }
 
 beforeEach(function () {
+    Illuminate\Support\Facades\Cache::flush();
     NumbererDropbox::$files = [];
     config(['services.dropbox' => ['app_key' => 'key', 'app_secret' => 'secret', 'receipts_root' => '/Diluno/Receipts', 'inbox_folder' => '_Inbox']]);
     BusinessProfile::create(['name' => 'Ernte Test', 'country' => 'CH', 'default_currency' => 'CHF', 'default_vat_rate' => 8.10, 'dropbox_refresh_token' => 'refresh-1', 'iban' => CamtXml::IBAN]);
@@ -202,8 +203,13 @@ test('the month button numbers through the page and reports what was skipped', f
     filed('Mobility.pdf', $this->row1);
     $ok = filed('Digitec.pdf', $this->row2);
 
-    $this->post('/bank/months/2026-07/number')->assertRedirect()->assertSessionHas('error', fn ($m) => str_contains($m, '1 file(s) numbered') && str_contains($m, 'Mobility.pdf'));
+    // The run is queued one file per job (run inline in tests) and reports through the page.
+    $this->post('/bank/months/2026-07/number')->assertRedirect()->assertSessionHas('success', fn ($m) => str_contains($m, 'Numbering 2 file(s)'));
     expect($ok->fresh()->filename)->toBe('02_Digitec.pdf');
+    $this->get('/bank?quarter=2026-Q3')->assertInertia(fn (Inertia\Testing\AssertableInertia $p) => $p
+        ->where('months.0.numbering.total', 2)->where('months.0.numbering.done', 2)->where('months.0.numbering.running', false)
+        ->where('months.0.numbering.skipped', fn ($skipped) => count($skipped) === 1 && str_contains($skipped[0], 'Mobility.pdf') && str_contains($skipped[0], 'already exists')));
+    $this->post('/bank/months/2026-07/number')->assertSessionHas('success'); // Mobility is still pending; a finished run does not block a new one
 
     $this->post("/bank/receipts/{$ok->id}/unnumber")->assertRedirect()->assertSessionHas('success');
     expect($ok->fresh()->filename)->toBe('Digitec.pdf');

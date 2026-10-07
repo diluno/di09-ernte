@@ -992,6 +992,8 @@ a { color: inherit; text-decoration: none; }
 .drop-strip__file.is-red { color: var(--red); }
 
 .ledger-warn { padding: 12px 40px; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); color: var(--red); }
+.ledger-progress { padding: 12px 40px; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); color: var(--ink); }
+.ledger-progress.is-red { color: var(--red); }
 .ledger-empty { padding: 56px 40px; font-size: var(--fs-lg); color: var(--ink-2); max-width: 60ch; }
 
 /* One month (or one list) of the ledger: a ruled head, then its rows. */

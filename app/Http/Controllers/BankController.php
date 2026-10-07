@@ -15,7 +15,9 @@ use App\Services\Banking\StatementPositions;
 use App\Services\Banking\VisecaImporter;
 use App\Services\Dropbox\DropboxException;
 use App\Services\Receipts\MonthListWriter;
+use App\Jobs\NumberInDropbox;
 use App\Services\Receipts\NumberedCopies;
+use App\Services\Receipts\NumberingProgress;
 use App\Services\Receipts\ReceiptNumberer;
 use App\Services\Receipts\ReceiptRowMatcher;
 use App\Support\Quarter;
@@ -77,6 +79,7 @@ class BankController extends Controller
                 'label' => Carbon::create($year, (int) $m, 1)->format('F Y'),
                 'complete' => $positions->bankMonthComplete($year, (int) $m),
                 'list_written_at' => $lists[(int) $m] ?? null,
+                'numbering' => app(NumberingProgress::class)->get($key),
                 // Kept for the original flat list; the page renders `sections`.
                 'lines' => $sections[0]['lines'],
                 'sections' => $sections,
@@ -209,19 +212,36 @@ class BankController extends Controller
     }
 
     /** Write the numbers of one month into Dropbox: every confirmed receipt gets its prefix. */
-    public function numberMonth(string $month, ReceiptNumberer $numberer, NumberedCopies $copies): RedirectResponse
+    /**
+     * Number a month in Dropbox. The work runs in the queue, one file per job: a full month
+     * takes longer than a web request is allowed to. The page shows the progress.
+     */
+    public function numberMonth(string $month, ReceiptNumberer $numberer, NumberedCopies $copies, NumberingProgress $progress): RedirectResponse
     {
         abort_unless(preg_match('/^(\d{4})-(\d{2})$/', $month, $m), 404);
-
-        $result = array_merge_recursive($numberer->numberMonth((int) $m[1], (int) $m[2]), $copies->numberMonth((int) $m[1], (int) $m[2]));
-        $result['numbered'] = array_sum((array) $result['numbered']);
-        $message = "{$result['numbered']} file(s) numbered in Dropbox.";
-        if ($result['skipped']) {
-            return back()->with('error', $message.' Skipped: '.implode(' · ', array_slice($result['skipped'], 0, 5))
-                .(count($result['skipped']) > 5 ? ' · and '.(count($result['skipped']) - 5).' more' : ''));
+        if ($progress->isRunning($month)) {
+            return back()->with('error', 'This month is still being numbered.');
         }
 
-        return back()->with('success', $message);
+        // Fail early, in the request, on what would stop every single file.
+        $receipts = $numberer->pending((int) $m[1], (int) $m[2]);
+        $rows = $copies->pending((int) $m[1], (int) $m[2]);
+        if ($receipts->isEmpty() && $rows->isEmpty()) {
+            return back()->with('success', 'Nothing to number in this month.');
+        }
+        if (! app(StatementPositions::class)->bankMonthComplete((int) $m[1], (int) $m[2])) {
+            return back()->with('error', 'The bank statements of this month are not complete yet, so its numbers are not final.');
+        }
+
+        $progress->start($month, $receipts->count() + $rows->count());
+        foreach ($receipts as $receipt) {
+            NumberInDropbox::dispatch($month, receiptId: $receipt->id);
+        }
+        foreach ($rows as $row) {
+            NumberInDropbox::dispatch($month, lineId: $row->id);
+        }
+
+        return back()->with('success', 'Numbering '.($receipts->count() + $rows->count()).' file(s) in Dropbox. Progress shows in the month header.');
     }
 
     /** Create the numbered file ernte itself provides for a row: rent contract copy or invoice PDF. */

@@ -17,6 +17,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 beforeEach(function () {
     config(['services.dropbox' => ['app_key' => 'key', 'app_secret' => 'secret', 'receipts_root' => '/Diluno/Receipts', 'inbox_folder' => '_Inbox']]);
     BusinessProfile::create(['name' => 'Diluno GmbH', 'country' => 'CH', 'default_currency' => 'CHF', 'default_vat_rate' => 8.10, 'dropbox_refresh_token' => 'refresh-1']);
+    Cache::flush();
     Cache::put('dropbox.access_token', 'access-1', 600);
     Http::preventStrayRequests();
     $this->mock(InvoicePdfRenderer::class)->shouldReceive('pdfBytes')->andReturn('%PDF invoice');
@@ -96,13 +97,26 @@ test('a paid invoice is filed once as a numbered PDF in the month the money arri
     expect($this->copies->invoiceToFile($this->credit->fresh()))->toBeFalse();
 });
 
-test('an existing file of that name is never overwritten', function () {
+test('an existing file of that name that belongs to another record is never overwritten or taken', function () {
     fakeCopies(taken: ['/Diluno/Receipts/2026_Q3/07/03_mietvertrag-buero.pdf', '/Diluno/Receipts/2026_Q3/07/01_Diluno-GmbH-Rechnung-2026-008.pdf']);
+    Http::fake(['api.dropboxapi.com/2/files/get_metadata' => Http::response(['.tag' => 'file', 'id' => 'id:owned', 'name' => 'x.pdf', 'path_display' => '/Diluno/Receipts/2026_Q3/07/x.pdf'])]);
+    Receipt::create(['original_name' => 'x.pdf', 'content_hash' => hash('sha256', 'owned'), 'original_mime' => 'application/pdf', 'size_bytes' => 1, 'dropbox_file_id' => 'id:owned']);
 
     expect(fn () => $this->copies->create($this->rent))->toThrow(DomainException::class, 'already exists');
     expect(fn () => $this->copies->create($this->credit))->toThrow(DomainException::class, 'already exists');
-    expect(Receipt::count())->toBe(0);
+    expect(Receipt::count())->toBe(1);
     expect($this->invoice->fresh()->dropbox_file_id)->toBeNull();
+});
+
+test('a copy that Dropbox already made in a run that was cut off is taken over instead of failing', function () {
+    $path = '/Diluno/Receipts/2026_Q3/07/01_Diluno-GmbH-Rechnung-2026-008.pdf';
+    fakeCopies(taken: [$path, '/Diluno/Receipts/2026_Q3/07/03_mietvertrag-buero.pdf']);
+    Http::fake(['api.dropboxapi.com/2/files/get_metadata' => fn (Request $r) => Http::response(['.tag' => 'file', 'id' => 'id:'.md5($r['path']), 'name' => basename($r['path']), 'path_display' => $r['path']])]);
+
+    expect($this->copies->create($this->credit))->toBe('01_Diluno-GmbH-Rechnung-2026-008.pdf');
+    expect($this->invoice->fresh()->dropbox_file_id)->toBe('id:'.md5($path));
+    expect($this->copies->create($this->rent))->toBe('03_mietvertrag-buero.pdf');
+    expect(Receipt::where('source', 'standing')->count())->toBe(1);
 });
 
 test('nothing is created for an incomplete month', function () {
@@ -125,7 +139,7 @@ test('the month view offers both, counts them, and the month button creates them
         ->where('months.0.to_number', 2)
         ->where('months.0.missing', 1));
 
-    $this->post('/bank/months/2026-07/number')->assertRedirect()->assertSessionHas('success', '2 file(s) numbered in Dropbox.');
+    $this->post('/bank/months/2026-07/number')->assertRedirect()->assertSessionHas('success', fn ($m) => str_contains($m, 'Numbering 2 file(s)'));
 
     $this->get('/bank?year=2026')->assertInertia(fn (Assert $page) => $page
         ->where('months.0.to_number', 0)

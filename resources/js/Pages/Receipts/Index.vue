@@ -90,7 +90,11 @@ const UPLOAD_LABEL = { waiting: 'waiting', uploading: 'uploading…', created: '
 // While receipts are being read or filed in the background, keep the list fresh.
 const working = computed(() => props.receipts.data.some((r) => r.extraction_status === 'pending' || r.filing_status === 'inbox' || (r.filing_status === 'pending' && props.dropbox_connected)));
 
-function checkInbox() { router.post('/receipts/check-inbox', {}, { preserveScroll: true }); }
+// The check runs in the background; look again a few times so new receipts show up.
+function checkInbox() {
+  router.post('/receipts/check-inbox', {}, { preserveScroll: true });
+  [4000, 9000, 16000, 30000].forEach((ms) => setTimeout(() => router.reload({ only: ['receipts', 'counts', 'months', 'quarters'] }), ms));
+}
 let timer = null;
 watch(working, (on) => {
   clearInterval(timer);
