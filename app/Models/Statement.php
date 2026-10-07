@@ -9,7 +9,7 @@ class Statement extends Model
     protected $fillable = [
         'source', 'account_iban', 'message_id', 'statement_ref', 'sequence_number',
         'from_date', 'to_date', 'opening_balance_rappen', 'closing_balance_rappen', 'original_filename',
-        'bank_line_id', 'charges_rappen',
+        'bank_line_id', 'charges_rappen', 'raw_path',
     ];
 
     protected $casts = [

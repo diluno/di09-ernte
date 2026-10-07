@@ -12,6 +12,7 @@ const props = defineProps({
   year:            { type: Number, required: true },
   quarter:         { type: Object, required: true },
   quarters:        { type: Array, required: true },
+  camt_file:       { type: Object, default: () => ({ written_at: null, blocker: null }) },
   months:          { type: Array, required: true },
   review:          { type: Array, required: true },
   gaps:            { type: Array, required: true },
@@ -128,6 +129,7 @@ function numberMonth(month) {
   if (!window.confirm(`Number ${month.to_number} file(s) of ${month.label} in Dropbox? Receipts get their row number as a prefix, card receipts move into Kreditkarte, and standing documents and paid invoices are added as numbered PDFs.`)) return;
   router.post(`/bank/months/${month.key}/number`, {}, { preserveScroll: true });
 }
+function writeCamt() { router.post(`/bank/quarters/${props.quarter.key}/camt`, {}, { preserveScroll: true }); }
 function writeList(month) { router.post(`/bank/months/${month.key}/list`, {}, { preserveScroll: true }); }
 function fmtWritten(iso) { const d = new Date(iso); return `${fmtDayMonth(iso)} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`; }
 function numberLine(line) { router.post(`/bank/lines/${line.id}/number`, {}, { preserveScroll: true }); }
@@ -202,6 +204,11 @@ function saveNote(line) {
 
   <nav v-if="quarters.length" class="quarter-bar" aria-label="Quarter">
     <button v-for="q in quarters" :key="q.key" class="chip" :aria-pressed="q.key === quarter.key" @click="setQuarter(q.key)">{{ q.label }}</button>
+    <span class="quarter-bar__aside">
+      <span v-if="camt_file.written_at" class="dim">camt file written {{ fmtWritten(camt_file.written_at) }}</span>
+      <span v-else-if="camt_file.blocker" class="dim quarter-bar__why">{{ camt_file.blocker }}</span>
+      <button class="btn sm" :disabled="!!camt_file.blocker" title="One camt.053 file for exactly this quarter, joined from the bank's daily files, written into the quarter's Dropbox folder" @click="writeCamt">{{ camt_file.written_at ? 'Update camt file for accountant' : 'Write camt file for accountant' }}</button>
+    </span>
   </nav>
 
   <div class="stats">

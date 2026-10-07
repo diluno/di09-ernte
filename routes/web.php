@@ -105,6 +105,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/bank/receipts/{receipt}/match', [BankController::class, 'matchReceipt'])->name('bank.receipts.match');
     Route::post('/bank/receipts/{receipt}/unmatch', [BankController::class, 'unmatchReceipt'])->name('bank.receipts.unmatch');
     Route::post('/bank/months/{month}/confirm', [BankController::class, 'confirmConfident'])->name('bank.months.confirm');
+    Route::post('/bank/quarters/{quarter}/camt', [BankController::class, 'writeCamt'])->name('bank.quarters.camt');
     Route::post('/bank/months/{month}/list', [BankController::class, 'writeList'])->name('bank.months.list');
     Route::post('/bank/months/{month}/number', [BankController::class, 'numberMonth'])->name('bank.months.number');
     Route::post('/bank/receipts/{receipt}/number', [BankController::class, 'numberReceipt'])->name('bank.receipts.number');

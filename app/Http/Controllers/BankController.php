@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Invoice;
 use App\Models\MonthList;
+use App\Models\QuarterFile;
 use App\Models\Receipt;
 use App\Models\StandingDocument;
 use App\Models\Statement;
 use App\Models\StatementLine;
 use App\Services\Banking\CamtException;
+use App\Services\Banking\CamtQuarterExporter;
 use App\Services\Banking\InvoicePaymentMatcher;
 use App\Services\Banking\StatementImporter;
 use App\Services\Banking\StatementPositions;
@@ -109,6 +111,10 @@ class BankController extends Controller
             'year' => $year,
             'quarter' => $quarter->toArray(),
             'quarters' => $quarters->map->toArray()->all(),
+            'camt_file' => [
+                'written_at' => QuarterFile::where(['year' => $quarter->year, 'quarter' => $quarter->number, 'kind' => CamtQuarterExporter::KIND])->value('written_at')?->toIso8601String(),
+                'blocker' => app(CamtQuarterExporter::class)->blocker($quarter),
+            ],
             'months' => $months,
             'review' => $review,
             'pool' => $pool,
@@ -252,6 +258,20 @@ class BankController extends Controller
         } catch (\DomainException|DropboxException $e) {
             return back()->with('error', $e->getMessage());
         }
+    }
+
+    /** Write (or replace) one camt.053 file covering exactly this quarter in its Dropbox folder. */
+    public function writeCamt(string $quarter, CamtQuarterExporter $exporter): RedirectResponse
+    {
+        abort_unless($parsed = Quarter::parse($quarter), 404);
+
+        try {
+            $file = $exporter->write($parsed);
+        } catch (\DomainException|DropboxException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'camt file written: '.basename($file->dropbox_path));
     }
 
     /** Write (or replace) the month's list for the accountant in its Dropbox folder. */

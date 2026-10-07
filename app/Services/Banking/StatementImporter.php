@@ -36,7 +36,11 @@ class StatementImporter
 
         $result = ['statements_added' => 0, 'statements_known' => 0, 'lines_added' => 0, 'lines_known' => 0];
 
-        DB::transaction(function () use ($statements, $filename, &$result) {
+        // The bank's file is kept as it came, so a quarter can later be handed on as one file.
+        $rawPath = 'statements/'.hash('sha256', $xml).'.xml';
+        \Illuminate\Support\Facades\Storage::disk('local')->put($rawPath, $xml);
+
+        DB::transaction(function () use ($statements, $filename, $rawPath, &$result) {
             foreach ($statements as $parsed) {
                 $this->refuseFrozenMonths($parsed);
 
@@ -45,6 +49,9 @@ class StatementImporter
                     ->where('statement_ref', $parsed['statement_ref'])
                     ->exists();
                 if ($known) {
+                    // Imported before originals were kept: uploading the file again supplies it.
+                    Statement::where('source', self::SOURCE)->where('account_iban', $parsed['account_iban'])
+                        ->where('statement_ref', $parsed['statement_ref'])->whereNull('raw_path')->update(['raw_path' => $rawPath]);
                     $result['statements_known']++;
                     $result['lines_known'] += count($parsed['entries']);
 
@@ -53,7 +60,7 @@ class StatementImporter
 
                 $entries = $parsed['entries'];
                 unset($parsed['entries']);
-                $statement = Statement::create($parsed + ['source' => self::SOURCE, 'original_filename' => $filename]);
+                $statement = Statement::create($parsed + ['source' => self::SOURCE, 'original_filename' => $filename, 'raw_path' => $rawPath]);
                 $result['statements_added']++;
 
                 foreach ($entries as $entry) {
