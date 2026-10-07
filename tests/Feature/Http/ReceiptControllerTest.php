@@ -216,3 +216,17 @@ test('the list marks receipts paid by credit card: by the matched row, else by w
     $this->get('/receipts')->assertInertia(fn (Assert $p) => $p
         ->where('receipts.data', fn ($rows) => collect($rows)->sortBy('vendor')->pluck('paid_by_card')->values()->all() === [true, false, true, false]));
 });
+
+test('saving a receipt that was read with low confidence settles the flag', function () {
+    $receipt = stored(['extraction_status' => 'done', 'filing_status' => 'filed', 'vendor' => 'Diluno GmbH', 'document_date' => '2026-08-24',
+        'total_minor' => 719885, 'currency' => 'CHF', 'confidence' => 'low', 'target_year' => 2026, 'target_month' => 8]);
+    expect($receipt->isFlagged())->toBeTrue();
+
+    $this->patch("/receipts/{$receipt->id}", ['vendor' => 'Diluno GmbH', 'document_date' => '2026-08-24', 'total' => '7198.85', 'currency' => 'CHF', 'target_year' => 2026, 'target_month' => 8]);
+
+    $receipt->refresh();
+    expect($receipt->confidence)->toBe('checked');
+    expect($receipt->isFlagged())->toBeFalse();
+    expect($receipt->fields_edited)->toBeFalse();
+    expect(Receipt::needsAttention()->count())->toBe(0);
+});

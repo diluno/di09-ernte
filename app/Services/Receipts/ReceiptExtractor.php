@@ -94,7 +94,7 @@ class ReceiptExtractor
         - amounts: every distinct monetary amount printed anywhere in the document, including subtotals, tax, instalments, amounts on payment slips and amounts in other currencies, each with its currency if stated. Include the total. Same decimal format.
         - invoice_number: the document's own invoice or receipt number. Null if absent.
         - payment_method: "card" if the document shows it was paid by credit or debit card, "bank" if it asks for or confirms a bank transfer, direct debit or payment slip, otherwise "unknown".
-        - confidence: "high" if vendor, date and total are all clearly printed; "medium" if one of them needed judgement; "low" if the document is hard to read, is not a receipt or invoice, or the total is unclear.
+        - confidence: how sure you are of what you read, whatever kind of document it is. Salary statements, tax assessments, contracts and insurance policies are ordinary bookkeeping documents here, not a reason for doubt. "high" if vendor, date and total are all clearly printed; "medium" if one of them needed judgement; "low" only if the document is hard to read or its total is unclear.
         TXT;
     }
 

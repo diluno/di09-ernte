@@ -192,6 +192,10 @@ class ReceiptController extends Controller
             $receipt->fields_edited = true;
         }
         $receipt->note = $data['note'] ?? null;
+        // Saving is Sam having looked at the fields: a low-confidence reading is settled by it.
+        if ($receipt->confidence === 'low') {
+            $receipt->confidence = 'checked';
+        }
         if ($domainChanged) {
             $receipt->shareVendorDomain($previousDomain);
         }
