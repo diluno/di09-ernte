@@ -43,7 +43,11 @@ class ReceiptPaths
     /** A name a camera or scanner made up ("Scan 7 Oct 2026.pdf", "IMG_4821.pdf") says nothing. */
     public static function isScanName(string $name): bool
     {
-        return preg_match('/^(scan|scans|scanned|scannen|gescannt|img|image|photo|foto|bild|dokument|document|doc|untitled|unbenannt)(?![a-z])/i', trim($name)) === 1;
+        $name = trim($name);
+
+        // The Dropbox app's scanner names a scan after the moment it was taken: "2026-10-07 15.24.09.pdf".
+        return preg_match('/^\d{4}-\d{2}-\d{2}[ _T]\d{2}[.:\-]\d{2}([.:\-]\d{2})?(\s*\(\d+\))?\.[a-z]+$/i', $name) === 1
+            || preg_match('/^(scan|scans|scanned|scannen|gescannt|img|image|photo|foto|bild|dokument|document|doc|untitled|unbenannt)(?![a-z])/i', $name) === 1;
     }
 
     /** Whether ernte makes up the filename (and so may vary it on a clash) rather than keeping one. */

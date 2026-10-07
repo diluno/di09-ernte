@@ -43,6 +43,10 @@ test('scan names are recognised, real names are not', function (string $name, bo
     expect(ReceiptPaths::isScanName($name))->toBe($scan);
 })->with([
     ['Scan 7 Oct 2026 at 10.15.pdf', true],
+    ['2026-10-07 15.24.09.pdf', true],
+    ['2026-10-07 15.24.09 (1).pdf', true],
+    ['2026-10-05 Rechnung Swisscom.pdf', false],
+    ['Hetzner_2026-07-04_089001033983.pdf', false],
     ['Scan 7. Okt. 2026 um 10.15.pdf', true],
     ['scan.pdf', true],
     ['IMG_4821.pdf', true],
