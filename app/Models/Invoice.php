@@ -15,6 +15,7 @@ class Invoice extends Model
         'status', 'currency', 'vat_rate',
         'subtotal_rappen', 'vat_rappen', 'rounding_rappen', 'total_rappen',
         'notes', 'title', 'qr_reference', 'sent_at', 'paid_at', 'reminders_paused_at', 'pdf_path', 'recipients',
+        'dropbox_file_id', 'dropbox_path',
     ];
 
     protected $casts = [
@@ -62,6 +63,12 @@ class Invoice extends Model
     public function timeEntries()
     {
         return $this->hasMany(TimeEntry::class);
+    }
+
+    /** Bank entries matched (or proposed) as payments of this invoice. */
+    public function bankEntries()
+    {
+        return $this->hasMany(StatementLine::class);
     }
 
     public function getOverdueAttribute(): bool

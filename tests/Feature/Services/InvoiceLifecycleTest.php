@@ -48,6 +48,28 @@ test('markPaid transitions sent -> paid and stamps paid_at + event', function ()
     expect($invoice->events()->where('kind', 'paid')->count())->toBe(1);
 });
 
+test('markPaid with a date stamps that day and stores the payload', function () {
+    [$invoice] = draftWithEntry();
+    $invoice->update(['status' => 'sent', 'issued_on' => '2026-07-01', 'due_on' => '2026-07-31', 'sent_at' => '2026-07-01']);
+
+    test()->lifecycle->markPaid($invoice, \Illuminate\Support\Carbon::parse('2026-07-22 12:00:00'), ['statement_line_id' => 7]);
+
+    expect($invoice->fresh()->paid_at->toDateString())->toBe('2026-07-22');
+    expect($invoice->events()->where('kind', 'paid')->first()->payload)->toBe(['statement_line_id' => 7]);
+});
+
+test('reopen takes a paid invoice back to sent and is rejected otherwise', function () {
+    [$invoice] = draftWithEntry();
+    expect(fn () => test()->lifecycle->reopen($invoice))->toThrow(\DomainException::class);
+
+    $invoice->update(['status' => 'paid', 'paid_at' => now()]);
+    test()->lifecycle->reopen($invoice);
+
+    expect($invoice->fresh()->status)->toBe('sent');
+    expect($invoice->fresh()->paid_at)->toBeNull();
+    expect($invoice->events()->where('kind', 'reopened')->count())->toBe(1);
+});
+
 test('markPaid is rejected unless the invoice is sent', function () {
     [$invoice] = draftWithEntry(); // draft
     expect(fn () => test()->lifecycle->markPaid($invoice))

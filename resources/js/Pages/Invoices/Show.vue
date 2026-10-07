@@ -104,7 +104,9 @@ const EVENT_LABEL = {
   created: 'Created', sent: 'Sent', reminded: 'Reminder sent', paid: 'Marked paid',
   pdf_generated: 'Generated PDF', voided: 'Voided', overdue_stamped: 'Marked overdue',
   reminders_paused: 'Reminders paused', reminders_resumed: 'Reminders resumed',
+  payment_matched: 'Bank payment linked', reopened: 'Reopened',
 };
+const MATCH_METHOD = { qr_reference: 'QR reference', number_in_text: 'invoice no. in text', amount: 'amount', manual: 'by hand' };
 function fmtWhen(iso) {
   const d = new Date(iso);
   return `${dayMonth(iso)} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
@@ -115,6 +117,8 @@ function eventDetail(e) {
   if (to?.length) return `to ${Array.isArray(to) ? to.join(', ') : to}`;
   if (e.kind === 'sent' && e.payload?.manual) return 'marked manually';
   if (e.kind === 'overdue_stamped') return 'due date passed';
+  if (e.kind === 'paid' && e.payload?.statement_line_id) return 'from bank statement';
+  if (e.kind === 'reopened') return 'bank match removed';
   return null;
 }
 </script>
@@ -187,6 +191,17 @@ function eventDetail(e) {
           {{ r.name || r.email }}<span v-if="r.name" class="sub">{{ r.email }}</span>
         </div>
         <div v-if="invoice.recipients.length === 0" class="side-row is-muted">No recipients</div>
+      </section>
+
+      <section v-if="invoice.payments.length">
+        <h3 class="section-title">Payment</h3>
+        <div v-for="p in invoice.payments" :key="p.bank_ref" class="side-row">
+          Paid {{ dayMonth(p.booked_on) }} {{ year(p.booked_on) }} · {{ fmtChf(p.amount) }} CHF
+          <span class="sub">
+            <Link :href="`/bank?quarter=${year(p.booked_on)}-Q${Math.floor(new Date(p.booked_on).getMonth() / 3) + 1}`" class="link-ink">bank entry {{ p.bank_ref }}</Link>
+            · matched by {{ MATCH_METHOD[p.method] ?? p.method }}
+          </span>
+        </div>
       </section>
 
       <section>

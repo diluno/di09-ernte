@@ -14,6 +14,8 @@ const NAV = computed(() => [
   { id: 'invoices', href: '/invoices', label: 'Invoices', icon: 'receipt', count: null },
   { id: 'estimates', href: '/estimates', label: 'Estimates', icon: 'edit', count: null },
   { id: 'recurring', href: '/recurring-invoices', label: 'Recurring', icon: 'repeat', count: null },
+  { id: 'receipts', href: '/receipts', label: 'Receipts', icon: 'note', count: sidebar.value.nav_counts.receipts },
+  { id: 'bank', href: '/bank', label: 'Bank', icon: 'wallet', count: null },
 ]);
 
 const current = computed(() => page.url);

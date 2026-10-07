@@ -42,6 +42,18 @@ return [
     'anthropic' => [
         'api_key' => env('ANTHROPIC_API_KEY'),
         'model' => env('ANTHROPIC_MODEL', 'claude-opus-5'),
+        'receipt_model' => env('ANTHROPIC_RECEIPT_MODEL'),
+    ],
+
+    'receipts' => [
+        'pdftotext_path' => env('PDFTOTEXT_PATH', 'pdftotext'),
+    ],
+
+    'dropbox' => [
+        'app_key' => env('DROPBOX_APP_KEY'),
+        'app_secret' => env('DROPBOX_APP_SECRET'),
+        'receipts_root' => env('DROPBOX_RECEIPTS_ROOT'),
+        'inbox_folder' => env('DROPBOX_INBOX_FOLDER', '_Inbox'),
     ],
 
     'harvest' => [

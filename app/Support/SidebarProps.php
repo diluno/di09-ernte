@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Client;
 use App\Models\Project;
+use App\Models\Receipt;
 use App\Models\TimeEntry;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -45,6 +46,7 @@ class SidebarProps
             'nav_counts' => [
                 'projects' => Project::active()->count(),
                 'clients'  => Client::active()->count(),
+                'receipts' => Receipt::needsAttention()->count() ?: null,
             ],
             'pinned' => self::pinnedProjects(),
             'week_hours' => self::weekHours($user),

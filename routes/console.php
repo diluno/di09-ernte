@@ -12,3 +12,4 @@ Schedule::command('ernte:invoices:generate-recurring')->dailyAt('06:00');
 Schedule::command('ernte:invoices:remind')->dailyAt('09:00');
 Schedule::command('ernte:invoices:stamp-overdue')->daily();
 Schedule::command('ernte:backup')->dailyAt('03:00');
+Schedule::command('ernte:receipts:check-inbox')->everyFiveMinutes()->withoutOverlapping();

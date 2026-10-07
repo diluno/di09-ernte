@@ -152,6 +152,13 @@ class InvoiceProjections
             'total' => round($invoice->total_rappen / 100, 2),
             'vat_rate' => (float) $invoice->vat_rate,
             'notes' => $invoice->notes,
+            'payments' => $invoice->bankEntries()->where('match_state', 'matched')->orderBy('booked_on')->get()
+                ->map(fn ($l) => [
+                    'booked_on' => $l->booked_on->toDateString(),
+                    'amount' => round($l->amount_rappen / 100, 2),
+                    'bank_ref' => $l->bank_ref,
+                    'method' => $l->match_method,
+                ])->all(),
             'recurring' => $invoice->recurringInvoice
                 ? ['id' => $invoice->recurringInvoice->id, 'title' => $invoice->recurringInvoice->title]
                 : null,

@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.04">
+  <BkToCstmrStmt>
+    <GrpHdr>
+      <MsgId>E0000000TEST0001-00001</MsgId>
+      <CreDtTm>2026-07-04T00:16:43.651+02:00</CreDtTm>
+      <MsgPgntn><PgNb>1</PgNb><LastPgInd>true</LastPgInd></MsgPgntn>
+      <AddtlInf>SPS/1.7/PROD</AddtlInf>
+    </GrpHdr>
+    <Stmt>
+      <Id>9000000125</Id>
+      <ElctrncSeqNb>125</ElctrncSeqNb>
+      <CreDtTm>2026-07-04T00:16:43.651+02:00</CreDtTm>
+      <FrToDt>
+        <FrDtTm>2026-07-03T00:00:00.000000000+02:00</FrDtTm>
+        <ToDtTm>2026-07-03T23:59:59.999999999+02:00</ToDtTm>
+      </FrToDt>
+      <Acct>
+        <Id><IBAN>CH9300762011623852957</IBAN></Id>
+        <Ownr><Nm>Ernte Test GmbH</Nm></Ownr>
+      </Acct>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="CHF">10000.5</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2026-07-03</Dt></Dt>
+      </Bal>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="CHF">11614.35</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2026-07-03</Dt></Dt>
+      </Bal>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>CLAV</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="CHF">11614.35</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2026-07-03</Dt></Dt>
+      </Bal>
+      <Ntry>
+        <Amt Ccy="CHF">244.35</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <RvslInd>false</RvslInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-07-03</Dt></BookgDt>
+        <ValDt><Dt>2026-07-03</Dt></ValDt>
+        <AcctSvcrRef>T260000000001</AcctSvcrRef>
+        <BkTxCd><Domn><Cd>PMNT</Cd><Fmly><Cd>ICDT</Cd><SubFmlyCd>AUTT</SubFmlyCd></Fmly></Domn></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs><AcctSvcrRef>MO26070200000001</AcctSvcrRef></Refs>
+            <Amt Ccy="CHF">244.35</Amt>
+            <CdtDbtInd>DBIT</CdtDbtInd>
+            <RltdPties>
+              <Dbtr><Nm>Ernte Test GmbH</Nm></Dbtr>
+              <Cdtr><Nm>Carshare Genossenschaft</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>CH4431999123000889012</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf>
+              <Strd><CdtrRefInf><Tp><CdOrPrtry><Prtry>QRR</Prtry></CdOrPrtry></Tp><Ref>210000000003139471430009017</Ref></CdtrRefInf></Strd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+        <AddtlNtryInf>Belastung Mobile Banking: Auftrags-Nr. T260000000001</AddtlNtryInf>
+      </Ntry>
+      <Ntry>
+        <NtryRef>260702CH0TEST001</NtryRef>
+        <Amt Ccy="CHF">2565.2</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <RvslInd>false</RvslInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-07-03</Dt></BookgDt>
+        <ValDt><Dt>2026-07-03</Dt></ValDt>
+        <AcctSvcrRef>T260000000002</AcctSvcrRef>
+        <BkTxCd><Domn><Cd>PMNT</Cd><Fmly><Cd>RCDT</Cd><SubFmlyCd>DMCT</SubFmlyCd></Fmly></Domn></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs><AcctSvcrRef>GS26070300000001</AcctSvcrRef><PmtInfId>260702CH0TEST001</PmtInfId></Refs>
+            <Amt Ccy="CHF">2565.2</Amt>
+            <CdtDbtInd>CRDT</CdtDbtInd>
+            <RltdPties>
+              <Dbtr><Nm>Atlas Robotics AG</Nm></Dbtr>
+              <UltmtDbtr><Nm>Atlas Holding</Nm></UltmtDbtr>
+            </RltdPties>
+            <RmtInf><Ustrd>Rechnung 2026-008</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+        <AddtlNtryInf>Gutschrift: Auftrags-Nr. T260000000002</AddtlNtryInf>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="CHF">96.7</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <RvslInd>false</RvslInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-07-03</Dt></BookgDt>
+        <ValDt><Dt>2026-07-02</Dt></ValDt>
+        <AcctSvcrRef>T260000000003</AcctSvcrRef>
+        <BkTxCd><Domn><Cd>PMNT</Cd><Fmly><Cd>CCRD</Cd><SubFmlyCd>POSD</SubFmlyCd></Fmly></Domn></BkTxCd>
+        <CardTx>
+          <Card><PlainCardData><PAN>00000000</PAN></PlainCardData></Card>
+          <POI><Id><Id>EXAMPLEHOST.COM 00000 AMSTERDAM</Id></Id></POI>
+        </CardTx>
+        <AddtlNtryInf>Online-Einkauf aus Abonnement Debit Card Nr. xxxx 0000</AddtlNtryInf>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="CHF">7</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <RvslInd>false</RvslInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-07-03</Dt></BookgDt>
+        <ValDt><Dt>2026-07-03</Dt></ValDt>
+        <AcctSvcrRef>T260000000004</AcctSvcrRef>
+        <BkTxCd><Domn><Cd>ACMT</Cd><Fmly><Cd>MDOP</Cd><SubFmlyCd>CHRG</SubFmlyCd></Fmly></Domn></BkTxCd>
+        <AddtlNtryInf>Kontoführung</AddtlNtryInf>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="CHF">594.55</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <RvslInd>false</RvslInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-07-03</Dt></BookgDt>
+        <ValDt><Dt>2026-07-03</Dt></ValDt>
+        <AcctSvcrRef>T260000000005</AcctSvcrRef>
+        <BkTxCd><Domn><Cd>PMNT</Cd><Fmly><Cd>ICDT</Cd><SubFmlyCd>STDO</SubFmlyCd></Fmly></Domn></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Amt Ccy="CHF">594.55</Amt>
+            <CdtDbtInd>DBIT</CdtDbtInd>
+            <RltdPties><Cdtr><Nm>Hausverwaltung Muster</Nm></Cdtr></RltdPties>
+            <RmtInf><Ustrd>Miete</Ustrd><Ustrd>Büro 4</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+        <AddtlNtryInf>Belastung Dauerauftrag: Auftrags-Nr. T260000000005</AddtlNtryInf>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="CHF">50</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <RvslInd>false</RvslInd>
+        <Sts>PDNG</Sts>
+        <BookgDt><Dt>2026-07-03</Dt></BookgDt>
+        <AcctSvcrRef>T260000000006</AcctSvcrRef>
+        <AddtlNtryInf>Vormerkung</AddtlNtryInf>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>

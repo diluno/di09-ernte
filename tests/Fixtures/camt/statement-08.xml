@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08">
+  <BkToCstmrStmt>
+    <GrpHdr><MsgId>E0000000TEST0008-00001</MsgId><CreDtTm>2026-11-21T00:10:00+01:00</CreDtTm></GrpHdr>
+    <Stmt>
+      <Id>9000000226</Id>
+      <ElctrncSeqNb>226</ElctrncSeqNb>
+      <FrToDt><FrDtTm>2026-11-20T00:00:00+01:00</FrDtTm><ToDtTm>2026-11-20T23:59:59+01:00</ToDtTm></FrToDt>
+      <Acct><Id><IBAN>CH9300762011623852957</IBAN></Id></Acct>
+      <Bal><Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp><Amt Ccy="CHF">120.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Dt><Dt>2026-11-20</Dt></Dt></Bal>
+      <Bal><Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp><Amt Ccy="CHF">2380.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2026-11-20</Dt></Dt></Bal>
+      <Ntry>
+        <Amt Ccy="CHF">1000.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <RvslInd>false</RvslInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-20</Dt></BookgDt>
+        <ValDt><Dt>2026-11-20</Dt></ValDt>
+        <AcctSvcrRef>T268000000001</AcctSvcrRef>
+        <BkTxCd><Domn><Cd>PMNT</Cd><Fmly><Cd>RCDT</Cd><SubFmlyCd>DMCT</SubFmlyCd></Fmly></Domn></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Amt Ccy="CHF">1000.00</Amt>
+            <CdtDbtInd>CRDT</CdtDbtInd>
+            <RltdPties><Dbtr><Pty><Nm>Nordlicht Verein</Nm></Pty></Dbtr></RltdPties>
+            <RmtInf>
+              <Strd>
+                <CdtrRefInf><Tp><CdOrPrtry><Prtry>QRR</Prtry></CdOrPrtry></Tp><Ref>00 00000 00000 00000 00000 01236</Ref></CdtrRefInf>
+                <AddtlRmtInf>Danke</AddtlRmtInf>
+              </Strd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+        <AddtlNtryInf>Gutschrift QR-Rechnung</AddtlNtryInf>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="CHF">1500.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <RvslInd>false</RvslInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-20</Dt></BookgDt>
+        <ValDt><Dt>2026-11-20</Dt></ValDt>
+        <AcctSvcrRef>T268000000002</AcctSvcrRef>
+        <BkTxCd><Domn><Cd>PMNT</Cd><Fmly><Cd>RCDT</Cd><SubFmlyCd>VCOM</SubFmlyCd></Fmly></Domn></BkTxCd>
+        <NtryDtls>
+          <Btch><NbOfTxs>2</NbOfTxs></Btch>
+          <TxDtls>
+            <Amt Ccy="CHF">900.00</Amt>
+            <CdtDbtInd>CRDT</CdtDbtInd>
+            <RltdPties><Dbtr><Pty><Nm>Payer One</Nm></Pty></Dbtr></RltdPties>
+            <RmtInf><Strd><CdtrRefInf><Ref>000000000000000000000012378</Ref></CdtrRefInf></Strd></RmtInf>
+          </TxDtls>
+          <TxDtls>
+            <Amt Ccy="CHF">600.00</Amt>
+            <CdtDbtInd>CRDT</CdtDbtInd>
+            <RltdPties><Dbtr><Pty><Nm>Payer Two</Nm></Pty></Dbtr></RltdPties>
+            <RmtInf><Strd><CdtrRefInf><Ref>000000000000000000000012389</Ref></CdtrRefInf></Strd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+        <AddtlNtryInf>Sammelgutschrift QR-Rechnungen</AddtlNtryInf>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>

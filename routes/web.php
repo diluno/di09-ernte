@@ -1,11 +1,14 @@
 <?php
 
+use App\Http\Controllers\BankController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\DropboxController;
 use App\Http\Controllers\EntryController;
 use App\Http\Controllers\EstimateController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\RecurringInvoiceController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingsController;
@@ -90,8 +93,43 @@ Route::middleware('auth')->group(function () {
     Route::post('/recurring-invoices/{recurringInvoice}/run', [RecurringInvoiceController::class, 'run'])->name('recurring.run');
     Route::delete('/recurring-invoices/{recurringInvoice}', [RecurringInvoiceController::class, 'destroy'])->name('recurring.destroy');
 
+    Route::get('/bank', [BankController::class, 'index'])->name('bank.index');
+    Route::post('/bank/statements', [BankController::class, 'upload'])->name('bank.upload');
+    Route::post('/bank/match', [BankController::class, 'runMatching'])->name('bank.match');
+    Route::post('/bank/lines/{line}/match', [BankController::class, 'match'])->name('bank.lines.match');
+    Route::post('/bank/lines/{line}/unmatch', [BankController::class, 'unmatch'])->name('bank.lines.unmatch');
+    Route::post('/bank/lines/{line}/ignore', [BankController::class, 'ignore'])->name('bank.lines.ignore');
+    Route::patch('/bank/lines/{line}/note', [BankController::class, 'note'])->name('bank.lines.note');
+    Route::post('/bank/lines/{line}/number', [BankController::class, 'numberLine'])->name('bank.lines.number');
+    Route::post('/bank/lines/{line}/no-receipt', [BankController::class, 'noReceipt'])->name('bank.lines.no-receipt');
+    Route::post('/bank/receipts/{receipt}/match', [BankController::class, 'matchReceipt'])->name('bank.receipts.match');
+    Route::post('/bank/receipts/{receipt}/unmatch', [BankController::class, 'unmatchReceipt'])->name('bank.receipts.unmatch');
+    Route::post('/bank/months/{month}/confirm', [BankController::class, 'confirmConfident'])->name('bank.months.confirm');
+    Route::post('/bank/months/{month}/number', [BankController::class, 'numberMonth'])->name('bank.months.number');
+    Route::post('/bank/receipts/{receipt}/number', [BankController::class, 'numberReceipt'])->name('bank.receipts.number');
+    Route::post('/bank/receipts/{receipt}/unnumber', [BankController::class, 'unnumberReceipt'])->name('bank.receipts.unnumber');
+    Route::post('/bank/bills/{statement}/dissolve', [BankController::class, 'dissolveBill'])->name('bank.bills.dissolve');
+
+    Route::get('/vendor-logos/{domain}', [ReceiptController::class, 'logo'])->where('domain', '[a-z0-9.-]+')->name('vendor-logos.show');
+    Route::get('/receipts', [ReceiptController::class, 'index'])->name('receipts.index');
+    Route::post('/receipts', [ReceiptController::class, 'store'])->name('receipts.store');
+    Route::post('/receipts/check-inbox', [ReceiptController::class, 'checkInbox'])->name('receipts.check-inbox');
+    Route::get('/receipts/{receipt}', [ReceiptController::class, 'show'])->name('receipts.show');
+    Route::get('/receipts/{receipt}/file', [ReceiptController::class, 'file'])->name('receipts.file');
+    Route::patch('/receipts/{receipt}', [ReceiptController::class, 'update'])->name('receipts.update');
+    Route::post('/receipts/{receipt}/extract', [ReceiptController::class, 'extract'])->name('receipts.extract');
+    Route::post('/receipts/{receipt}/file', [ReceiptController::class, 'refile'])->name('receipts.refile');
+    Route::delete('/receipts/{receipt}', [ReceiptController::class, 'destroy'])->name('receipts.destroy');
+
     Route::get('/settings', [SettingsController::class, 'show'])->name('settings.show');
     Route::patch('/settings/profile', [SettingsController::class, 'updateProfile'])->name('settings.profile');
+
+    Route::get('/settings/dropbox/connect', [DropboxController::class, 'connect'])->name('settings.dropbox.connect');
+    Route::get('/settings/dropbox/callback', [DropboxController::class, 'callback'])->name('settings.dropbox.callback');
+    Route::post('/settings/dropbox/disconnect', [DropboxController::class, 'disconnect'])->name('settings.dropbox.disconnect');
+
+    Route::post('/settings/standing-documents', [SettingsController::class, 'storeStandingDocument'])->name('settings.standing.store');
+    Route::delete('/settings/standing-documents/{document}', [SettingsController::class, 'destroyStandingDocument'])->name('settings.standing.destroy');
 
     Route::get('/settings/vat-rates', [\App\Http\Controllers\VatRateController::class, 'index'])->name('vat-rates.index');
     Route::post('/settings/vat-rates', [\App\Http\Controllers\VatRateController::class, 'store'])->name('vat-rates.store');

@@ -6,6 +6,7 @@ use App\Mail\InvoiceMail;
 use App\Models\Invoice;
 use App\Models\InvoiceEvent;
 use App\Models\TimeEntry;
+use Carbon\CarbonInterface;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -72,16 +73,48 @@ class InvoiceLifecycle
         });
     }
 
-    /** sent -> paid. */
-    public function markPaid(Invoice $invoice): void
+    /**
+     * sent -> paid. $paidOn is the bank's booking date when a statement import marks the
+     * invoice; the manual button passes nothing and stamps the current time.
+     */
+    public function markPaid(Invoice $invoice, ?CarbonInterface $paidOn = null, ?array $payload = null): void
     {
         if ($invoice->status !== 'sent') {
             throw new \DomainException("Only a sent invoice can be marked paid (status: {$invoice->status}).");
         }
 
+        DB::transaction(function () use ($invoice, $paidOn, $payload) {
+            $invoice->update(['status' => 'paid', 'paid_at' => $paidOn ?? now()]);
+            $this->event($invoice, 'paid', $payload);
+        });
+    }
+
+    /** A bank entry was linked to an invoice that was already marked paid by hand. */
+    public function recordBankPayment(Invoice $invoice, CarbonInterface $paidOn, array $payload, bool $correctDate): void
+    {
+        if ($invoice->status !== 'paid') {
+            throw new \DomainException("Only a paid invoice can have its payment linked (status: {$invoice->status}).");
+        }
+
+        DB::transaction(function () use ($invoice, $paidOn, $payload, $correctDate) {
+            if ($correctDate && ! $invoice->paid_at?->isSameDay($paidOn)) {
+                $payload['previous_paid_at'] = $invoice->paid_at?->toIso8601String();
+                $invoice->update(['paid_at' => $paidOn]);
+            }
+            $this->event($invoice, 'payment_matched', $payload);
+        });
+    }
+
+    /** paid -> sent: undo of a payment that a statement import had recorded. */
+    public function reopen(Invoice $invoice): void
+    {
+        if ($invoice->status !== 'paid') {
+            throw new \DomainException("Only a paid invoice can be reopened (status: {$invoice->status}).");
+        }
+
         DB::transaction(function () use ($invoice) {
-            $invoice->update(['status' => 'paid', 'paid_at' => now()]);
-            $this->event($invoice, 'paid');
+            $invoice->update(['status' => 'sent', 'paid_at' => null]);
+            $this->event($invoice, 'reopened');
         });
     }
 

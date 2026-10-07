@@ -1,12 +1,27 @@
 <script setup>
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
   profile: { type: Object, required: true },
+  dropbox: { type: Object, required: true },
+  standing_documents: { type: Array, default: () => [] },
 });
+
+const standing = useForm({ label: '', row_keyword: '', source_path: '', filename: '' });
+function addStanding() { standing.post('/settings/standing-documents', { preserveScroll: true, onSuccess: () => standing.reset() }); }
+function removeStanding(doc) {
+  if (!window.confirm(`Remove "${doc.label}"? Copies already made stay in Dropbox.`)) return;
+  router.delete(`/settings/standing-documents/${doc.id}`, { preserveScroll: true });
+}
+
+function disconnectDropbox() {
+  if (!window.confirm('Disconnect Dropbox? Receipts can no longer be filed until it is connected again.')) return;
+  router.post('/settings/dropbox/disconnect', {}, { preserveScroll: true });
+}
+function fmtDay(iso) { return iso ? new Date(iso).toLocaleDateString('de-CH') : ''; }
 
 const form = useForm({
   name: props.profile.name ?? '',
@@ -157,6 +172,59 @@ function submit() {
           <small v-if="form.errors.reminder_days_after_due" class="error">{{ form.errors.reminder_days_after_due }}</small>
         </label>
       </div>
+    </section>
+    <section class="settings-section">
+      <h2 class="section-title">Dropbox · bookkeeping folder</h2>
+      <p v-if="!dropbox.configured" class="muted">
+        Not configured. Set <code>DROPBOX_APP_KEY</code>, <code>DROPBOX_APP_SECRET</code> and <code>DROPBOX_RECEIPTS_ROOT</code> in the environment.
+      </p>
+      <template v-else-if="dropbox.connected">
+        <p>Connected as <strong>{{ dropbox.account }}</strong><template v-if="dropbox.connected_at"> since {{ fmtDay(dropbox.connected_at) }}</template>.</p>
+        <p>
+          Folder <code>{{ dropbox.root }}</code>:
+          <span v-if="dropbox.problem" class="error">{{ dropbox.problem }}</span>
+          <span v-else-if="dropbox.root_ok">found</span>
+          <span v-else class="error">not found in this Dropbox</span>
+        </p>
+        <button type="button" class="btn danger" @click="disconnectDropbox">Disconnect</button>
+      </template>
+      <template v-else>
+        <p class="muted">Not connected. ernte will only read and write inside <code>{{ dropbox.root }}</code>.</p>
+        <a href="/settings/dropbox/connect" class="btn">Connect Dropbox</a>
+      </template>
+    </section>
+  </form>
+
+  <form class="settings-page" @submit.prevent="addStanding">
+    <section class="settings-section">
+      <h2 class="section-title">Standing documents</h2>
+      <p class="muted">A document that belongs to the same payment every month. When a bank row contains the keyword and has no receipt, ernte copies the document into that month, numbered.</p>
+      <p v-for="doc in standing_documents" :key="doc.id">
+        <strong>{{ doc.label }}</strong> · rows containing “{{ doc.row_keyword }}” · <code>{{ doc.source_path }}</code> → <code>NN_{{ doc.filename }}</code>
+        <button type="button" class="btn sm ghost danger" @click="removeStanding(doc)">Remove</button>
+      </p>
+      <div class="form-grid">
+        <label class="field">
+          <span>Label</span>
+          <input v-model="standing.label" class="input" placeholder="Office rent" />
+          <small v-if="standing.errors.label" class="error">{{ standing.errors.label }}</small>
+        </label>
+        <label class="field">
+          <span>Keyword in the bank row</span>
+          <input v-model="standing.row_keyword" class="input" placeholder="Miete" />
+          <small v-if="standing.errors.row_keyword" class="error">{{ standing.errors.row_keyword }}</small>
+        </label>
+        <label class="field">
+          <span>File, relative to {{ dropbox.root }}</span>
+          <input v-model="standing.source_path" class="input" placeholder="mietvertrag-buero.pdf" />
+          <small v-if="standing.errors.source_path" class="error">{{ standing.errors.source_path }}</small>
+        </label>
+        <label class="field">
+          <span>Name of the copy (optional)</span>
+          <input v-model="standing.filename" class="input" placeholder="same as the file" />
+        </label>
+      </div>
+      <button class="btn" :disabled="standing.processing">Add standing document</button>
     </section>
   </form>
 </template>

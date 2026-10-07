@@ -964,3 +964,157 @@ a { color: inherit; text-decoration: none; }
 .heat .sq.l2 { background: var(--border-strong); }
 .heat .sq.l3 { background: var(--ink-3); }
 .heat .sq.l4 { background: var(--ink); }
+
+/* ─────────────────────── Bank ledger & receipts ─────────────────────── */
+/* Quarter switch: the first thing under the page head on the bookkeeping pages. */
+.quarter-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px;
+  padding: 14px 40px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
+  background: var(--paper);
+}
+@media (max-width: 900px) { .quarter-bar { padding-left: 16px; padding-right: 16px; } }
+
+/* A slim line under the page head that accepts dropped files and reports on them. */
+.drop-strip {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 20px;
+  padding: 13px 40px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  color: var(--ink-3);
+  transition: background .12s, color .12s;
+}
+.drop-strip.is-over { background: var(--ink); color: var(--paper); border-bottom-color: var(--ink); }
+.drop-strip.is-busy, .drop-strip__result { color: var(--ink); }
+.drop-strip .is-red { color: var(--red); flex-basis: 100%; }
+.drop-strip__file { display: flex; justify-content: space-between; gap: 24px; flex-basis: 100%; color: var(--ink); }
+.drop-strip__file.is-red { color: var(--red); }
+
+.ledger-warn { padding: 12px 40px; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); color: var(--red); }
+.ledger-empty { padding: 56px 40px; font-size: var(--fs-lg); color: var(--ink-2); max-width: 60ch; }
+
+/* One month (or one list) of the ledger: a ruled head, then its rows. */
+.ledger { padding-bottom: 8px; }
+.ledger-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 24px;
+  padding: 44px 40px 14px;
+  border-bottom: 1px solid var(--rule);
+}
+.ledger-title { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
+.ledger-tally {
+  font-family: var(--font-mono); font-size: 12px; color: var(--ink-3);
+  letter-spacing: var(--track-label); text-transform: uppercase;
+}
+.ledger-tally .is-red { color: var(--red); }
+.ledger-head__actions { margin-left: auto; display: flex; gap: 8px; align-self: center; }
+.ledger-sub {
+  display: flex; align-items: baseline; gap: 16px;
+  padding: 26px 40px 10px;
+  border-bottom: 1px solid var(--border-strong);
+}
+.ledger-sub__title { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.ledger-sub__action { margin-left: auto; opacity: 0; }
+.ledger-sub:hover .ledger-sub__action, .ledger-sub__action:focus-visible { opacity: 1; }
+
+.table--ledger tbody tr { cursor: default; }
+.table--ledger tbody td { height: auto; padding-top: 11px; padding-bottom: 11px; vertical-align: top; line-height: 1.35; }
+.table--ledger thead th { padding-top: 10px; padding-bottom: 10px; }
+.table--ledger .sub { font-size: 12px; color: var(--ink-3); }
+/* The number is the file's prefix in Dropbox: ink once the row has its document. */
+.table--ledger td.folio { font-family: var(--font-mono); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.table--ledger tr.is-open td.folio { font-weight: 400; color: var(--ink-3); }
+.table--ledger td.folio-date { font-family: var(--font-mono); font-size: 13px; color: var(--ink-3); white-space: nowrap; }
+.table--ledger tr.is-flagged td:first-child { box-shadow: inset 3px 0 0 var(--red); }
+.table--ledger td.money.is-out { font-weight: 400; color: var(--ink-2); }
+.table--ledger td.doc { font-size: var(--fs-sm); }
+.doc-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.doc-line + .doc-line { margin-top: 4px; }
+.doc-line.is-quiet { color: var(--ink-3); }
+.doc-line.is-red { color: var(--red); }
+.doc-line.is-proposal a { border-bottom: 1px dashed var(--border-strong); }
+.doc-mark { flex: 0 0 14px; font-size: 11px; text-align: center; color: var(--ink-3); }
+.doc-line.is-red .doc-mark { color: var(--red); }
+.doc-indent { padding-left: 22px; }
+.doc-indent .ledger-link { margin-left: 10px; }
+.doc-tools { margin-left: auto; display: flex; align-items: baseline; gap: 12px; flex: 0 0 auto; opacity: 0; transition: opacity .12s; }
+.ledger-actions { text-align: right; white-space: nowrap; opacity: 0; transition: opacity .12s; }
+.table--ledger tbody tr:hover .doc-tools, .table--ledger tbody tr:focus-within .doc-tools,
+.table--ledger tbody tr:hover .ledger-actions, .table--ledger tbody tr:focus-within .ledger-actions,
+.doc-tools.is-shown, .ledger-actions.is-shown { opacity: 1; }
+.ledger-link {
+  padding: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 12px; color: var(--ink);
+  border-bottom: 1px solid var(--border-strong);
+}
+.ledger-link:hover { border-bottom-color: var(--ink); }
+.ledger-link:disabled { color: var(--ink-3); cursor: default; border-bottom-color: transparent; }
+.ledger-select {
+  width: 100%; padding: 5px 8px;
+  font: inherit; font-size: var(--fs-sm); color: inherit;
+  background: transparent; border: 1px solid var(--border-strong); border-radius: 0;
+}
+.ledger-select:focus { outline: none; border-color: var(--ink); }
+.ledger-pick { width: auto; max-width: 200px; margin-left: auto; padding: 1px 4px; font-size: 12px; opacity: 0; }
+.table--ledger tbody tr:hover .ledger-pick, .ledger-pick:focus { opacity: 1; }
+.ledger-note {
+  display: block; max-width: 100%; margin-top: 2px; padding: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 12px; color: var(--ink-2); text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ledger-note.is-empty { color: var(--ink-3); opacity: 0; }
+.table--ledger tbody tr:hover .ledger-note.is-empty, .ledger-note.is-empty:focus-visible { opacity: 1; }
+.ledger-note-input {
+  width: 100%; margin-top: 2px; padding: 2px 6px;
+  font: inherit; font-size: 12px; color: inherit;
+  background: var(--sheet); border: 1px solid var(--ink);
+}
+
+/* Vendor logo (site icon) or initial, set on the text baseline of a name. */
+.vendor-mark { flex: 0 0 auto; display: inline-block; object-fit: contain; vertical-align: -3px; }
+.vendor-mark.is-initial {
+  display: inline-grid; place-items: center;
+  border: 1px solid var(--border-strong); color: var(--ink-3);
+  font-family: var(--font-mono); font-weight: 600; line-height: 1;
+}
+.vendor-name { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.vendor-name > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Receipt status in lists, same glyph language as invoice badges. */
+.badge.filed { color: var(--ink-3); }
+.badge.filed.dot::before { content: "✓"; font-size: 12px; }
+.badge.working { color: var(--ink); }
+.badge.working.dot::before { content: "◐"; }
+.badge.attention { color: var(--red); }
+
+/* Receipt detail: the document on a sheet, its fields beside it. */
+.receipt-page { display: grid; grid-template-columns: minmax(0, 1fr) 400px; flex: 1; min-height: calc(100vh - 190px); }
+.receipt-doc { padding: 32px 40px; background: var(--paper-2); display: flex; }
+.receipt-sheet {
+  flex: 1; width: 100%; min-height: 70vh; display: block;
+  border: 1px solid var(--ink); background: var(--sheet);
+  box-shadow: 0 1px 0 var(--border-strong), 0 14px 34px rgba(20,18,16,.08);
+}
+.receipt-nodoc { margin: auto; color: var(--ink-3); font-size: var(--fs-lg); }
+.receipt-side {
+  border-left: 1px solid var(--rule); background: var(--paper);
+  padding: 28px 32px 40px; display: flex; flex-direction: column; gap: 30px;
+}
+.receipt-side section { display: flex; flex-direction: column; gap: 14px; }
+.receipt-side .section-title { margin: 0; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+.receipt-side .form-grid { gap: 12px 14px; }
+.receipt-side .side-row { padding: 0; border: 0; }
+.receipt-facts { margin: 0; font-size: 12px; color: var(--ink-3); line-height: 1.5; overflow-wrap: anywhere; }
+.receipt-amounts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
+.receipt-alert { margin: 0; padding: 10px 12px; font-size: var(--fs-sm); color: var(--red); background: var(--red-bg); box-shadow: inset 3px 0 0 var(--red); }
+
+@media (max-width: 900px) {
+  .receipt-page { grid-template-columns: 1fr; }
+  .receipt-side { border-left: 0; border-top: 1px solid var(--rule); padding: 24px 16px 32px; }
+  .receipt-doc { padding: 16px; }
+  .drop-strip, .ledger-warn { padding-left: 16px; padding-right: 16px; }
+  .ledger-head, .ledger-sub { padding-left: 16px; padding-right: 16px; }
+  .table--ledger .pad-l { padding-left: 16px; }
+  .table--ledger .pad-r { padding-right: 16px; }
+}
+

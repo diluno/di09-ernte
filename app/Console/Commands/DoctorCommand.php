@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\BusinessProfile;
+use App\Services\Dropbox\DropboxClient;
 use App\Support\SwissIban;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +32,8 @@ class DoctorCommand extends Command
             $this->mail(),
             $this->chrome(),
             $this->mysqldump(),
+            $this->dropbox(),
+            $this->pdftotext(),
         ];
 
         if ($this->option('json')) {
@@ -181,6 +184,36 @@ class DoctorCommand extends Command
         return $path
             ? $this->checkOk('mysqldump', $path)
             : $this->requiredDependency('mysqldump', 'not found; install default-mysql-client for backups');
+    }
+
+    private function dropbox(): array
+    {
+        try {
+            $dropbox = app(DropboxClient::class);
+
+            if (! $dropbox->isConfigured()) {
+                return $this->checkWarn('dropbox', 'DROPBOX_APP_KEY / DROPBOX_APP_SECRET not set; receipts cannot be filed');
+            }
+            if (! $dropbox->isConnected()) {
+                return $this->checkWarn('dropbox', 'not connected; connect it in Settings');
+            }
+
+            return $dropbox->exists($dropbox->root())
+                ? $this->checkOk('dropbox', "connected; {$dropbox->root()} found")
+                : $this->checkWarn('dropbox', "connected, but {$dropbox->root()} does not exist");
+        } catch (Throwable $e) {
+            return $this->checkWarn('dropbox', $e->getMessage());
+        }
+    }
+
+    private function pdftotext(): array
+    {
+        $configured = (string) config('services.receipts.pdftotext_path', 'pdftotext');
+        $path = is_executable($configured) ? $configured : $this->findExecutable([$configured]);
+
+        return $path
+            ? $this->checkOk('pdftotext', $path)
+            : $this->checkWarn('pdftotext', 'not found; receipts are still read, but without a stored text layer (install poppler-utils)');
     }
 
     private function requiredDependency(string $name, string $detail): array

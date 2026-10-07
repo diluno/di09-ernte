@@ -13,11 +13,16 @@ class BusinessProfile extends Model
         'name', 'address_line_1', 'address_line_2', 'postal_code', 'city', 'country',
         'uid', 'vat_id', 'iban', 'qr_iban', 'email', 'sender_name', 'logo_path',
         'default_currency', 'default_vat_rate', 'invoice_number_prefix', 'reminder_days_after_due',
+        'dropbox_refresh_token', 'dropbox_account_label', 'dropbox_connected_at',
     ];
+
+    protected $hidden = ['dropbox_refresh_token'];
 
     protected $casts = [
         'default_vat_rate' => 'decimal:2',
         'reminder_days_after_due' => 'integer',
+        'dropbox_refresh_token' => 'encrypted',
+        'dropbox_connected_at' => 'datetime',
     ];
 
     public static function current(): self

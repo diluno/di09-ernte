@@ -21,6 +21,10 @@ import IconArrowLeft from '~icons/pixelarticons/arrow-left';
 import IconArrowRight from '~icons/pixelarticons/arrow-right';
 import IconDownload from '~icons/pixelarticons/download';
 import IconMoreHorizontal from '~icons/pixelarticons/more-horizontal';
+import IconWallet from '~icons/pixelarticons/wallet';
+import IconUpload from '~icons/pixelarticons/upload';
+import IconNote from '~icons/pixelarticons/note';
+import IconCreditCard from '~icons/pixelarticons/credit-card';
 
 const MAP = {
   search: IconSearch,
@@ -42,6 +46,10 @@ const MAP = {
   'arrow-right': IconArrowRight,
   download: IconDownload,
   'more-horizontal': IconMoreHorizontal,
+  wallet: IconWallet,
+  upload: IconUpload,
+  note: IconNote,
+  'credit-card': IconCreditCard,
 };
 
 defineProps({ name: { type: String, required: true } });
