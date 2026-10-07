@@ -272,6 +272,9 @@ class ReceiptController extends Controller
         }
 
         $message = $result['new'] === 0 ? 'Nothing new in the Dropbox inbox.' : "{$result['new']} new receipt(s) found in the Dropbox inbox.";
+        if ($result['resorted']) {
+            $message .= " {$result['resorted']} file(s) that had been put back are being sorted again.";
+        }
         if ($result['duplicates']) {
             $message .= " {$result['duplicates']} duplicate(s).";
         }

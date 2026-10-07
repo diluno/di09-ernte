@@ -26,11 +26,11 @@ class DropboxIntake
     /**
      * Register every new PDF in the inbox and queue it for reading and sorting.
      *
-     * @return array{new: int, duplicates: int, skipped: int}
+     * @return array{new: int, duplicates: int, skipped: int, resorted: int}
      */
     public function scanInbox(): array
     {
-        $result = ['new' => 0, 'duplicates' => 0, 'skipped' => 0];
+        $result = ['new' => 0, 'duplicates' => 0, 'skipped' => 0, 'resorted' => 0];
         $inbox = $this->inboxPath();
 
         try {
@@ -53,7 +53,15 @@ class DropboxIntake
 
                 continue;
             }
-            if (Receipt::where('dropbox_file_id', $entry['id'])->exists()) {
+            if ($known = Receipt::where('dropbox_file_id', $entry['id'])->first()) {
+                // A filed receipt that was put back into the inbox is sorted again, the way
+                // a new one would be. A numbered file is not ernte's to move: it is left.
+                if ($known->filing_status === 'filed' && $known->duplicate_of_id === null && $known->numbered_at === null && $known->numberPrefix() === null) {
+                    $known->update(['filing_status' => 'inbox', 'filing_error' => null, 'dropbox_path' => $entry['path'], 'filename' => null, 'original_name' => mb_substr($entry['name'], 0, 255)]);
+                    FileReceipt::dispatch($known->id);
+                    $result['resorted']++;
+                }
+
                 continue;
             }
 

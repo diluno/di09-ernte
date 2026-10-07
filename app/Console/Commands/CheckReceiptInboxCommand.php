@@ -21,7 +21,7 @@ class CheckReceiptInboxCommand extends Command
         }
 
         $result = $intake->scanInbox();
-        $this->info("Inbox: {$result['new']} new, {$result['duplicates']} duplicate(s), {$result['skipped']} non-PDF file(s) skipped.");
+        $this->info("Inbox: {$result['new']} new, {$result['duplicates']} duplicate(s), {$result['skipped']} non-PDF file(s) skipped, {$result['resorted']} put back and sorted again.");
 
         return self::SUCCESS;
     }

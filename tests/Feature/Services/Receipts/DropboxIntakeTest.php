@@ -63,7 +63,7 @@ test('new PDFs in the inbox are registered and queued; other files are skipped; 
 
     $result = app(DropboxIntake::class)->scanInbox();
 
-    expect($result)->toBe(['new' => 1, 'duplicates' => 0, 'skipped' => 1]);
+    expect($result)->toBe(['new' => 1, 'duplicates' => 0, 'skipped' => 1, 'resorted' => 0]);
     $receipt = Receipt::where('dropbox_file_id', 'id:new')->first();
     expect($receipt->source)->toBe('inbox');
     expect($receipt->filing_status)->toBe('inbox');
@@ -81,7 +81,7 @@ test('a missing inbox folder is created and the scan finds nothing', function ()
         'api.dropboxapi.com/2/files/create_folder_v2' => Http::response(['metadata' => []]),
     ]);
 
-    expect(app(DropboxIntake::class)->scanInbox())->toBe(['new' => 0, 'duplicates' => 0, 'skipped' => 0]);
+    expect(app(DropboxIntake::class)->scanInbox())->toBe(['new' => 0, 'duplicates' => 0, 'skipped' => 0, 'resorted' => 0]);
     Http::assertSent(fn (Request $r) => str_contains($r->url(), 'create_folder_v2') && $r['path'] === '/Diluno/Receipts/_Inbox');
 });
 
@@ -251,4 +251,32 @@ test('the timed inbox check can be switched off per installation', function () {
     expect($event->filtersPass(app()))->toBeTrue();
     config(['services.dropbox.inbox_check' => false]);
     expect($event->filtersPass(app()))->toBeFalse();
+});
+
+test('a new file whose Dropbox id differs from a known one only by case is picked up', function () {
+    // Real ids from production: "…JFWg" was taken for "…JFwg" and never read.
+    Receipt::create(['source' => 'inbox', 'original_name' => 'Lohnabrechnung.pdf', 'filename' => 'Lohnabrechnung.pdf', 'content_hash' => hash('sha256', 'lohn'), 'original_mime' => 'application/pdf', 'size_bytes' => 1,
+        'dropbox_file_id' => 'id:IHDueUt1heEAAAAAAAJFwg', 'filing_status' => 'filed']);
+    fakeDropboxFolder([dbxFile('id:IHDueUt1heEAAAAAAAJFWg', '157002460.pdf')], ['id:IHDueUt1heEAAAAAAAJFWg' => '%PDF other']);
+
+    expect(Receipt::where('dropbox_file_id', 'id:IHDueUt1heEAAAAAAAJFWg')->exists())->toBeFalse();
+    expect(app(DropboxIntake::class)->scanInbox()['new'])->toBe(1);
+    expect(Receipt::where('dropbox_file_id', 'id:IHDueUt1heEAAAAAAAJFWg')->value('original_name'))->toBe('157002460.pdf');
+    expect(Receipt::count())->toBe(2);
+});
+
+test('a filed receipt put back into the inbox is sorted again; a numbered one is left alone', function () {
+    $filed = Receipt::create(['source' => 'inbox', 'original_name' => 'Rechnung_421458010.pdf', 'filename' => 'Rechnung_421458010.pdf', 'content_hash' => hash('sha256', 'r'), 'original_mime' => 'application/pdf', 'size_bytes' => 1,
+        'dropbox_file_id' => 'id:back', 'dropbox_path' => '/Diluno/Receipts/2026_Q3/07/Rechnung_421458010.pdf', 'filing_status' => 'filed', 'extraction_status' => 'done', 'document_date' => '2026-08-03', 'target_year' => 2026, 'target_month' => 8]);
+    $numbered = Receipt::create(['source' => 'inbox', 'original_name' => 'x.pdf', 'filename' => '04_x.pdf', 'content_hash' => hash('sha256', 'x'), 'original_mime' => 'application/pdf', 'size_bytes' => 1,
+        'dropbox_file_id' => 'id:num', 'filing_status' => 'filed', 'numbered_at' => now()]);
+    fakeDropboxFolder([dbxFile('id:back', 'Rechnung_421458010.pdf'), dbxFile('id:num', '04_x.pdf')]);
+
+    $result = app(DropboxIntake::class)->scanInbox();
+
+    expect($result)->toMatchArray(['new' => 0, 'resorted' => 1]);
+    expect($filed->fresh())->filing_status->toBe('inbox')->dropbox_path->toBe('/Diluno/Receipts/_Inbox/Rechnung_421458010.pdf');
+    expect($numbered->fresh()->filing_status)->toBe('filed');
+    Bus::assertDispatched(FileReceipt::class, fn ($job) => $job->receiptId === $filed->id);
+    Bus::assertNotDispatched(ExtractReceipt::class);
 });

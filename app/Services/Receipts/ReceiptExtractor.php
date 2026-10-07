@@ -90,6 +90,7 @@ class ReceiptExtractor
         - vendor_domain: the vendor's own website domain as printed on the document (from a web address or the part after the @ of its email address), lower case and without "www." (e.g. "hetzner.com"). Not a payment provider's, a marketplace's or a free mail provider's domain. Null if none is printed; never guess one.
         - document_date: the invoice or receipt date as YYYY-MM-DD. Not the due date, not the service period. Swiss documents write dates day-first (03.07.2026 is 3 July). Null if absent.
         - total: the final amount to pay or paid, including tax, as a plain decimal with a dot and two decimals, no thousands separators (1'297.20 becomes "1297.20"). Null if no total is printed.
+          On a credit card statement the total is the amount due for this statement (Viseca: "Total Rechnungsbetrag zu unseren Gunsten"), not the previous statement's total, not a payment received and not a single transaction.
         - currency: ISO code of the total (CHF, EUR, USD, …). Null if not stated.
         - amounts: every distinct monetary amount printed anywhere in the document, including subtotals, tax, instalments, amounts on payment slips and amounts in other currencies, each with its currency if stated. Include the total. Same decimal format.
         - invoice_number: the document's own invoice or receipt number. Null if absent.
