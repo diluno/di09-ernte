@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Receipt extends Model
 {
     protected $fillable = [
-        'source', 'duplicate_of_id',
+        'source', 'duplicate_of_id', 'not_duplicate',
         'statement_line_id', 'match_state', 'match_method', 'match_note', 'match_confident', 'numbered_at', 'numbered_from_path', 'auto_match_disabled',
         'original_name', 'filename', 'content_hash', 'original_mime', 'size_bytes', 'local_path',
         'extraction_status', 'extraction_error', 'vendor', 'vendor_domain', 'document_date', 'total_minor', 'currency',
@@ -31,6 +31,7 @@ class Receipt extends Model
         'target_edited' => 'boolean',
         'filed_at' => 'datetime',
         'match_confident' => 'boolean',
+        'not_duplicate' => 'boolean',
         'numbered_at' => 'datetime',
         'auto_match_disabled' => 'boolean',
     ];
@@ -68,6 +69,27 @@ class Receipt extends Model
             ->orWhere('confidence', 'low')
             ->orWhere(fn (Builder $d) => $d->where('extraction_status', 'done')->whereNull('document_date')->where('source', '!=', 'standing'))
             ->orWhereIn('filing_status', ['failed', 'missing']));
+    }
+
+    /**
+     * Another receipt that reads as the same document: same vendor, invoice number and
+     * total. Vendors generate an invoice PDF anew on every download, so the same invoice
+     * fetched twice is rarely the same file byte for byte.
+     */
+    public function likelyDuplicateOf(): ?self
+    {
+        if ($this->not_duplicate || blank($this->vendor) || blank($this->invoice_number) || $this->total_minor === null) {
+            return null;
+        }
+
+        return static::whereKeyNot($this->id)
+            ->whereNull('duplicate_of_id')->where('source', '!=', 'standing')
+            ->whereRaw('LOWER(vendor) = ?', [mb_strtolower(trim($this->vendor))])
+            ->where('invoice_number', $this->invoice_number)
+            ->where('total_minor', $this->total_minor)
+            ->where(fn ($q) => $q->where('currency', $this->currency)->orWhereNull('currency'))
+            ->where('id', '<', $this->id)
+            ->orderBy('id')->first();
     }
 
     /** The website known for a vendor from any of its other receipts. */

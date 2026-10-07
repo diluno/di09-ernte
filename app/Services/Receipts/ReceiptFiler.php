@@ -13,6 +13,8 @@ class ReceiptFiler
 {
     private const MAX_SUFFIX = 9;
 
+    public const DUPLICATE_PREFIX = 'DUPLICATE-';
+
     public function __construct(private DropboxClient $dropbox) {}
 
     /**
@@ -27,6 +29,11 @@ class ReceiptFiler
         }
         if (! $this->dropbox->isConnected()) {
             $receipt->update(['filing_error' => 'Dropbox is not connected.']);
+
+            return false;
+        }
+        if ($original = $receipt->likelyDuplicateOf()) {
+            $this->markDuplicate($receipt, $original, exact: false);
 
             return false;
         }
@@ -78,6 +85,59 @@ class ReceiptFiler
         Storage::disk('local')->delete($localPath);
 
         return true;
+    }
+
+    /**
+     * Record a receipt as a duplicate of one ernte already has. A file waiting in the
+     * inbox is renamed "DUPLICATE-…" there, so it is easy to spot and delete by hand;
+     * ernte itself never deletes.
+     */
+    public function markDuplicate(Receipt $receipt, Receipt $original, bool $exact): void
+    {
+        $what = $exact ? 'The same file as' : 'Reads like the same document as';
+        $where = $original->dropbox_path ? ' in '.ReceiptPaths::label($original->target_year, $original->target_month) : '';
+        $message = "{$what} \"".($original->filename ?? $original->original_name)."\"{$where}.";
+
+        if ($receipt->dropbox_file_id) {
+            try {
+                $current = $this->dropbox->metadata($receipt->dropbox_file_id);
+                $name = $current['name'];
+                if (! str_starts_with($name, self::DUPLICATE_PREFIX)) {
+                    $folder = dirname($current['path']);
+                    for ($attempt = 1; $attempt <= self::MAX_SUFFIX; $attempt++) {
+                        $candidate = self::DUPLICATE_PREFIX.($attempt === 1 ? $name : ReceiptPaths::withSuffix(ReceiptPaths::sanitise($name), $attempt));
+                        try {
+                            $current = $this->dropbox->move($receipt->dropbox_file_id, "{$folder}/{$candidate}");
+                            break;
+                        } catch (DropboxConflict) {
+                            continue;
+                        }
+                    }
+                }
+                $receipt->dropbox_path = $current['path'];
+                $message .= " Renamed to \"{$current['name']}\" in the inbox: delete it there.";
+            } catch (\App\Services\Dropbox\DropboxException) {
+                $message .= ' Delete it from the inbox in Dropbox.';
+            }
+        } else {
+            $message .= ' Remove this receipt.';
+        }
+
+        $receipt->fill([
+            'duplicate_of_id' => $original->id,
+            'filing_status' => 'failed',
+            'filing_error' => mb_substr($message, 0, 250),
+        ])->save();
+    }
+
+    /** Sam says it is a separate document after all: undo the marking and file it. */
+    public function notDuplicate(Receipt $receipt): void
+    {
+        $receipt->update([
+            'duplicate_of_id' => null, 'not_duplicate' => true, 'filing_error' => null,
+            'filing_status' => $receipt->dropbox_file_id ? 'inbox' : 'pending',
+            'target_edited' => $receipt->target_edited || ($receipt->target_year !== null),
+        ]);
     }
 
     /**

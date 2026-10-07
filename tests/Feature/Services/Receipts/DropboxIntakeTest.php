@@ -92,6 +92,7 @@ test('a missing inbox folder is created and the scan finds nothing', function ()
 test('a file ernte already has is flagged as a duplicate, not read, and forgotten once removed from the inbox', function () {
     $original = Receipt::create(['original_name' => 'Rechnung 4711.pdf', 'filename' => 'Rechnung 4711.pdf', 'content_hash' => hash('sha256', '%PDF same'), 'original_mime' => 'application/pdf', 'size_bytes' => 1, 'filing_status' => 'filed']);
     fakeDropboxFolder([dbxFile('id:dup', 'Scan.pdf')], ['id:dup' => '%PDF same'], [
+        'api.dropboxapi.com/2/files/move_v2' => fn (Request $r) => Http::response(['metadata' => dbxFile('id:dup', basename($r['to_path']))]),
         'api.dropboxapi.com/2/files/list_folder' => Http::sequence()
             ->push(['entries' => [dbxFile('id:dup', 'Scan.pdf')], 'has_more' => false])
             ->push(['entries' => [], 'has_more' => false]), // later: Sam deleted it in Dropbox
@@ -102,7 +103,9 @@ test('a file ernte already has is flagged as a duplicate, not read, and forgotte
     $dup = Receipt::where('dropbox_file_id', 'id:dup')->first();
     expect($dup->duplicate_of_id)->toBe($original->id);
     expect($dup->filing_status)->toBe('failed');
-    expect($dup->filing_error)->toContain('Rechnung 4711.pdf');
+    expect($dup->filing_error)->toContain('Rechnung 4711.pdf')->toContain('DUPLICATE-Scan.pdf');
+    expect($dup->dropbox_path)->toBe('/Diluno/Receipts/_Inbox/DUPLICATE-Scan.pdf');
+    Http::assertSent(fn (Request $r) => str_contains($r->url(), 'move_v2') && $r['to_path'] === '/Diluno/Receipts/_Inbox/DUPLICATE-Scan.pdf');
     expect($dup->isFlagged())->toBeTrue();
     Bus::assertNothingDispatched();
 
@@ -283,4 +286,64 @@ test('a filed receipt put back into the inbox is sorted again; a numbered one is
     expect($numbered->fresh()->filing_status)->toBe('filed');
     Bus::assertDispatched(FileReceipt::class, fn ($job) => $job->receiptId === $filed->id);
     Bus::assertNotDispatched(ExtractReceipt::class);
+});
+
+function anthropicInvoice(array $attrs = []): Receipt
+{
+    return Receipt::create($attrs + [
+        'source' => 'inbox', 'original_name' => 'Invoice-MZGGJ39D-0012.pdf', 'content_hash' => hash('sha256', uniqid()), 'original_mime' => 'application/pdf', 'size_bytes' => 4,
+        'extraction_status' => 'done', 'vendor' => 'Anthropic', 'invoice_number' => 'MZGGJ39D-0012', 'document_date' => '2026-08-04', 'total_minor' => 10810, 'currency' => 'USD',
+        'target_year' => 2026, 'target_month' => 8,
+    ]);
+}
+
+test('the same invoice downloaded twice is recognised by what it says and renamed DUPLICATE- in the inbox', function () {
+    $first = anthropicInvoice(['filename' => 'Invoice-MZGGJ39D-0012.pdf', 'filing_status' => 'filed', 'dropbox_file_id' => 'id:first', 'dropbox_path' => '/Diluno/Receipts/2026_Q3/08/Invoice-MZGGJ39D-0012.pdf']);
+    $second = anthropicInvoice(['vendor' => 'anthropic', 'filing_status' => 'inbox', 'dropbox_file_id' => 'id:second', 'dropbox_path' => '/Diluno/Receipts/_Inbox/Invoice-MZGGJ39D-0012.pdf']);
+    fakeDropboxFolder([dbxFile('id:second', 'Invoice-MZGGJ39D-0012.pdf')], [], [
+        'api.dropboxapi.com/2/files/move_v2' => Http::sequence()
+            ->push(['error_summary' => 'to/conflict/file/.'], 409) // an earlier DUPLICATE- of that name is still there
+            ->push(['metadata' => dbxFile('id:second', 'DUPLICATE-Invoice-MZGGJ39D-0012_2.pdf')]),
+    ]);
+
+    expect(app(ReceiptFiler::class)->file($second))->toBeFalse();
+
+    $moves = Http::recorded(fn (Request $r) => str_contains($r->url(), 'move_v2'))->map(fn ($p) => $p[0]['to_path'])->values()->all();
+    expect($moves)->toBe(['/Diluno/Receipts/_Inbox/DUPLICATE-Invoice-MZGGJ39D-0012.pdf', '/Diluno/Receipts/_Inbox/DUPLICATE-Invoice-MZGGJ39D-0012_2.pdf']);
+    $second->refresh();
+    expect($second)->duplicate_of_id->toBe($first->id)->filing_status->toBe('failed');
+    expect($second->filing_error)->toContain('Reads like the same document')->toContain('2026_Q3/08')->toContain('DUPLICATE-Invoice-MZGGJ39D-0012_2.pdf');
+    expect($first->fresh()->duplicate_of_id)->toBeNull();
+    expect($first->likelyDuplicateOf())->toBeNull(); // the earlier one is the original
+});
+
+test('different invoice numbers or totals, or no invoice number, are not duplicates', function () {
+    anthropicInvoice(['filing_status' => 'filed']);
+
+    expect(anthropicInvoice(['invoice_number' => 'MZGGJ39D-0013'])->likelyDuplicateOf())->toBeNull();
+    expect(anthropicInvoice(['total_minor' => 2000])->likelyDuplicateOf())->toBeNull();
+    expect(anthropicInvoice(['invoice_number' => null])->likelyDuplicateOf())->toBeNull();
+    expect(anthropicInvoice(['vendor' => 'OpenAI'])->likelyDuplicateOf())->toBeNull();
+    expect(anthropicInvoice()->likelyDuplicateOf())->not->toBeNull();
+});
+
+test('a likely duplicate uploaded through ernte is not filed; saying it is not one files it', function () {
+    $this->actingAs(App\Models\User::factory()->create());
+    Http::fake();
+    $first = anthropicInvoice(['filing_status' => 'filed']);
+    Storage::disk('local')->put('receipts/second.pdf', '%PDF');
+    $second = anthropicInvoice(['source' => 'upload', 'local_path' => 'receipts/second.pdf']);
+
+    expect(app(ReceiptFiler::class)->file($second))->toBeFalse();
+    expect($second->fresh())->duplicate_of_id->toBe($first->id);
+    expect($second->fresh()->filing_error)->toContain('Remove this receipt');
+    Http::assertNothingSent();
+
+    $this->post("/receipts/{$second->id}/file")->assertSessionHas('error');
+    $this->post("/receipts/{$second->id}/not-duplicate")->assertSessionHas('success');
+
+    $second->refresh();
+    expect($second)->duplicate_of_id->toBeNull()->not_duplicate->toBeTrue()->filing_status->toBe('pending');
+    expect($second->likelyDuplicateOf())->toBeNull();
+    Bus::assertDispatched(FileReceipt::class, fn ($job) => $job->receiptId === $second->id);
 });

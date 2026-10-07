@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class DropboxIntake
 {
-    public function __construct(private DropboxClient $dropbox) {}
+    public function __construct(private DropboxClient $dropbox, private ReceiptFiler $filer) {}
 
     public function inboxPath(): string
     {
@@ -81,12 +81,8 @@ class DropboxIntake
             ]);
 
             if ($original) {
-                $receipt->update([
-                    'duplicate_of_id' => $original->id,
-                    'extraction_status' => 'done',
-                    'filing_status' => 'failed',
-                    'filing_error' => 'Same file as "'.($original->filename ?? $original->original_name).'", which ernte already has. Delete this one from the inbox in Dropbox.',
-                ]);
+                $receipt->update(['extraction_status' => 'done', 'vendor' => $original->vendor, 'vendor_domain' => $original->vendor_domain]);
+                $this->filer->markDuplicate($receipt, $original, exact: true);
                 $result['duplicates']++;
 
                 continue;

@@ -32,6 +32,7 @@ const filing = computed(() => props.receipt.filing_status === 'pending' || props
 
 function save() { form.patch(`/receipts/${props.receipt.id}`, { preserveScroll: true }); }
 function reread() { router.post(`/receipts/${props.receipt.id}/extract`, {}, { preserveScroll: true }); }
+function notDuplicate() { router.post(`/receipts/${props.receipt.id}/not-duplicate`, {}, { preserveScroll: true }); }
 function refile() { router.post(`/receipts/${props.receipt.id}/file`, {}, { preserveScroll: true }); }
 function remove() {
   const text = props.receipt.dropbox_path
@@ -87,7 +88,13 @@ const MONTHS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11'
 
     <form class="receipt-side" @submit.prevent="save">
       <p v-if="receipt.extraction_error" class="receipt-alert">Could not be read: {{ receipt.extraction_error }}</p>
-      <p v-if="receipt.filing_error" class="receipt-alert">{{ receipt.filing_error }}</p>
+      <p v-if="receipt.filing_error" class="receipt-alert">
+        {{ receipt.filing_error }}
+        <template v-if="receipt.duplicate_of">
+          <br /><Link :href="`/receipts/${receipt.duplicate_of.id}`" class="link-ink">Open the other receipt</Link>
+          · <button type="button" class="ledger-link" @click="notDuplicate">Not a duplicate, file it</button>
+        </template>
+      </p>
       <p v-if="receipt.confidence === 'low' && !receipt.extraction_error" class="receipt-alert">Read with low confidence. Check the fields against the document.</p>
 
       <section>

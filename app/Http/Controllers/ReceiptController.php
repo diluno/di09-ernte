@@ -125,6 +125,10 @@ class ReceiptController extends Controller
                 'filing_error' => $receipt->filing_error,
                 'dropbox_path' => $receipt->dropbox_path,
                 'has_text_layer' => $receipt->text_layer !== null,
+                'duplicate_of' => $receipt->duplicateOf ? [
+                    'id' => $receipt->duplicateOf->id,
+                    'label' => $receipt->duplicateOf->filename ?? $receipt->duplicateOf->original_name,
+                ] : null,
                 'paid_by' => ($line = $receipt->statementLine) ? [
                     'state' => $receipt->match_state,
                     'kind' => $line->source === 'viseca' ? 'Credit card' : 'Bank account',
@@ -247,7 +251,7 @@ class ReceiptController extends Controller
             return back()->with('error', 'This receipt is already in Dropbox.');
         }
         if ($receipt->duplicate_of_id) {
-            return back()->with('error', 'This is a duplicate; delete it from the inbox in Dropbox instead.');
+            return back()->with('error', 'This is marked as a duplicate. Delete it in Dropbox, or say it is not a duplicate first.');
         }
         // For a file waiting in the Dropbox inbox, "file now" is Sam confirming the month shown.
         $receipt->update($receipt->dropbox_file_id
@@ -256,6 +260,22 @@ class ReceiptController extends Controller
         FileReceipt::dispatch($receipt->id);
 
         return back()->with('success', 'Filing the receipt…');
+    }
+
+    /** It only reads like another receipt; treat it as its own document and file it. */
+    public function notDuplicate(Receipt $receipt, ReceiptFiler $filer): RedirectResponse
+    {
+        if (! $receipt->duplicate_of_id) {
+            return back();
+        }
+        if (Receipt::where('content_hash', $receipt->content_hash)->whereKeyNot($receipt->id)->whereNull('duplicate_of_id')->exists()) {
+            return back()->with('error', 'This is byte for byte the same file as another receipt; it cannot be filed twice.');
+        }
+
+        $filer->notDuplicate($receipt);
+        FileReceipt::dispatch($receipt->id);
+
+        return back()->with('success', 'Filing it as its own receipt…');
     }
 
     /** Look into the Dropbox inbox now instead of waiting for the next scheduled check. */

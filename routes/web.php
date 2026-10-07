@@ -117,6 +117,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/receipts/{receipt}', [ReceiptController::class, 'show'])->name('receipts.show');
     Route::get('/receipts/{receipt}/file', [ReceiptController::class, 'file'])->name('receipts.file');
     Route::patch('/receipts/{receipt}', [ReceiptController::class, 'update'])->name('receipts.update');
+    Route::post('/receipts/{receipt}/not-duplicate', [ReceiptController::class, 'notDuplicate'])->name('receipts.not-duplicate');
     Route::post('/receipts/{receipt}/extract', [ReceiptController::class, 'extract'])->name('receipts.extract');
     Route::post('/receipts/{receipt}/file', [ReceiptController::class, 'refile'])->name('receipts.refile');
     Route::delete('/receipts/{receipt}', [ReceiptController::class, 'destroy'])->name('receipts.destroy');
