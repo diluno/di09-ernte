@@ -5,6 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import Heatmap from '@/Components/Heatmap.vue';
 import EntryRow from '@/Components/EntryRow.vue';
 import TaskRow from '@/Components/TaskRow.vue';
+import ProjectNotes from '@/Components/ProjectNotes.vue';
 import Icon from '@/Components/Icon.vue';
 import { pushRecent } from '@/composables/useRecent.js';
 import { formatChf } from '@/formatters/money.js';
@@ -16,6 +17,7 @@ const props = defineProps({
   project: { type: Object, required: true },
   tasks:   { type: Array,  required: true },
   recent_entries: { type: Array, required: true },
+  notes:   { type: Array,  required: true },
   heatmap: { type: Array, required: true },
   counts:  { type: Object, required: true },
 });
@@ -144,6 +146,9 @@ const remaining = computed(() => Math.max(0, props.project.budget_hours - props.
           {{ Object.values(taskForm.errors).join(' · ') }}
         </div>
       </div>
+
+      <h3 class="section-title" style="margin-top: 28px">Notes <span v-if="counts.notes" class="muted">{{ counts.notes }}</span></h3>
+      <ProjectNotes :project-code="project.code" :notes="notes" />
 
       <h3 class="section-title" style="margin-top: 28px">Recent entries</h3>
       <div>

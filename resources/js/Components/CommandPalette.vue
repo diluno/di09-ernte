@@ -94,7 +94,7 @@ watch(query, scheduleFetch);
           <input
             ref="input"
             v-model="query"
-            :placeholder="mode === 'project' ? 'project…' : 'project, client, invoice…'"
+            :placeholder="mode === 'project' ? 'project…' : 'project, client, invoice, note…'"
             @keydown="onKeydown"
           />
           <span class="kbd">esc</span>
