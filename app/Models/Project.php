@@ -32,6 +32,7 @@ class Project extends Model
     public function client() { return $this->belongsTo(Client::class); }
     public function tasks() { return $this->hasMany(Task::class); }
     public function timeEntries() { return $this->hasMany(TimeEntry::class); }
+    public function notes() { return $this->hasMany(ProjectNote::class)->orderByDesc('created_at')->orderByDesc('id'); }
 
     public function scopeActive($q) { return $q->where('status', 'active'); }
     public function scopeArchived($q) { return $q->where('status', 'archived'); }

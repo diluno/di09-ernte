@@ -8,6 +8,7 @@ use App\Http\Controllers\EstimateController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectNoteController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\RecurringInvoiceController;
 use App\Http\Controllers\SearchController;
@@ -34,6 +35,10 @@ Route::middleware('auth')->group(function () {
     Route::patch('/tasks/reorder', [TaskController::class, 'reorder'])->name('tasks.reorder');
     Route::patch('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
+
+    Route::post('/projects/{project:code}/notes', [ProjectNoteController::class, 'store'])->name('project-notes.store');
+    Route::patch('/project-notes/{projectNote}', [ProjectNoteController::class, 'update'])->name('project-notes.update');
+    Route::delete('/project-notes/{projectNote}', [ProjectNoteController::class, 'destroy'])->name('project-notes.destroy');
 
     Route::get('/timer', [TimerController::class, 'show'])->name('timer.show');
     Route::post('/timer/start', [TimerController::class, 'start'])->name('timer.start');
