@@ -4,6 +4,7 @@ use App\Models\Client;
 use App\Models\Contact;
 use App\Models\Invoice;
 use App\Models\Project;
+use App\Models\ProjectNote;
 use App\Models\User;
 
 beforeEach(function () {
@@ -87,4 +88,42 @@ test('type filter narrows search results', function () {
 
     expect($results)->not->toBeEmpty();
     expect(collect($results)->pluck('type')->unique()->all())->toBe(['project']);
+});
+
+test('search finds a project note by its text and links to it', function () {
+    $project = Project::factory()->create(['name' => 'Fleet Dashboard', 'code' => 'ATLS-FLT']);
+    $note = ProjectNote::factory()->create([
+        'project_id' => $project->id,
+        'body' => "Staging login lives in the vault.\nAsk Mara for the **kumquat** token before go-live.",
+    ]);
+
+    $hit = collect($this->actingAs($this->user)->getJson('/api/search?q=kumquat')->assertOk()->json())
+        ->firstWhere('type', 'note');
+
+    expect($hit['id'])->toBe($note->id);
+    expect($hit['label'])->toBe('Fleet Dashboard');
+    expect($hit['url'])->toBe("/projects/ATLS-FLT#note-{$note->id}");
+    expect($hit['sublabel'])->toContain('kumquat')->not->toContain("\n");
+});
+
+test('notes stay visible when other results would fill the list', function () {
+    $client = Client::factory()->create(['name' => 'Kumquat AG']);
+    Project::factory()->count(5)->create(['client_id' => $client->id]);
+    Invoice::factory()->count(5)->create(['client_id' => $client->id]);
+    ProjectNote::factory()->create(['body' => 'kumquat follow-up']);
+
+    $results = collect($this->actingAs($this->user)->getJson('/api/search?q=kumquat')->json());
+
+    expect($results)->toHaveCount(8);
+    expect($results->where('type', 'note'))->toHaveCount(1);
+});
+
+test('notes are left out of empty and type-filtered searches', function () {
+    ProjectNote::factory()->create(['body' => 'kumquat']);
+
+    $empty = collect($this->actingAs($this->user)->getJson('/api/search')->json());
+    $typed = collect($this->actingAs($this->user)->getJson('/api/search?q=kumquat&type=project')->json());
+
+    expect($empty->where('type', 'note'))->toBeEmpty();
+    expect($typed->where('type', 'note'))->toBeEmpty();
 });

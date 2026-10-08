@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Project;
+use App\Models\ProjectNote;
 use App\Models\Task;
 use App\Models\TimeEntry;
 use Illuminate\Support\Carbon;
@@ -48,10 +49,12 @@ class ProjectDetail
             ],
             'tasks' => self::tasks($project),
             'recent_entries' => self::recentEntries($project, limit: 8),
+            'notes' => self::notes($project),
             'heatmap' => self::heatmap($project),
             'counts' => [
                 'entries' => TimeEntry::where('project_id', $project->id)->count(),
                 'tasks' => Task::where('project_id', $project->id)->count(),
+                'notes' => ProjectNote::where('project_id', $project->id)->count(),
             ],
         ];
     }
@@ -100,6 +103,20 @@ class ProjectDetail
                 'duration_seconds' => $e->duration_seconds,
                 'billable' => (bool) $e->billable,
                 'running' => $e->ended_at === null,
+            ])
+            ->all();
+    }
+
+    private static function notes(Project $project): array
+    {
+        return $project->notes()
+            ->get()
+            ->map(fn (ProjectNote $n) => [
+                'id' => $n->id,
+                'body' => $n->body,
+                'body_html' => Markdown::toHtml($n->body),
+                'created_at' => $n->created_at->toIso8601String(),
+                'edited' => $n->updated_at->gt($n->created_at),
             ])
             ->all();
     }

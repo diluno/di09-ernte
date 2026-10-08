@@ -2,6 +2,7 @@
 
 use App\Models\Client;
 use App\Models\Project;
+use App\Models\ProjectNote;
 use App\Models\TimeEntry;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -361,5 +362,36 @@ test('POST /tasks adds a task that appears on the project show payload', functio
                 ->where('budget_hours', 4)
                 ->etc()
             )
+        );
+});
+
+test('Projects/Show payload lists notes newest first with rendered markdown', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    ProjectNote::factory()->create(['project_id' => $project->id, 'body' => 'older', 'created_at' => now()->subDays(2), 'updated_at' => now()->subDays(2)]);
+    $edited = ProjectNote::factory()->create(['project_id' => $project->id, 'body' => 'Agreed **fixed price**', 'created_at' => now()->subDay(), 'updated_at' => now()]);
+
+    $this->actingAs($user)->get("/projects/{$project->code}")
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('counts.notes', 2)
+            ->has('notes', 2)
+            ->where('notes.0.id', $edited->id)
+            ->where('notes.0.body', 'Agreed **fixed price**')
+            ->where('notes.0.body_html', fn ($html) => str_contains($html, '<strong>fixed price</strong>'))
+            ->where('notes.0.edited', true)
+            ->has('notes.0.created_at')
+            ->where('notes.1.body', 'older')
+            ->where('notes.1.edited', false)
+        );
+});
+
+test('note html escapes raw html in the body', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    ProjectNote::factory()->create(['project_id' => $project->id, 'body' => '<script>alert(1)</script>']);
+
+    $this->actingAs($user)->get("/projects/{$project->code}")
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('notes.0.body_html', fn ($html) => ! str_contains($html, '<script>') && str_contains($html, '&lt;script&gt;'))
         );
 });

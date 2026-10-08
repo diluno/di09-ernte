@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\Project;
+use App\Models\ProjectNote;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class SearchController extends Controller
 {
@@ -31,7 +33,10 @@ class SearchController extends Controller
             $results = $results->merge($this->invoices($query, $type ? 8 : 4));
         }
 
-        return response()->json($results->take(8)->values());
+        // Notes only join a typed, unfiltered search, and get room among the 8 rows.
+        $notes = (! $type && $query !== '') ? $this->notes($query, 2) : [];
+
+        return response()->json($results->take(8 - count($notes))->merge($notes)->values());
     }
 
     private function projects(string $query, int $limit): array
@@ -101,6 +106,28 @@ class SearchController extends Controller
                 'sublabel' => "{$invoice->client->name} · {$invoice->status}",
                 'url' => "/invoices/{$invoice->number}",
             ])
+            ->all();
+    }
+
+    private function notes(string $query, int $limit): array
+    {
+        return ProjectNote::query()
+            ->with('project:id,name,code')
+            ->where('body', 'like', "%{$query}%")
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get()
+            ->map(function (ProjectNote $note) use ($query) {
+                $body = Str::squish($note->body);
+
+                return [
+                    'type' => 'note',
+                    'id' => $note->id,
+                    'label' => $note->project->name,
+                    'sublabel' => Str::excerpt($body, $query, ['radius' => 40]) ?? Str::limit($body, 80),
+                    'url' => "/projects/{$note->project->code}#note-{$note->id}",
+                ];
+            })
             ->all();
     }
 }
