@@ -138,7 +138,7 @@
     .notes { margin-top: 8mm; font-size: 10pt; line-height: 1.5; }
     .notes p { margin: 0 0 2.5mm; }
     .notes strong { font-weight: 600; }
-    .notes a { color: inherit; text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: .6mm; }
+    .notes a, .line-desc a, .item-desc a, table td a { color: inherit; text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: .6mm; }
     .notes ul, .notes ol { margin: 0 0 3mm; padding-left: 0; }
     .notes ol { padding-left: 5mm; }
     .notes ul { list-style: none; }

@@ -42,3 +42,10 @@ test('renders tables with column alignment', function () {
     expect($html)->toContain('<table>');
     expect($html)->toContain('<td align="right">960.–</td>');
 });
+
+test('turns bare URLs and email addresses into links', function () {
+    $html = Markdown::toHtml('Staging: https://staging.example.com/login, Fragen an hallo@example.com');
+
+    expect($html)->toContain('<a href="https://staging.example.com/login">https://staging.example.com/login</a>');
+    expect($html)->toContain('<a href="mailto:hallo@example.com">hallo@example.com</a>');
+});

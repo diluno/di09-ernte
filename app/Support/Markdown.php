@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use League\CommonMark\Environment\Environment;
+use League\CommonMark\Extension\Autolink\AutolinkExtension;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\Table\TableExtension;
 use League\CommonMark\MarkdownConverter;
@@ -13,7 +14,8 @@ class Markdown
      * Convert user-entered markdown (e.g. the invoice/estimate notes) to safe HTML.
      *
      * Single newlines are preserved as <br> so plain-textarea input keeps its line
-     * breaks, and raw HTML in the input is escaped to prevent injection.
+     * breaks, bare URLs and email addresses become links, and raw HTML in the input
+     * is escaped to prevent injection.
      */
     public static function toHtml(?string $markdown): string
     {
@@ -30,6 +32,7 @@ class Markdown
         ]);
         $environment->addExtension(new CommonMarkCoreExtension);
         $environment->addExtension(new TableExtension);
+        $environment->addExtension(new AutolinkExtension);
 
         return (string) (new MarkdownConverter($environment))->convert($markdown);
     }
