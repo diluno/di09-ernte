@@ -36,10 +36,20 @@ function receipt(array $attrs = [], string $contents = '%PDF-1.4 test'): Receipt
     unset($attrs['ext']);
     Storage::disk('local')->put($path, $contents);
 
-    return Receipt::create($attrs + [
+    // created_at is not fillable; set it explicitly so tests can pin the arrival date.
+    $createdAt = $attrs['created_at'] ?? null;
+    unset($attrs['created_at']);
+    $receipt = new Receipt($attrs + [
         'original_name' => $photo ? 'IMG_4821.jpg' : 'Rechnung 4711.pdf', 'content_hash' => $hash,
         'original_mime' => 'application/pdf', 'size_bytes' => strlen($contents), 'local_path' => $path,
     ]);
+    if ($createdAt) {
+        // Eloquent stores the wall-clock of whatever zone the instance carries; normalise to the app zone first.
+        $receipt->created_at = Carbon::parse($createdAt)->setTimezone(config('app.timezone'));
+    }
+    $receipt->save();
+
+    return $receipt;
 }
 
 function fields(array $override = []): array
@@ -123,7 +133,7 @@ test('model output is cleaned into predictable fields', function () {
 
 test('extraction stores fields and parks the receipt in the month of its date', function () {
     fakeExtractor();
-    $receipt = receipt();
+    $receipt = receipt(['created_at' => Carbon::parse('2026-09-20 10:00:00', 'UTC')]);
 
     (new ExtractReceipt($receipt->id))->handle(app(ReceiptExtractor::class), app(PdfText::class), app(DropboxClient::class));
 
@@ -136,6 +146,26 @@ test('extraction stores fields and parks the receipt in the month of its date', 
     expect($receipt->payment_method)->toBe('card');
     expect([$receipt->target_year, $receipt->target_month])->toBe([2026, 9]);
     expect($receipt->isFlagged())->toBeFalse();
+});
+
+test('an upload dated for an earlier month is parked in the month it arrived', function () {
+    fakeExtractor(fields(['document_date' => '2026-09-30']));
+    $receipt = receipt(['created_at' => Carbon::parse('2026-10-08 09:17:00', 'UTC')]);
+
+    (new ExtractReceipt($receipt->id))->handle(app(ReceiptExtractor::class), app(PdfText::class), app(DropboxClient::class));
+
+    $receipt->refresh();
+    expect($receipt->document_date->toDateString())->toBe('2026-09-30');
+    expect([$receipt->target_year, $receipt->target_month])->toBe([2026, 10]);
+});
+
+test('a receipt imported from the Dropbox folders keeps its own month however late ernte sees it', function () {
+    fakeExtractor(fields(['document_date' => '2026-07-14']));
+    $receipt = receipt(['source' => 'existing', 'created_at' => Carbon::parse('2026-10-08 09:17:00', 'UTC')]);
+
+    (new ExtractReceipt($receipt->id))->handle(app(ReceiptExtractor::class), app(PdfText::class), app(DropboxClient::class));
+
+    expect([$receipt->fresh()->target_year, $receipt->fresh()->target_month])->toBe([2026, 7]);
 });
 
 test('without a date the upload month in Zurich is used and the receipt is flagged', function () {

@@ -9,6 +9,7 @@ use App\Services\Receipts\ReceiptExtractor;
 use App\Services\Receipts\VendorLogos;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -111,15 +112,23 @@ class ExtractReceipt implements ShouldQueue
     }
 
     /**
-     * The parking month follows the receipt's own date; without one, the upload date in
-     * Zurich. A month Sam chose, or a receipt already in Dropbox, is left alone.
+     * The parking month follows the receipt's own date; without one, the arrival date in
+     * Zurich. A receipt that arrives after the month it is dated for (an invoice dated the
+     * 30th, paid in the next month) is parked in the month it arrived, because the
+     * accountant books it when it is paid. Receipts imported from the Dropbox folders keep
+     * their own date: they were filed long before ernte saw them. A month Sam chose, or a
+     * receipt already in Dropbox, is left alone.
      */
     private function targetFrom(Receipt $receipt, ?string $documentDate): array
     {
         if ($receipt->target_edited || $receipt->filing_status === 'filed') {
             return [];
         }
-        $date = $documentDate ? \Illuminate\Support\Carbon::parse($documentDate) : $receipt->created_at->timezone('Europe/Zurich');
+        $arrived = $receipt->created_at->timezone('Europe/Zurich')->startOfMonth();
+        $date = $documentDate ? Carbon::parse($documentDate)->startOfMonth() : $arrived;
+        if (in_array($receipt->source, ['upload', 'inbox'], true) && $date->lt($arrived)) {
+            $date = $arrived;
+        }
 
         return ['target_year' => (int) $date->year, 'target_month' => (int) $date->month];
     }
