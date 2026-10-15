@@ -239,7 +239,7 @@
         @if ($doc->issued_on)<span>Datum</span><b>{{ $date($doc->issued_on) }}</b>@endif
         @if ($until)<span>{{ $untilLabel }}</span><b @class(['is-red' => $isInvoice && $doc->overdue])>{{ $date($until) }}</b>@endif
         @if ($doc->project)<span>Projekt</span><span>{{ $doc->project->name }}</span>@endif
-        @if ($showPeriod)<span>Periode</span><span>{{ $doc->period_start->format('d.m.') }} – {{ $doc->period_end->format('d.m.Y') }}</span>@endif
+        @if ($showPeriod)<span>Periode</span><span>{{ $doc->period_start->format($doc->period_start->year === $doc->period_end->year ? 'd.m.' : 'd.m.Y') }} – {{ $doc->period_end->format('d.m.Y') }}</span>@endif
         @if ($profile->uid)<span>UID</span><span>{{ $profile->uid }}</span>@endif
       </div>
     </div>
