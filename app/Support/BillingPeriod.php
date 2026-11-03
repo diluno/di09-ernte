@@ -13,7 +13,7 @@ class BillingPeriod
      *
      * @return array{start: Carbon, end: Carbon, label: string}
      */
-    public static function for(string $cadence, Carbon $runDate, int $anchorDay): array
+    public static function for(string $cadence, Carbon $runDate, int $anchorDay, string $locale = 'de'): array
     {
         $start = $runDate->copy()->startOfDay();
         $end = self::advance($cadence, $start, $anchorDay)->subDay();
@@ -21,7 +21,7 @@ class BillingPeriod
         return [
             'start' => $start,
             'end' => $end,
-            'label' => self::label($start, $end),
+            'label' => self::label($start, $end, $locale),
         ];
     }
 
@@ -65,17 +65,17 @@ class BillingPeriod
     }
 
     /**
-     * A German month-year label for the period: a single "MMMM YYYY" when the span
+     * A month-year label for the period in $locale: a single "MMMM YYYY" when the span
      * stays within one calendar month, otherwise "MMMM YYYY – MMMM YYYY".
      */
-    private static function label(Carbon $start, Carbon $end): string
+    private static function label(Carbon $start, Carbon $end, string $locale): string
     {
-        $startLabel = $start->copy()->locale('de')->translatedFormat('F Y');
+        $startLabel = $start->copy()->locale($locale)->translatedFormat('F Y');
 
         if ($start->isSameMonth($end)) {
             return $startLabel;
         }
 
-        return $startLabel.' – '.$end->copy()->locale('de')->translatedFormat('F Y');
+        return $startLabel.' – '.$end->copy()->locale($locale)->translatedFormat('F Y');
     }
 }

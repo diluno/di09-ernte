@@ -4,23 +4,28 @@ namespace App\Services\Estimating;
 
 use App\Models\BusinessProfile;
 use App\Models\Estimate;
+use App\Support\DocumentLocale;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Traits\Localizable;
 use Spatie\Browsershot\Browsershot;
 
 class EstimatePdfRenderer
 {
+    use Localizable;
+
     /** Render the estimate document to an HTML string (used by /preview and the PDF). */
     public function html(Estimate $estimate): string
     {
         $estimate->loadMissing(['client.contacts', 'project', 'lines' => fn ($q) => $q->orderBy('sort_order')]);
 
-        return View::make('documents.pdf', [
+        // Client-facing output renders in the document's language.
+        return $this->withLocale($estimate->locale ?? DocumentLocale::DEFAULT, fn () => View::make('documents.pdf', [
             'doc' => $estimate,
             'kind' => 'estimate',
             'profile' => BusinessProfile::current(),
             'qrBillHtml' => null,
-        ])->render();
+        ])->render());
     }
 
     /** Render to a cached PDF on the local disk; returns the storage-relative path. */

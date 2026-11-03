@@ -16,6 +16,7 @@ class UpdateInvoiceRequest extends FormRequest
     {
         return [
             'title' => 'sometimes|nullable|string|max:255',
+            'locale' => 'sometimes|required|'.\App\Support\DocumentLocale::rule(),
             'notes' => 'sometimes|nullable|string|max:20000',
             'period_start' => 'sometimes|nullable|date',
             'period_end' => 'sometimes|nullable|date|after_or_equal:period_start',

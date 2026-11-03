@@ -87,6 +87,15 @@ function archive() {
       <span>Default rate (rappen)</span>
       <input type="number" v-model="form.default_rate_rappen" min="0" />
     </label>
+    <label class="field">
+      <span>Document language</span>
+      <select v-model="form.locale">
+        <option value="de">German</option>
+        <option value="en">English</option>
+      </select>
+      <small class="hint">Mails, PDFs and the QR bill for new invoices and estimates.</small>
+      <small v-if="form.errors.locale" class="err">{{ form.errors.locale }}</small>
+    </label>
     <div class="field" style="grid-column: span 2">
       <span>Contacts</span>
       <ContactsEditor v-model="form.contacts" />
@@ -101,10 +110,11 @@ function archive() {
 
 <style scoped>
 .field { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); color: var(--ink-2); }
-.field input {
+.field input, .field select {
   border: 1px solid var(--border-strong); background: var(--paper);
   padding: 6px 8px; font-family: inherit; color: var(--ink);
 }
-.field input:focus { outline: none; border-color: var(--accent); }
+.field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
 .err { color: var(--red); font-size: var(--fs-xs); }
+.hint { color: var(--ink-3); font-size: var(--fs-xs); }
 </style>

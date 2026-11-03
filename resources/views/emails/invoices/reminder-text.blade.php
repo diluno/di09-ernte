@@ -3,19 +3,19 @@
     $contactName = $invoice->client->defaultRecipients()[0]['name'] ?? null;
 @endphp
 
-Guten Tag{{ $contactName ? ' ' . $contactName : '' }}
+{{ $contactName ? __('mail.greeting_named', ['name' => $contactName]) : __('mail.greeting') }}
 
-Wir möchten Sie freundlich an die noch offene Rechnung {{ $invoice->number }} erinnern.
+{{ __('mail.reminder_intro', ['number' => $invoice->number]) }}
 
 @if ($invoice->title)
-Betreff: {{ $invoice->title }}
+{{ __('mail.subject_label') }}: {{ $invoice->title }}
 @endif
-Rechnungsbetrag: {!! $fmt((int) $invoice->total_rappen) !!}
-Fällig seit: {{ optional($invoice->due_on)->format('d.m.Y') }}
+{{ __('mail.invoice_amount') }}: {!! $fmt((int) $invoice->total_rappen) !!}
+{{ __('mail.overdue_since') }}: {{ optional($invoice->due_on)->format('d.m.Y') }}
 
-Falls die Zahlung bereits unterwegs ist, betrachten Sie diese Nachricht bitte als gegenstandslos.
+{{ __('mail.reminder_disregard') }}
 
-Freundliche Grüsse
+{{ __('mail.regards') }}
 @if ($profile->sender_name)
 {{ $profile->sender_name }}
 @endif

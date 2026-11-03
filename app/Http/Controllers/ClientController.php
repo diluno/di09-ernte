@@ -51,7 +51,7 @@ class ClientController extends Controller
                 ...$client->only([
                     'id', 'name', 'short_code',
                     'address_line_1', 'address_line_2', 'postal_code', 'city', 'country',
-                    'vat_id', 'default_rate_rappen',
+                    'vat_id', 'default_rate_rappen', 'locale',
                 ]),
                 'contacts' => $client->contacts->map(fn ($c) => [
                     'id' => $c->id, 'name' => $c->name, 'email' => $c->email,

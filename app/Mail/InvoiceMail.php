@@ -22,6 +22,8 @@ class InvoiceMail extends Mailable
     ) {
         $this->invoice->loadMissing(['client', 'project', 'lines']);
         $this->profile = BusinessProfile::current();
+        // Subject, body and attachment name follow the document's language.
+        $this->locale($this->invoice->locale ?? \App\Support\DocumentLocale::DEFAULT);
     }
 
     public function build(): self
@@ -34,7 +36,7 @@ class InvoiceMail extends Mailable
             ->replyTo($from, $name)
             // Copy every outgoing mail to the operator so the sent mail is on file.
             ->bcc($from, $name)
-            ->subject(implode(' - ', array_filter(["Rechnung {$this->invoice->number}", $this->invoice->title, $name])))
+            ->subject(implode(' - ', array_filter([__('mail.invoice_subject', ['number' => $this->invoice->number], $this->locale), $this->invoice->title, $name])))
             ->view('emails.invoices.sent')
             ->text('emails.invoices.sent-text')
             ->with([

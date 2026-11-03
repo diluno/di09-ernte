@@ -5,22 +5,22 @@
     $contactName = $invoice->client->defaultRecipients()[0]['name'] ?? null;
 @endphp
 
-@section('title', "Zahlungserinnerung Rechnung {$invoice->number}")
-@section('kind', 'Zahlungserinnerung')
+@section('title', __('mail.reminder_subject', ['number' => $invoice->number]))
+@section('kind', __('mail.reminder_kind'))
 
 @section('content')
-  <p>Guten Tag{{ $contactName ? ' ' . $contactName : '' }}</p>
+  <p>{{ $contactName ? __('mail.greeting_named', ['name' => $contactName]) : __('mail.greeting') }}</p>
 
-  <p>Wir möchten Sie freundlich an die noch offene Rechnung {{ $invoice->number }} erinnern.</p>
+  <p>{{ __('mail.reminder_intro', ['number' => $invoice->number]) }}</p>
 
   @include('emails.partials.meta', ['rows' => [
-      ['label' => 'Rechnung', 'value' => $invoice->number],
-      ...($invoice->title ? [['label' => 'Betreff', 'value' => $invoice->title, 'wrap' => true]] : []),
-      ['label' => 'Rechnungsbetrag', 'value' => $fmt((int) $invoice->total_rappen), 'strong' => true],
-      ['label' => 'Fällig seit', 'value' => optional($invoice->due_on)->format('d.m.Y') ?? '—', 'red' => true],
+      ['label' => __('mail.invoice_kind'), 'value' => $invoice->number],
+      ...($invoice->title ? [['label' => __('mail.subject_label'), 'value' => $invoice->title, 'wrap' => true]] : []),
+      ['label' => __('mail.invoice_amount'), 'value' => $fmt((int) $invoice->total_rappen), 'strong' => true],
+      ['label' => __('mail.overdue_since'), 'value' => optional($invoice->due_on)->format('d.m.Y') ?? '—', 'red' => true],
   ]])
 
-  <p>Falls die Zahlung bereits unterwegs ist, betrachten Sie diese Nachricht bitte als gegenstandslos.</p>
+  <p>{{ __('mail.reminder_disregard') }}</p>
 
-  <p style="margin:0;">Freundliche Grüsse<br>@if ($profile->sender_name){{ $profile->sender_name }}<br>@endif{{ $profile->name }}</p>
+  <p style="margin:0;">{{ __('mail.regards') }}<br>@if ($profile->sender_name){{ $profile->sender_name }}<br>@endif{{ $profile->name }}</p>
 @endsection

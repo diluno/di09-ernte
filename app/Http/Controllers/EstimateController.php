@@ -147,6 +147,7 @@ class EstimateController extends Controller
                 'client_id' => $estimate->client_id,
                 'project_id' => $estimate->project_id,
                 'title' => $estimate->title,
+                'locale' => $estimate->locale,
                 'notes' => $estimate->notes,
                 'assumptions' => $estimate->assumptions ?? [],
                 'tax_date' => ($estimate->issued_on ?? $estimate->created_at)?->toDateString(),

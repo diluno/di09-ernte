@@ -23,6 +23,7 @@ final class EstimateInputRules
     {
         return [
             'client_id' => 'sometimes|required|integer|exists:clients,id',
+            'locale' => 'sometimes|required|'.DocumentLocale::rule(),
             'project_id' => ['sometimes', 'nullable', 'integer', self::projectForClient($clientId)],
             'title' => 'sometimes|nullable|string|max:255',
             'notes' => 'sometimes|nullable|string|max:20000',

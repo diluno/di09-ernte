@@ -86,7 +86,7 @@ class EstimateBuilder
     public function updateDraft(Estimate $estimate, array $data): Estimate
     {
         return DB::transaction(function () use ($estimate, $data) {
-            foreach (['client_id', 'project_id', 'title', 'notes', 'recipients'] as $field) {
+            foreach (['client_id', 'project_id', 'locale', 'title', 'notes', 'recipients'] as $field) {
                 if (array_key_exists($field, $data)) {
                     $estimate->{$field} = $data[$field];
                 }

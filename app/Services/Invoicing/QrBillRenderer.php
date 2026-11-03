@@ -18,6 +18,8 @@ class QrBillRenderer
     public function html(Invoice $invoice): string
     {
         $profile = BusinessProfile::current();
+        // The payment part is printed in the invoice language (the library ships de/fr/it/en).
+        $locale = $invoice->locale ?? \App\Support\DocumentLocale::DEFAULT;
         $qrBill = QrBill\QrBill::create();
 
         // Creditor (us).
@@ -89,7 +91,7 @@ class QrBillRenderer
 
         // Additional info: the invoice number, so the payer can reconcile.
         $qrBill->setAdditionalInformation(
-            QrBill\DataGroup\Element\AdditionalInformation::create("Rechnung {$invoice->number}")
+            QrBill\DataGroup\Element\AdditionalInformation::create(__('documents.invoice', [], $locale)." {$invoice->number}")
         );
 
         $violations = $qrBill->getViolations();
@@ -101,7 +103,7 @@ class QrBillRenderer
             throw new \RuntimeException('Invalid QR bill: '.implode('; ', $messages));
         }
 
-        $output = new QrBill\PaymentPart\Output\HtmlOutput\HtmlOutput($qrBill, 'de');
+        $output = new QrBill\PaymentPart\Output\HtmlOutput\HtmlOutput($qrBill, $locale);
 
         $displayOptions = (new DisplayOptions)->setPrintable(false);
 

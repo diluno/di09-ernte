@@ -68,12 +68,16 @@ const totals = computed(() => {
 });
 const canSave = computed(() => lines.value.length > 0);
 
+// Language of the PDF, the mail and the QR bill.
+const locale = ref(props.invoice.locale ?? 'de');
+
 const form = useForm({
   recipients: props.invoice.recipients ?? [],
 });
 function save() {
   form.transform(() => ({
     title: title.value || null,
+    locale: locale.value,
     notes: notes.value || null,
     period_start: periodStart.value || null,
     period_end: periodEnd.value || null,
@@ -120,6 +124,13 @@ function save() {
         <label class="field" style="flex: 1">
           <span>Period end</span>
           <input v-model="periodEnd" type="date" />
+        </label>
+        <label class="field" style="flex: 0 0 120px">
+          <span>Language</span>
+          <select v-model="locale">
+            <option value="de">German</option>
+            <option value="en">English</option>
+          </select>
         </label>
       </div>
 

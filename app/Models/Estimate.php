@@ -9,8 +9,16 @@ class Estimate extends Model
 {
     use HasFactory;
 
+    /** New documents default to the client's language; set explicitly to override. */
+    protected static function booted(): void
+    {
+        static::creating(function (self $doc) {
+            $doc->locale ??= $doc->client?->locale ?? \App\Support\DocumentLocale::DEFAULT;
+        });
+    }
+
     protected $fillable = [
-        'number', 'client_id', 'project_id',
+        'number', 'client_id', 'locale', 'project_id',
         'issued_on', 'valid_until',
         'status', 'currency', 'vat_rate',
         'subtotal_rappen', 'vat_rappen', 'rounding_rappen', 'total_rappen',
@@ -57,6 +65,6 @@ class Estimate extends Model
     /** Client-facing PDF filename, e.g. "Diluno-GmbH-Offerte-OF-2026-014.pdf". */
     public function pdfFilename(): string
     {
-        return BusinessProfile::current()->documentFilename('Offerte', $this->number);
+        return BusinessProfile::current()->documentFilename(__('documents.estimate', [], $this->locale ?? \App\Support\DocumentLocale::DEFAULT), $this->number);
     }
 }

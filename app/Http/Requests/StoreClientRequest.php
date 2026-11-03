@@ -20,6 +20,7 @@ class StoreClientRequest extends FormRequest
             'country' => 'required|string|size:2',
             'vat_id' => 'nullable|string|max:64',
             'default_rate_rappen' => 'nullable|integer|min:0',
+            'locale' => 'sometimes|required|'.\App\Support\DocumentLocale::rule(),
             'contacts' => 'sometimes|array',
             'contacts.*.id' => 'sometimes|integer',
             'contacts.*.name' => 'required|string|max:255',

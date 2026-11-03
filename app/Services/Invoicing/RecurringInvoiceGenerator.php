@@ -7,6 +7,7 @@ use App\Models\InvoiceEvent;
 use App\Models\RecurringInvoice;
 use App\Models\RecurringInvoiceLine;
 use App\Support\BillingPeriod;
+use App\Support\DocumentLocale;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -56,7 +57,12 @@ class RecurringInvoiceGenerator
                 'project',
             ]);
 
-            $period = BillingPeriod::for($lockedSchedule->cadence, $runDate, $lockedSchedule->anchor_day);
+            $period = BillingPeriod::for(
+                $lockedSchedule->cadence,
+                $runDate,
+                $lockedSchedule->anchor_day,
+                $lockedSchedule->client->locale ?? DocumentLocale::DEFAULT,
+            );
             $title = $lockedSchedule->title !== null
                 ? str_replace('{period}', $period['label'], $lockedSchedule->title)
                 : null;

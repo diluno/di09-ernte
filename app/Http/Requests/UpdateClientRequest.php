@@ -22,6 +22,7 @@ class UpdateClientRequest extends FormRequest
             'country' => 'sometimes|string|size:2',
             'vat_id' => 'nullable|string|max:64',
             'default_rate_rappen' => 'nullable|integer|min:0',
+            'locale' => 'sometimes|required|'.\App\Support\DocumentLocale::rule(),
             'contacts' => 'sometimes|array',
             'contacts.*.id' => ['sometimes', 'integer', Rule::exists('contacts', 'id')->where('client_id', $id)],
             'contacts.*.name' => 'required|string|max:255',

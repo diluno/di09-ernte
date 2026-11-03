@@ -138,6 +138,8 @@ class EstimateLifecycle
                 taxDate: $today,
             );
 
+            // The invoice continues in the language the client saw the estimate in.
+            $invoice->update(['locale' => $estimate->locale]);
             $estimate->update(['converted_invoice_id' => $invoice->id]);
             $this->event($estimate, 'converted', ['invoice_id' => $invoice->id, 'invoice_number' => $invoice->number]);
 

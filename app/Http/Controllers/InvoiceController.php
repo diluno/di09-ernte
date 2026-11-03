@@ -224,6 +224,7 @@ class InvoiceController extends Controller
                 'period_start' => $invoice->period_start?->toDateString(),
                 'period_end' => $invoice->period_end?->toDateString(),
                 'title' => $invoice->title,
+                'locale' => $invoice->locale,
                 'notes' => $invoice->notes,
                 'vat_rate' => (float) $invoice->vat_rate,
                 'recipients' => $invoice->recipients ?? [],
@@ -263,6 +264,9 @@ class InvoiceController extends Controller
             }
             if (array_key_exists('period_end', $data)) {
                 $invoice->period_end = $data['period_end'];
+            }
+            if (array_key_exists('locale', $data)) {
+                $invoice->locale = $data['locale'];
             }
             if (array_key_exists('recipients', $data)) {
                 $invoice->recipients = $data['recipients'];

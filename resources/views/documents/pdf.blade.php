@@ -14,7 +14,7 @@
 --}}
 @php
   $isInvoice = $kind === 'invoice';
-  $label = $isInvoice ? 'Rechnung' : 'Offerte';
+  $label = __($isInvoice ? 'documents.invoice' : 'documents.estimate');
 
   $chf = fn ($rappen) => number_format($rappen / 100, 2, '.', '’');
   $rateLabel = fn ($rate) => rtrim(rtrim(number_format((float) $rate, 2), '0'), '.');
@@ -23,7 +23,7 @@
 
   $client = $doc->client;
 
-  $untilLabel = $isInvoice ? 'Fällig' : 'Gültig bis';
+  $untilLabel = __($isInvoice ? 'documents.due' : 'documents.valid_until');
   $until = $isInvoice ? $doc->due_on : $doc->valid_until;
   $termsDays = ($isInvoice && $doc->issued_on && $doc->due_on) ? (int) $doc->issued_on->diffInDays($doc->due_on) : null;
 
@@ -52,7 +52,7 @@
   $assumptions = $isInvoice ? [] : array_values(array_filter((array) ($doc->assumptions ?? []), fn ($a) => filled($a)));
 @endphp
 <!doctype html>
-<html lang="de">
+<html lang="{{ app()->getLocale() }}">
 <head>
   <meta charset="utf-8">
   <title>{{ $label }} {{ $doc->number }}</title>
@@ -235,12 +235,12 @@
       </div>
       <div class="meta">
         <span class="kind">{{ $label }}</span>
-        <span>Nr.</span><b>{{ $doc->number }}</b>
-        @if ($doc->issued_on)<span>Datum</span><b>{{ $date($doc->issued_on) }}</b>@endif
+        <span>{{ __('documents.number') }}</span><b>{{ $doc->number }}</b>
+        @if ($doc->issued_on)<span>{{ __('documents.date') }}</span><b>{{ $date($doc->issued_on) }}</b>@endif
         @if ($until)<span>{{ $untilLabel }}</span><b @class(['is-red' => $isInvoice && $doc->overdue])>{{ $date($until) }}</b>@endif
-        @if ($doc->project)<span>Projekt</span><span>{{ $doc->project->name }}</span>@endif
-        @if ($showPeriod)<span>Periode</span><span>{{ $doc->period_start->format($doc->period_start->year === $doc->period_end->year ? 'd.m.' : 'd.m.Y') }} – {{ $doc->period_end->format('d.m.Y') }}</span>@endif
-        @if ($profile->uid)<span>UID</span><span>{{ $profile->uid }}</span>@endif
+        @if ($doc->project)<span>{{ __('documents.project') }}</span><span>{{ $doc->project->name }}</span>@endif
+        @if ($showPeriod)<span>{{ __('documents.period') }}</span><span>{{ $doc->period_start->format($doc->period_start->year === $doc->period_end->year ? 'd.m.' : 'd.m.Y') }} – {{ $doc->period_end->format('d.m.Y') }}</span>@endif
+        @if ($profile->uid)<span>{{ __('documents.uid') }}</span><span>{{ $profile->uid }}</span>@endif
       </div>
     </div>
 
@@ -250,9 +250,9 @@
     <table>
       <thead>
         <tr>
-          <th>Leistung</th>
-          <th class="num" style="width: 16mm">Std.</th>
-          <th class="num" style="width: 20mm">Ansatz</th>
+          <th>{{ __('documents.item') }}</th>
+          <th class="num" style="width: 16mm">{{ __('documents.hours_short') }}</th>
+          <th class="num" style="width: 20mm">{{ __('documents.rate') }}</th>
           <th class="num" style="width: 26mm">CHF</th>
         </tr>
       </thead>
@@ -269,18 +269,18 @@
     </table>
     @else
       <div class="summary">
-        <div class="kpi"><span>Aufwand</span><b>{{ $effort(\App\Support\EstimateScope::totalHours($doc)) }}</b></div>
-        <div class="kpi"><span>Exkl. MwSt</span><b>CHF {{ $money($doc->subtotal_rappen) }}</b></div>
-        <div class="kpi grand"><span>Inkl. MwSt</span><b>CHF {{ $money($doc->total_rappen) }}</b></div>
+        <div class="kpi"><span>{{ __('documents.effort') }}</span><b>{{ $effort(\App\Support\EstimateScope::totalHours($doc)) }}</b></div>
+        <div class="kpi"><span>{{ __('documents.excl_vat') }}</span><b>CHF {{ $money($doc->subtotal_rappen) }}</b></div>
+        <div class="kpi grand"><span>{{ __('documents.incl_vat') }}</span><b>CHF {{ $money($doc->total_rappen) }}</b></div>
       </div>
 
       @if ($hasSections)
         <table class="overview" data-glue>
           <thead>
             <tr>
-              <th>Übersicht</th>
-              <th class="num" style="width: 22mm">Aufwand</th>
-              <th class="num" style="width: 30mm">Betrag</th>
+              <th>{{ __('documents.overview') }}</th>
+              <th class="num" style="width: 22mm">{{ __('documents.effort') }}</th>
+              <th class="num" style="width: 30mm">{{ __('documents.amount') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -289,7 +289,7 @@
                 <td>
                   @if ($g['section']?->label)<span class="ov-label">{{ $g['section']->label }}</span>@endif
                   @if ($g['section']?->title)<span @class(['ov-title' => (bool) $g['section']?->label, 'ov-label' => ! $g['section']?->label])>{{ $g['section']->title }}</span>@endif
-                  @if (! $g['heading'])<span class="ov-label">Weitere Leistungen</span>@endif
+                  @if (! $g['heading'])<span class="ov-label">{{ __('documents.other_items') }}</span>@endif
                 </td>
                 <td class="num">{{ $effort($g['hours']) }}</td>
                 <td class="num amount">CHF {{ $money($g['amount_rappen']) }}</td>
@@ -299,17 +299,17 @@
         </table>
       @endif
       @if ($uniformRate !== null)
-        <div class="rate-note">Stundensatz: <b>CHF {{ $money($uniformRate) }}</b></div>
+        <div class="rate-note">{{ __('documents.hourly_rate') }}: <b>CHF {{ $money($uniformRate) }}</b></div>
       @endif
 
-      @if ($hasSections)<h2 class="caption scope-h" data-glue>Leistungen im Detail</h2>@endif
+      @if ($hasSections)<h2 class="caption scope-h" data-glue>{{ __('documents.items_in_detail') }}</h2>@endif
       <table class="detail">
         <thead>
           <tr>
-            <th>Leistung</th>
-            <th class="num" style="width: 20mm">Aufwand</th>
-            @if ($showRateColumn)<th class="num" style="width: 20mm">Ansatz</th>@endif
-            <th class="num" style="width: 28mm">Betrag</th>
+            <th>{{ __('documents.item') }}</th>
+            <th class="num" style="width: 20mm">{{ __('documents.effort') }}</th>
+            @if ($showRateColumn)<th class="num" style="width: 20mm">{{ __('documents.rate') }}</th>@endif
+            <th class="num" style="width: 28mm">{{ __('documents.amount') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -319,7 +319,7 @@
                 <td colspan="{{ $detailCols }}">
                   @if ($g['section']->label)<span class="sec-label">{{ $g['section']->label }}</span>@endif
                   @if ($g['section']->title)<span @class(['sec-title' => (bool) $g['section']->label, 'sec-label' => ! $g['section']->label])>{{ $g['section']->title }}</span>@endif
-                  <span class="sec-cont">(Fortsetzung)</span>
+                  <span class="sec-cont">{{ __('documents.continued') }}</span>
                 </td>
               </tr>
             @endif
@@ -340,7 +340,7 @@
             @endforeach
             @if ($g['heading'])
               <tr class="sec-total" data-section="{{ $k }}">
-                <td class="sec-total-l">Total {{ $g['section']->label ?: $g['section']->title }}</td>
+                <td class="sec-total-l">{{ __('documents.total') }} {{ $g['section']->label ?: $g['section']->title }}</td>
                 <td class="num">{{ $effort($g['hours']) }}</td>
                 @if ($showRateColumn)<td></td>@endif
                 <td class="num amount">{{ $money($g['amount_rappen']) }}</td>
@@ -350,20 +350,20 @@
         </tbody>
       </table>
     @endif
-    @if ($anyExempt)<div class="exempt-note">* ohne MwSt</div>@endif
+    @if ($anyExempt)<div class="exempt-note">{{ __('documents.vat_exempt_note') }}</div>@endif
 
     <div class="totals">
-      <span class="l">{{ $isInvoice ? 'Zwischensumme' : 'Total exkl. MwSt' }}</span><span class="v">{{ $sum($doc->subtotal_rappen) }}</span>
-      <span class="l">MwSt {{ $rateLabel($doc->vat_rate) }}%</span><span class="v">{{ $sum($doc->vat_rappen) }}</span>
+      <span class="l">{{ __($isInvoice ? 'documents.subtotal' : 'documents.total_excl_vat') }}</span><span class="v">{{ $sum($doc->subtotal_rappen) }}</span>
+      <span class="l">{{ __('documents.vat') }} {{ $rateLabel($doc->vat_rate) }}%</span><span class="v">{{ $sum($doc->vat_rappen) }}</span>
       @if ($doc->rounding_rappen != 0)
-        <span class="l">Rundung</span><span class="v">{{ $sum($doc->rounding_rappen) }}</span>
+        <span class="l">{{ __('documents.rounding') }}</span><span class="v">{{ $sum($doc->rounding_rappen) }}</span>
       @endif
-      <span class="grand-l">{{ $isInvoice ? 'Total CHF' : 'Total inkl. MwSt' }}</span><span class="v grand">{{ $sum($doc->total_rappen) }}</span>
+      <span class="grand-l">{{ __($isInvoice ? 'documents.total_chf' : 'documents.total_incl_vat') }}</span><span class="v grand">{{ $sum($doc->total_rappen) }}</span>
     </div>
 
     @if ($assumptions)
       <div class="assumptions" data-split>
-        <h3 data-glue>Grundlagen der Schätzung</h3>
+        <h3 data-glue>{{ __('documents.assumptions') }}</h3>
         @foreach ($assumptions as $assumption)
           <div class="assumption">{{ $assumption }}</div>
         @endforeach
@@ -377,9 +377,9 @@
     <div class="foot">
       <span>
         @if ($isInvoice)
-          @if ($doc->due_on)Zahlbar bis <b>{{ $date($doc->due_on) }}</b>@if ($termsDays !== null) ({{ $termsDays }} Tage)@endif.@else Zahlbar innert 30 Tagen.@endif
+          @if ($doc->due_on){{ __('documents.payable_by') }} <b>{{ $date($doc->due_on) }}</b>@if ($termsDays !== null) ({{ __('documents.days', ['days' => $termsDays]) }})@endif.@else {{ __('documents.payable_within_30') }}@endif
         @else
-          @if ($doc->valid_until)Dieses Angebot ist gültig bis <b>{{ $date($doc->valid_until) }}</b>.@endif
+          @if ($doc->valid_until){{ __('documents.estimate_valid_until') }} <b>{{ $date($doc->valid_until) }}</b>.@endif
         @endif
       </span>
       <span>{{ implode(' · ', array_filter([$profile->name, $profile->email])) }}</span>
@@ -406,7 +406,7 @@
     var sheet = document.querySelector('.sheet'), body = document.querySelector('.body'), qr = document.querySelector('.qr');
     function rect(el) { return el.getBoundingClientRect(); }
     var mm = rect(body).width / 210, PAGE = 297 * mm, BAND = 12 * mm, TOP = 12 * mm, AVAIL = PAGE - BAND;
-    var label = @json($label.' '.$doc->number);
+    var label = @json($label.' '.$doc->number), pageWord = @json(__('documents.page'));
 
     var head = [body.querySelector('.logo'), body.querySelector('.sender'), body.querySelector('.window'), body.querySelector('h1')];
     var atoms = [];
@@ -525,7 +525,7 @@
     pages.forEach(function (p, i) {
       if (p.slip) return;
       var f = document.createElement('div'); f.className = 'page-foot';
-      f.innerHTML = '<span>' + label + '</span><span>Seite ' + (i + 1) + ' / ' + pages.length + '</span>';
+      f.innerHTML = '<span>' + label + '</span><span>' + pageWord + ' ' + (i + 1) + ' / ' + pages.length + '</span>';
       p.appendChild(f);
     });
     body.remove();

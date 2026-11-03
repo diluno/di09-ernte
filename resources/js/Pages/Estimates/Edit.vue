@@ -52,11 +52,15 @@ const totalRappen = computed(() => totals.value.total);
 
 const canSave = computed(() => clientId.value && lines.value.length > 0);
 
+// Language of the PDF and the mail.
+const locale = ref(props.estimate.locale ?? 'de');
+
 const form = useForm({ recipients: props.estimate.recipients ?? [] });
 function save() {
   form.transform(() => ({
     client_id: clientId.value,
     project_id: projectId.value || null,
+    locale: locale.value,
     title: title.value || null,
     notes: notes.value || null,
     recipients: form.recipients,
@@ -101,6 +105,13 @@ function save() {
           <select v-model="projectId" :disabled="!clientId">
             <option :value="null">—</option>
             <option v-for="p in clientProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+        </label>
+        <label class="field" style="flex: 0 0 120px">
+          <span>Language</span>
+          <select v-model="locale">
+            <option value="de">German</option>
+            <option value="en">English</option>
           </select>
         </label>
       </div>

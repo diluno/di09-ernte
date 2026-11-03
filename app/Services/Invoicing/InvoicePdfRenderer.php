@@ -4,12 +4,16 @@ namespace App\Services\Invoicing;
 
 use App\Models\BusinessProfile;
 use App\Models\Invoice;
+use App\Support\DocumentLocale;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Traits\Localizable;
 use Spatie\Browsershot\Browsershot;
 
 class InvoicePdfRenderer
 {
+    use Localizable;
+
     public function __construct(private QrBillRenderer $qr) {}
 
     /** Render the invoice document to an HTML string (used by /preview and the PDF). */
@@ -17,12 +21,13 @@ class InvoicePdfRenderer
     {
         $invoice->loadMissing(['client.contacts', 'project', 'lines' => fn ($q) => $q->orderBy('sort_order')]);
 
-        return View::make('documents.pdf', [
+        // Client-facing output renders in the document's language.
+        return $this->withLocale($invoice->locale ?? DocumentLocale::DEFAULT, fn () => View::make('documents.pdf', [
             'doc' => $invoice,
             'kind' => 'invoice',
             'profile' => BusinessProfile::current(),
             'qrBillHtml' => $this->qr->html($invoice),
-        ])->render();
+        ])->render());
     }
 
     /** Render to a cached PDF on the local disk; returns the storage-relative path. */

@@ -9,8 +9,16 @@ class Invoice extends Model
 {
     use HasFactory;
 
+    /** New documents default to the client's language; set explicitly to override. */
+    protected static function booted(): void
+    {
+        static::creating(function (self $doc) {
+            $doc->locale ??= $doc->client?->locale ?? \App\Support\DocumentLocale::DEFAULT;
+        });
+    }
+
     protected $fillable = [
-        'number', 'client_id', 'project_id', 'recurring_invoice_id', 'recurring_occurrence_on',
+        'number', 'client_id', 'locale', 'project_id', 'recurring_invoice_id', 'recurring_occurrence_on',
         'period_start', 'period_end', 'issued_on', 'due_on',
         'status', 'currency', 'vat_rate',
         'subtotal_rappen', 'vat_rappen', 'rounding_rappen', 'total_rappen',
@@ -96,6 +104,6 @@ class Invoice extends Model
     /** Client-facing PDF filename, e.g. "Diluno-GmbH-Rechnung-2026-014.pdf". */
     public function pdfFilename(): string
     {
-        return BusinessProfile::current()->documentFilename('Rechnung', $this->number);
+        return BusinessProfile::current()->documentFilename(__('documents.invoice', [], $this->locale ?? \App\Support\DocumentLocale::DEFAULT), $this->number);
     }
 }

@@ -22,6 +22,8 @@ class EstimateMail extends Mailable
     ) {
         $this->estimate->loadMissing(['client', 'project', 'lines']);
         $this->profile = BusinessProfile::current();
+        // Subject, body and attachment name follow the document's language.
+        $this->locale($this->estimate->locale ?? \App\Support\DocumentLocale::DEFAULT);
     }
 
     public function build(): self
@@ -34,7 +36,7 @@ class EstimateMail extends Mailable
             ->replyTo($from, $name)
             // Copy every outgoing mail to the operator so the sent mail is on file.
             ->bcc($from, $name)
-            ->subject(implode(' - ', array_filter(["Offerte {$this->estimate->number}", $this->estimate->title, $name])))
+            ->subject(implode(' - ', array_filter([__('mail.estimate_subject', ['number' => $this->estimate->number], $this->locale), $this->estimate->title, $name])))
             ->view('emails.estimates.sent')
             ->text('emails.estimates.sent-text')
             ->with([
