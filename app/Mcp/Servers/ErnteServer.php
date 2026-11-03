@@ -6,16 +6,23 @@ use App\Mcp\Tools\AcceptEstimate;
 use App\Mcp\Tools\ConvertEstimateToInvoice;
 use App\Mcp\Tools\CreateEstimate;
 use App\Mcp\Tools\CreateInvoice;
+use App\Mcp\Tools\CreateRecurringInvoice;
 use App\Mcp\Tools\DeclineEstimate;
 use App\Mcp\Tools\DraftEstimateLines;
 use App\Mcp\Tools\GetEstimate;
 use App\Mcp\Tools\GetInvoice;
+use App\Mcp\Tools\GetRecurringInvoice;
 use App\Mcp\Tools\ListClients;
 use App\Mcp\Tools\ListEstimates;
 use App\Mcp\Tools\ListInvoices;
+use App\Mcp\Tools\ListRecurringInvoices;
+use App\Mcp\Tools\PauseRecurringInvoice;
+use App\Mcp\Tools\ResumeRecurringInvoice;
+use App\Mcp\Tools\RunRecurringInvoice;
 use App\Mcp\Tools\SendEstimate;
 use App\Mcp\Tools\SendInvoice;
 use App\Mcp\Tools\UpdateEstimate;
+use App\Mcp\Tools\UpdateRecurringInvoice;
 use Laravel\Mcp\Server;
 
 class ErnteServer extends Server
@@ -23,6 +30,9 @@ class ErnteServer extends Server
     protected string $name = 'ernte';
 
     protected string $version = '1.0.0';
+
+    // List every tool on one page: some clients never follow the tools/list cursor.
+    public int $defaultPaginationLength = 50;
 
     protected string $instructions = <<<'TEXT'
     ernte is a single-operator studio admin app for a Swiss design and development
@@ -45,6 +55,15 @@ class ErnteServer extends Server
     with the operator first, as with estimates. send_invoice emails the invoice with
     its QR bill and is not reversible — only call it when the operator asked for that
     specific invoice, by number.
+
+    Recurring invoices are schedules that generate the same lines every period
+    (list/get/create/update/pause/resume_recurring_invoice). Creating or editing a
+    schedule generates nothing by itself; the daily job generates on the run date.
+    Confirm lines, cadence and the first run date with the operator before
+    create_recurring_invoice. If auto_send is on, each generated invoice is emailed
+    to the client automatically, so only turn it on when the operator asks.
+    run_recurring_invoice generates the next invoice immediately (and emails it when
+    auto_send is on) — only call it when the operator asked for that schedule to run.
     TEXT;
 
     protected function boot(): void
@@ -63,5 +82,12 @@ class ErnteServer extends Server
         $this->tools[] = new GetInvoice;
         $this->tools[] = new CreateInvoice;
         $this->tools[] = new SendInvoice;
+        $this->tools[] = new ListRecurringInvoices;
+        $this->tools[] = new GetRecurringInvoice;
+        $this->tools[] = new CreateRecurringInvoice;
+        $this->tools[] = new UpdateRecurringInvoice;
+        $this->tools[] = new PauseRecurringInvoice;
+        $this->tools[] = new ResumeRecurringInvoice;
+        $this->tools[] = new RunRecurringInvoice;
     }
 }

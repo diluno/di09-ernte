@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreRecurringInvoiceRequest;
 use App\Http\Requests\UpdateRecurringInvoiceRequest;
-use App\Models\BusinessProfile;
 use App\Models\Client;
 use App\Models\Contact;
 use App\Models\Project;
@@ -12,10 +11,9 @@ use App\Models\RecurringInvoice;
 use App\Models\RecurringInvoiceLine;
 use App\Models\VatRate;
 use App\Services\Invoicing\RecurringInvoiceGenerator;
-use App\Support\BillingPeriod;
+use App\Services\Invoicing\RecurringInvoiceSchedules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -50,30 +48,9 @@ class RecurringInvoiceController extends Controller
         ]);
     }
 
-    public function store(StoreRecurringInvoiceRequest $request): RedirectResponse
+    public function store(StoreRecurringInvoiceRequest $request, RecurringInvoiceSchedules $schedules): RedirectResponse
     {
-        $data = $request->validated();
-        $first = Carbon::parse($data['next_run_on']);
-        $nextRun = BillingPeriod::nextRunOnOrAfter($data['cadence'], $first, Carbon::today());
-
-        DB::transaction(function () use ($data, $first, $nextRun) {
-            $client = Client::findOrFail($data['client_id']);
-            $documentRate = $data['vat_rate'] ?? VatRate::rateForDate($nextRun);
-            $schedule = RecurringInvoice::create([
-                'client_id' => $client->id,
-                'project_id' => $data['project_id'] ?? null,
-                'title' => $data['title'] ?? null,
-                'notes' => $data['notes'] ?? null,
-                'currency' => BusinessProfile::current()->default_currency ?? 'CHF',
-                'vat_rate' => $documentRate,
-                'cadence' => $data['cadence'],
-                'anchor_day' => $first->day,
-                'next_run_on' => $nextRun->toDateString(),
-                'auto_send' => $data['auto_send'] ?? false,
-                'recipients' => $data['recipients'] ?? $client->defaultRecipients(),
-            ]);
-            $this->syncLines($schedule, $data['lines']);
-        });
+        $schedules->create($request->validated());
 
         return redirect('/recurring-invoices')->with('success', 'Recurring schedule created.');
     }
@@ -104,56 +81,23 @@ class RecurringInvoiceController extends Controller
         ]);
     }
 
-    public function update(UpdateRecurringInvoiceRequest $request, RecurringInvoice $recurringInvoice): RedirectResponse
+    public function update(UpdateRecurringInvoiceRequest $request, RecurringInvoice $recurringInvoice, RecurringInvoiceSchedules $schedules): RedirectResponse
     {
-        $data = $request->validated();
-        $first = Carbon::parse($data['next_run_on']);
-        $anchorDay = $first->isSameDay($recurringInvoice->next_run_on)
-            ? $recurringInvoice->anchor_day
-            : $first->day;
-        $nextRun = BillingPeriod::nextRunOnOrAfter($data['cadence'], $first, Carbon::today(), $anchorDay);
-
-        DB::transaction(function () use ($data, $anchorDay, $nextRun, $recurringInvoice) {
-            $documentRate = $data['vat_rate'] ?? VatRate::rateForDate($nextRun);
-            $recurringInvoice->update([
-                'client_id' => $data['client_id'],
-                'project_id' => $data['project_id'] ?? null,
-                'title' => $data['title'] ?? null,
-                'notes' => $data['notes'] ?? null,
-                'vat_rate' => $documentRate,
-                'cadence' => $data['cadence'],
-                'anchor_day' => $anchorDay,
-                'next_run_on' => $nextRun->toDateString(),
-                'auto_send' => $data['auto_send'] ?? false,
-            ]);
-            if (array_key_exists('recipients', $data)) {
-                $recurringInvoice->recipients = $data['recipients'];
-                $recurringInvoice->save();
-            }
-            $recurringInvoice->lines()->delete();
-            $this->syncLines($recurringInvoice, $data['lines']);
-        });
+        $schedules->update($recurringInvoice, $request->validated());
 
         return redirect('/recurring-invoices')->with('success', 'Recurring schedule updated.');
     }
 
-    public function pause(RecurringInvoice $recurringInvoice): RedirectResponse
+    public function pause(RecurringInvoice $recurringInvoice, RecurringInvoiceSchedules $schedules): RedirectResponse
     {
-        $recurringInvoice->update(['paused_at' => now()]);
+        $schedules->pause($recurringInvoice);
 
         return back()->with('success', 'Schedule paused.');
     }
 
-    public function resume(RecurringInvoice $recurringInvoice): RedirectResponse
+    public function resume(RecurringInvoice $recurringInvoice, RecurringInvoiceSchedules $schedules): RedirectResponse
     {
-        // Snap the next run forward so resuming never backfills missed periods.
-        $next = BillingPeriod::nextRunOnOrAfter(
-            $recurringInvoice->cadence,
-            Carbon::parse($recurringInvoice->next_run_on),
-            Carbon::today(),
-            $recurringInvoice->anchor_day,
-        );
-        $recurringInvoice->update(['paused_at' => null, 'next_run_on' => $next->toDateString()]);
+        $schedules->resume($recurringInvoice);
 
         return back()->with('success', 'Schedule resumed.');
     }
@@ -176,20 +120,6 @@ class RecurringInvoiceController extends Controller
         $recurringInvoice->delete();
 
         return redirect('/recurring-invoices')->with('success', 'Recurring schedule deleted.');
-    }
-
-    /** @param array<int, array{description:string, hours:float|string, rate_rappen:int}> $lines */
-    private function syncLines(RecurringInvoice $schedule, array $lines): void
-    {
-        $sort = 0;
-        foreach ($lines as $line) {
-            $schedule->lines()->create([
-                'description' => (string) $line['description'],
-                'hours' => round((float) $line['hours'], 2),
-                'rate_rappen' => (int) $line['rate_rappen'],
-                'sort_order' => $sort++,
-            ]);
-        }
     }
 
     /** Shared client/project option lists for the Create/Edit forms. */
