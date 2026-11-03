@@ -2,7 +2,7 @@
   Shared HTML shell for outgoing mails (invoice, estimate, reminder).
 
   Table-based and fully inline-styled so it survives Outlook/Gmail. Uses the
-  Ledger palette (paper / sheet / ink) with system fonts, since mail clients
+  Ledger ink on plain white with system fonts, since mail clients
   will not load the app's webfonts.
 
   Sections:  kind     small uppercase label top-right, e.g. "Rechnung"
@@ -27,7 +27,7 @@
   <meta name="supported-color-schemes" content="light">
   <title>@yield('title')</title>
   <style>
-    body { margin: 0; padding: 0; background: #f7f3ea; -webkit-text-size-adjust: 100%; }
+    body { margin: 0; padding: 0; background: #ffffff; -webkit-text-size-adjust: 100%; }
     table { border-collapse: collapse; }
     p { margin: 0 0 14px; }
     a { color: #141210; }
@@ -37,11 +37,11 @@
     }
   </style>
 </head>
-<body style="margin:0; padding:0; background:#f7f3ea;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f3ea;">
+<body style="margin:0; padding:0; background:#ffffff;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;">
     <tr>
       <td class="wrap" align="center" style="padding:40px 16px;">
-        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px; max-width:100%; background:#fbf9f4; border:1px solid #141210;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px; max-width:100%; background:#ffffff; border:1px solid #141210;">
 
           {{-- Head --}}
           <tr>
