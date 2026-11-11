@@ -83,9 +83,13 @@ class BackupVerifier
     {
         try {
             $count = 0;
-            $root = 'phar://'.$archivePath.'/';
-            foreach (new \RecursiveIteratorIterator(new \PharData($archivePath)) as $file) {
-                if ($file->isFile() && str_starts_with(substr($file->getPathname(), strlen($root)), $prefix)) {
+            // The path inside the archive comes from the iterator, not from cutting the archive's
+            // own path off the front: PHP resolves symlinks in that path (a Forge release's
+            // storage directory is one), so the two would not line up.
+            $files = new \RecursiveIteratorIterator(new \PharData($archivePath));
+            foreach ($files as $file) {
+                $inside = str_replace('\\', '/', $files->getSubPathname());
+                if ($file->isFile() && str_starts_with($inside, $prefix)) {
                     $count++;
                 }
             }
