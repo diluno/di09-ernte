@@ -18,7 +18,6 @@ class RemindInvoicesCommand extends Command
     {
         $days = max(1, BusinessProfile::current()->reminder_days_after_due ?? 7);
         $dueThreshold = Carbon::today()->subDays($days)->toDateString();
-        $recentThreshold = now()->subDays($days);
 
         $candidates = Invoice::query()
             ->with('client')
@@ -32,17 +31,12 @@ class RemindInvoicesCommand extends Command
         $recent = 0;
 
         foreach ($candidates as $invoice) {
-            if (empty($invoice->recipients ?: ($invoice->client?->defaultRecipients() ?? []))) {
+            if (empty($invoice->effectiveRecipients())) {
                 $missingEmail++;
                 continue;
             }
 
-            $recentlyReminded = $invoice->events()
-                ->where('kind', 'reminded')
-                ->where('occurred_at', '>=', $recentThreshold)
-                ->exists();
-
-            if ($recentlyReminded) {
+            if (SendInvoiceReminderMail::remindedWithinDays($invoice, $days)) {
                 $recent++;
                 continue;
             }

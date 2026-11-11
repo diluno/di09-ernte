@@ -15,7 +15,8 @@ class FileReceipt implements ShouldQueue
 
     public int $timeout = 100;
 
-    public int $backoff = 20;
+    /** @var list<int> seconds before the second and third attempt */
+    public array $backoff = [20, 120];
 
     public function __construct(public int $receiptId) {}
 
@@ -33,6 +34,15 @@ class FileReceipt implements ShouldQueue
                 throw $e;
             }
             $receipt->update(['filing_status' => 'failed', 'filing_error' => mb_substr($e->getMessage(), 0, 250)]);
+        }
+    }
+
+    /** Reached on a timeout; handle() itself marks every other failure. */
+    public function failed(?\Throwable $e): void
+    {
+        $receipt = Receipt::find($this->receiptId);
+        if ($receipt && $receipt->filing_status !== 'filed') {
+            $receipt->update(['filing_status' => 'failed', 'filing_error' => 'Filing in Dropbox did not finish in time. File it again.']);
         }
     }
 }

@@ -161,3 +161,68 @@ test('edit renders the edit page', function () {
             ->where('projects.0.rate', 145.5)
             ->etc());
 });
+
+test('index resolves {period} for the next occurrence and computes the stats strip in rappen', function () {
+    $client = Client::factory()->create(['name' => 'Acme AG', 'locale' => 'en']);
+    $monthly = RecurringInvoice::factory()->create([
+        'client_id' => $client->id, 'title' => 'Hosting — {period}',
+        'cadence' => 'monthly', 'anchor_day' => 1, 'next_run_on' => '2026-06-01',
+    ]);
+    RecurringInvoiceLine::factory()->for($monthly, 'recurringInvoice')->create(['hours' => 1, 'rate_rappen' => 10000]);
+    RecurringInvoiceLine::factory()->for($monthly, 'recurringInvoice')->create(['hours' => 2.5, 'rate_rappen' => 12000, 'sort_order' => 1]);
+
+    $quarterly = RecurringInvoice::factory()->autoSend()->create([
+        'title' => null, 'cadence' => 'quarterly', 'anchor_day' => 1, 'next_run_on' => '2026-07-01',
+    ]);
+    RecurringInvoiceLine::factory()->for($quarterly, 'recurringInvoice')->create(['hours' => 1, 'rate_rappen' => 50000]);
+
+    $paused = RecurringInvoice::factory()->paused()->create(['cadence' => 'yearly', 'next_run_on' => '2026-06-15']);
+    RecurringInvoiceLine::factory()->for($paused, 'recurringInvoice')->create(['hours' => 1, 'rate_rappen' => 100000]);
+
+    $this->get('/recurring-invoices')
+        ->assertOk()
+        ->assertInertia(fn (Assert $p) => $p
+            ->component('RecurringInvoices/Index')
+            ->has('schedules', 3)
+            ->where('schedules.0.id', $monthly->id)
+            ->where('schedules.0.title', 'Hosting — {period}')
+            ->where('schedules.0.resolved_title', 'Hosting — June 2026')
+            ->where('schedules.0.subtotal_per_run', 40000)
+            ->where('schedules.0.run_late', false)
+            ->where('schedules.1.resolved_title', null)
+            ->where('schedules.2.paused', true)
+            ->where('stats.active', 2)
+            ->where('stats.active_auto_send', 1)
+            ->where('stats.paused', 1)
+            ->where('stats.next_run.on', '2026-06-01')
+            ->where('stats.next_run.client', 'Acme AG')
+            ->where('stats.next_run.late', false)
+            // 12 × 400.00 + 4 × 500.00; the paused schedule does not count.
+            ->where('stats.yearly_rappen', 680000));
+});
+
+test('index flags an active schedule whose run date has passed', function () {
+    $late = RecurringInvoice::factory()->create(['next_run_on' => '2026-05-20']);
+    RecurringInvoiceLine::factory()->for($late, 'recurringInvoice')->create();
+    RecurringInvoice::factory()->paused()->create(['next_run_on' => '2026-05-01']);
+
+    $this->get('/recurring-invoices')
+        ->assertInertia(fn (Assert $p) => $p
+            ->where('schedules.0.run_late', true)
+            ->where('schedules.1.run_late', false)
+            ->where('stats.next_run.late', true));
+});
+
+test('edit exposes the resolved title of the next invoice', function () {
+    $client = Client::factory()->create(['locale' => 'en']);
+    $schedule = RecurringInvoice::factory()->create([
+        'client_id' => $client->id, 'title' => 'Retainer {period}',
+        'cadence' => 'quarterly', 'anchor_day' => 1, 'next_run_on' => '2026-07-01',
+    ]);
+    RecurringInvoiceLine::factory()->for($schedule, 'recurringInvoice')->create();
+
+    $this->get("/recurring-invoices/{$schedule->id}/edit")
+        ->assertInertia(fn (Assert $p) => $p
+            ->where('schedule.next_title', 'Retainer July 2026 – September 2026')
+            ->etc());
+});

@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Client;
+use App\Models\Invoice;
 use App\Models\TimeEntry;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -24,7 +25,7 @@ class ClientProjections
             ->join('projects', 'projects.id', '=', 'time_entries.project_id')
             ->selectRaw('
                 projects.client_id,
-                COALESCE(SUM(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, UTC_TIMESTAMP()))), 0) AS secs
+                COALESCE(SUM('.EntryDuration::secondsSql().'), 0) AS secs
             ')
             ->groupBy('projects.client_id')
             ->pluck('secs', 'projects.client_id');
@@ -47,6 +48,49 @@ class ClientProjections
         ]);
     }
 
+    /**
+     * Stats strip on /clients. Money is integer rappen.
+     * Unbilled = billable, not yet invoiced time valued at each project's rate.
+     */
+    public static function stats(): array
+    {
+        $outstanding = Invoice::outstanding()
+            ->selectRaw('COUNT(*) AS n, COALESCE(SUM(total_rappen), 0) AS rappen')
+            ->first();
+
+        $overdueCount = Invoice::outstanding()
+            ->whereDate('due_on', '<', Carbon::today())
+            ->count();
+
+        $unbilled = TimeEntry::query()
+            ->whereNull('time_entries.invoice_id')
+            ->where('time_entries.billable', true)
+            ->join('projects', 'projects.id', '=', 'time_entries.project_id')
+            ->selectRaw('
+                COALESCE(SUM('.EntryDuration::secondsSql('time_entries').' * projects.rate_rappen) / 3600, 0) AS rappen,
+                COALESCE(SUM('.EntryDuration::secondsSql('time_entries').'), 0) AS secs,
+                COUNT(DISTINCT projects.client_id) AS clients
+            ')
+            ->first();
+
+        $secsYtd = (int) TimeEntry::query()
+            ->where('started_at', '>=', Carbon::now()->startOfYear())
+            ->selectRaw('COALESCE(SUM('.EntryDuration::secondsSql().'), 0) AS s')
+            ->value('s');
+
+        return [
+            'active' => Client::active()->count(),
+            'archived' => Client::archived()->count(),
+            'outstanding_rappen' => (int) $outstanding->rappen,
+            'outstanding_count' => (int) $outstanding->n,
+            'overdue_count' => $overdueCount,
+            'unbilled_rappen' => (int) round((float) $unbilled->rappen),
+            'unbilled_hours' => round(((int) $unbilled->secs) / 3600, 1),
+            'unbilled_clients' => (int) $unbilled->clients,
+            'hours_ytd' => round($secsYtd / 3600, 1),
+        ];
+    }
+
     private static function activitySparkline(Collection $clientIds): array
     {
         $start = Carbon::today()->subDays(13);
@@ -57,7 +101,7 @@ class ClientProjections
             ->selectRaw('
                 projects.client_id,
                 DATE(time_entries.started_at) AS day,
-                SUM(TIMESTAMPDIFF(SECOND, time_entries.started_at, COALESCE(time_entries.ended_at, UTC_TIMESTAMP()))) AS secs
+                SUM('.EntryDuration::secondsSql('time_entries').') AS secs
             ')
             ->groupBy('projects.client_id', 'day')
             ->get()

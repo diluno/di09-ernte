@@ -34,12 +34,32 @@ export function parseDuration(input) {
   return minutes;
 }
 
-// Render minutes as "1h 30m" / "2h" / "45m" / "0m".
-export function formatDuration(minutes) {
-  const total = Math.max(0, Math.round(minutes));
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  if (h && m) return `${h}h ${m}m`;
-  if (h) return `${h}h`;
-  return `${m}m`;
+const pad = (n) => String(n).padStart(2, '0');
+
+// Decimal hours with one decimal: "4.0h", "0.3h". The standard for tables, stats and lists.
+export function fmtHours(hours) {
+  const h = Number(hours ?? 0);
+  return `${(Number.isFinite(h) ? h : 0).toFixed(1)}h`;
+}
+
+export function fmtHoursFromSeconds(seconds) {
+  return fmtHours(Number(seconds ?? 0) / 3600);
+}
+
+// "01:30" (HH:MM) — only for the live timer clock and the timer page's day totals.
+export function fmtClock(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds ?? 0)));
+  return `${pad(Math.floor(total / 3600))}:${pad(Math.floor((total % 3600) / 60))}`;
+}
+
+// "01:23:45" — the live timer clock with seconds.
+export function fmtClockSeconds(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds ?? 0)));
+  return `${fmtClock(total)}:${pad(total % 60)}`;
+}
+
+// Minutes as an "H:MM" string that parseDuration reads back (duration inputs).
+export function minutesToInput(minutes) {
+  const total = Math.max(0, Math.round(Number(minutes ?? 0)));
+  return `${Math.floor(total / 60)}:${pad(total % 60)}`;
 }

@@ -1,7 +1,13 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import Icon from '@/Components/Icon.vue';
+import ActionMenu from '@/Components/ActionMenu.vue';
+import { fmtDateShort, fmtDateTime } from '@/formatters/date.js';
+import { fmtMoney } from '@/formatters/money.js';
+import { fmtHours } from '@/formatters/duration.js';
+import { usePendingAction, recipientList } from '@/composables/usePendingAction.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -17,37 +23,90 @@ const isSent = computed(() => props.estimate.status === 'sent');
 const isAccepted = computed(() => props.estimate.status === 'accepted');
 const converted = computed(() => props.estimate.converted_invoice);
 
-const badge = computed(() => {
-  const e = props.estimate;
-  if (e.expired) return { cls: 'overdue', label: 'expired' };
-  return { cls: { draft: 'draft', sent: 'sent', accepted: 'paid', declined: 'void' }[e.status] ?? 'draft', label: e.status };
-});
+// Expired is virtual (sent + past valid_until) and wins over the stored status.
+const statusLabel = computed(() => props.estimate.expired ? 'expired' : props.estimate.status);
+const STATUS_MARK = { draft: '○', sent: '◐', expired: '●', accepted: '●', declined: '●' };
+const title = computed(() => props.estimate.title || `Estimate #${props.estimate.number}`);
 
-function send()    { router.post(`/estimates/${props.estimate.id}/send`,    {}, { preserveScroll: true }); }
-function markSent() {
-  if (!window.confirm(`Mark estimate #${props.estimate.number} as sent? It will be locked from editing.`)) return;
-  router.post(`/estimates/${props.estimate.id}/mark-sent`, {}, { preserveScroll: true });
+// ── Actions ──
+// One request at a time: every action button is disabled while one is in flight.
+const { pending, pendingKey, run: act } = usePendingAction();
+const base = computed(() => `/estimates/${props.estimate.id}`);
+const recipients = computed(() => recipientList(props.estimate.recipients, '(no recipients set)'));
+
+function send() {
+  act('post', `${base.value}/send`, {}, {
+    key: 'send',
+    confirm: `Email estimate #${props.estimate.number} to ${recipients.value}?\n\nThis stamps the validity date and locks the estimate from editing. It cannot be undone.`,
+  });
 }
-function accept()  { router.post(`/estimates/${props.estimate.id}/accept`,  {}, { preserveScroll: true }); }
+function markSent() {
+  act('post', `${base.value}/mark-sent`, {}, {
+    confirm: `Mark estimate #${props.estimate.number} as sent? It will be locked from editing.`,
+  });
+}
+function accept() { act('post', `${base.value}/accept`, {}, { key: 'accept' }); }
 function decline() {
-  if (!window.confirm(`Mark estimate #${props.estimate.number} as declined?`)) return;
-  router.post(`/estimates/${props.estimate.id}/decline`, {}, { preserveScroll: true });
+  act('post', `${base.value}/decline`, {}, { confirm: `Mark estimate #${props.estimate.number} as declined?` });
 }
 function convert() {
-  if (!window.confirm(`Create a draft invoice from estimate #${props.estimate.number}?`)) return;
-  router.post(`/estimates/${props.estimate.id}/convert`, {}, { preserveScroll: true });
+  act('post', `${base.value}/convert`, {}, {
+    key: 'convert',
+    confirm: `Create a draft invoice from estimate #${props.estimate.number}?`,
+  });
 }
 function destroy() {
-  if (!window.confirm(`Delete estimate #${props.estimate.number}? This permanently removes it and its line items.`)) return;
-  router.delete(`/estimates/${props.estimate.id}`);
+  act('delete', base.value, {}, {
+    preserveScroll: false,
+    confirm: `Delete estimate #${props.estimate.number}? This permanently removes it and its line items.`,
+  });
 }
 
+// ── More-actions menu (rendered by ActionMenu) ──
+// The primary button in the head carries the next step for the status; the rest lives here.
+const menuItems = computed(() => [
+  isDraft.value && { label: 'Edit', href: `/estimates/${props.estimate.number}/edit` },
+  isDraft.value && { label: 'Mark as sent', action: markSent },
+  isSent.value && { label: 'Decline', action: decline },
+  { separator: true },
+  { label: 'Delete…', action: destroy, danger: true },
+].filter(Boolean).filter((item, i, all) => !(item.separator && i === 0)));
+
+// ── Formatting ──
+function plural(n, one, many) { return `${n} ${n === 1 ? one : many}`; }
+
+const issuedFoot = computed(() => {
+  if (!props.estimate.issued_on) return 'not sent yet';
+  const ch = props.estimate.issued_channel;
+  return ch === 'manual' ? 'marked as sent' : ch === 'email' ? 'sent by email' : 'issued';
+});
+const validFoot = computed(() => {
+  const e = props.estimate;
+  if (!e.valid_until) return '30 days from sending';
+  if (e.expired) return e.days_expired > 0 ? `expired ${plural(e.days_expired, 'day', 'days')} ago` : 'expired today';
+  if (e.days_left !== null && e.days_left !== undefined) return `${plural(e.days_left, 'day', 'days')} left`;
+  return e.status === 'accepted' ? 'accepted' : e.status === 'declined' ? 'declined' : '—';
+});
+const hoursFoot = computed(() => {
+  const e = props.estimate;
+  const parts = [e.sections.length > 0 ? plural(e.sections.length, 'section', 'sections') : plural(e.lines.length, 'line', 'lines')];
+  if (e.avg_rate !== null && e.avg_rate !== undefined) parts.push(`${fmtMoney(e.avg_rate)} CHF/h`);
+  return parts.join(' · ');
+});
+
+// ── Activity ──
 const EVENT_LABEL = {
   created: 'Created', sent: 'Sent', accepted: 'Accepted', declined: 'Declined',
   converted: 'Converted to invoice', pdf_generated: 'Generated PDF',
 };
-function fmtWhen(iso) { return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); }
-function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'; }
+const fmtWhen = (iso) => fmtDateTime(iso, { short: true });
+function eventDetail(e) {
+  const to = e.payload?.email_to;
+  if (to?.length) return `to ${Array.isArray(to) ? to.join(', ') : to}`;
+  if (e.kind === 'sent' && e.payload?.manual) return 'marked manually';
+  if (e.kind === 'converted' && e.payload?.invoice_number) return `invoice #${e.payload.invoice_number}`;
+  return null;
+}
 </script>
 
 <template>
@@ -56,26 +115,46 @@ function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB', { day: 
   <div class="page-head">
     <div>
       <div class="crumb">
-        <Link href="/estimates">~ / estimates</Link><span class="ascii-dot">/</span><span>#{{ estimate.number }}</span>
+        <Link href="/estimates">Estimates</Link><span>/</span><span>{{ estimate.number }}</span><span>·</span><span class="estimates-crumb-client">{{ estimate.client.name }}</span>
       </div>
       <h1 class="page-title">
-        Estimate #{{ estimate.number }}
-        <span class="meta">{{ estimate.client.name }}<span class="ascii-dot">·</span><span class="badge dot" :class="badge.cls">{{ badge.label }}</span></span>
+        <span>{{ title }}</span>
+        <span class="meta" :class="{ 'is-red': estimate.expired }">
+          {{ STATUS_MARK[statusLabel] }} {{ statusLabel }}<template v-if="estimate.expired && estimate.days_expired > 0"> · {{ plural(estimate.days_expired, 'day', 'days') }}</template><template v-if="converted"> · invoiced</template>
+        </span>
       </h1>
-      <div v-if="estimate.title" class="page-subtitle">{{ estimate.title }}</div>
     </div>
-    <div style="display: flex; gap: 8px">
-      <a :href="pdf_url" class="btn">Download PDF</a>
-      <Link v-if="isDraft" :href="`/estimates/${estimate.number}/edit`" class="btn">Edit</Link>
-      <button v-if="isDraft" class="btn" @click="markSent">Mark as sent</button>
-      <button v-if="isDraft" class="btn primary" @click="send">Send by email</button>
-      <template v-else-if="isSent">
-        <button class="btn primary" @click="accept">Accept</button>
-        <button class="btn ghost" @click="decline">Decline</button>
-      </template>
-      <Link v-if="converted" :href="`/invoices/${converted.number}`" class="btn">Invoice #{{ converted.number }}</Link>
-      <button v-else-if="isAccepted" class="btn primary" @click="convert">Convert to invoice</button>
-      <button class="btn ghost" style="color: var(--red)" @click="destroy">Delete</button>
+
+    <div class="page-actions">
+      <a :href="pdf_url" class="btn"><Icon name="download" />PDF</a>
+      <Link v-if="converted" :href="`/invoices/${converted.number}`" class="btn">Invoice #{{ converted.number }} →</Link>
+      <button v-if="isDraft" class="btn primary" :disabled="pending" @click="send">{{ pendingKey === 'send' ? 'Sending…' : 'Send by email' }}</button>
+      <button v-else-if="isSent" class="btn primary" :disabled="pending" @click="accept"><Icon name="check" />{{ pendingKey === 'accept' ? 'Saving…' : 'Accept' }}</button>
+      <button v-else-if="isAccepted && !converted" class="btn primary" :disabled="pending" @click="convert">{{ pendingKey === 'convert' ? 'Converting…' : 'Convert to invoice' }}</button>
+      <ActionMenu :items="menuItems" :disabled="pending" />
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="label">Total</div>
+      <div class="val">{{ fmtMoney(estimate.total) }}<span class="unit">CHF</span></div>
+      <div class="foot">incl. {{ estimate.vat_rate }}% VAT</div>
+    </div>
+    <div class="stat">
+      <div class="label">Issued</div>
+      <div class="val">{{ fmtDateShort(estimate.issued_on) }}</div>
+      <div class="foot">{{ issuedFoot }}</div>
+    </div>
+    <div class="stat" :class="{ 'is-red': estimate.expired }">
+      <div class="label">Valid until</div>
+      <div class="val">{{ fmtDateShort(estimate.valid_until) }}</div>
+      <div class="foot">{{ validFoot }}</div>
+    </div>
+    <div class="stat">
+      <div class="label">Hours</div>
+      <div class="val">{{ fmtHours(estimate.hours) }}</div>
+      <div class="foot">{{ hoursFoot }}</div>
     </div>
   </div>
 
@@ -85,21 +164,46 @@ function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB', { day: 
     </div>
 
     <aside class="invoice-side">
-      <h3 class="section-title">Activity</h3>
-      <div style="display: flex; flex-direction: column; gap: 10px; font-size: var(--fs-sm)">
-        <div v-for="(e, i) in events" :key="i" style="display: flex; gap: 10px; align-items: baseline">
-          <span style="color: var(--ink-4); font-size: 10px; min-width: 96px">{{ fmtWhen(e.occurred_at) }}</span>
-          <span style="color: var(--ink-2)">{{ EVENT_LABEL[e.kind] ?? e.kind }}</span>
+      <section>
+        <h3 class="section-title">Recipients</h3>
+        <div v-for="r in estimate.recipients" :key="r.email" class="side-row">
+          {{ r.name || r.email }}<span v-if="r.name" class="sub">{{ r.email }}</span>
         </div>
-        <div v-if="events.length === 0" class="muted">No activity yet.</div>
-      </div>
+        <div v-if="estimate.recipients.length === 0" class="side-row is-muted">No recipients</div>
+      </section>
 
-      <h3 class="section-title" style="margin-top: 24px">Validity</h3>
-      <div style="font-size: var(--fs-sm); color: var(--ink-2)">
-        <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border)">
-          <span>Valid until</span><span class="muted">{{ fmtDate(estimate.valid_until) }}</span>
+      <section v-if="converted">
+        <h3 class="section-title">Invoice</h3>
+        <div class="side-row split">
+          <span>Converted to #{{ converted.number }}</span>
+          <Link :href="`/invoices/${converted.number}`" class="link-ink">View →</Link>
         </div>
-      </div>
+      </section>
+
+      <section v-if="estimate.sections.length">
+        <h3 class="section-title">Scope</h3>
+        <div v-for="(s, i) in estimate.sections" :key="i" class="side-row split">
+          <span class="cell-trunc">{{ [s.label, s.title].filter(Boolean).join(' · ') || '—' }}<span class="sub">{{ fmtHours(s.hours) }} · {{ plural(s.lines_count, 'line', 'lines') }}</span></span>
+          <span class="mono estimates-side-amount">{{ fmtMoney(s.amount) }}</span>
+        </div>
+      </section>
+
+      <section>
+        <h3 class="section-title">Activity</h3>
+        <!-- Events are newest first; an expiry is newer than anything recorded. -->
+        <div v-if="estimate.expired" class="side-row grid is-red">
+          <span class="when">{{ fmtDateShort(estimate.valid_until) }}</span>
+          <span>Validity ran out</span>
+        </div>
+        <div v-for="(e, i) in events" :key="i" class="side-row grid">
+          <span class="when">{{ fmtWhen(e.occurred_at) }}</span>
+          <span>
+            {{ EVENT_LABEL[e.kind] ?? e.kind }}
+            <span v-if="eventDetail(e)" class="sub">{{ eventDetail(e) }}</span>
+          </span>
+        </div>
+        <div v-if="events.length === 0" class="side-row is-muted">No activity yet.</div>
+      </section>
     </aside>
   </div>
 </template>

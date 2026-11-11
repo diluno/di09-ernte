@@ -152,6 +152,26 @@ test('GET /estimates/{number} renders Estimates/Show with estimate + lines + eve
             ->where('preview_url', "/estimates/{$est->number}/preview"));
 });
 
+test('GET /estimates/{number} names the recipients the send would go to', function () {
+    Contact::factory()->for($this->client)->create(['name' => 'Nina', 'email' => 'nina@example.test', 'is_default' => true]);
+    $est = makeDraftEstimate();
+    $est->update(['recipients' => null]);
+
+    $this->get("/estimates/{$est->number}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Estimates/Show')
+            ->has('estimate.recipients', 1)
+            ->where('estimate.recipients.0.email', 'nina@example.test'));
+
+    // Recipients chosen on the document win over the client's defaults.
+    $est->update(['recipients' => [['name' => 'Chosen', 'email' => 'chosen@example.test']]]);
+
+    $this->get("/estimates/{$est->number}")
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('estimate.recipients', [['name' => 'Chosen', 'email' => 'chosen@example.test']]));
+});
+
 test('GET /estimates/{number}/edit renders Estimates/Edit prefilled for a draft', function () {
     $est = makeDraftEstimate();
 
@@ -231,9 +251,24 @@ test('GET /estimates/{number}/pdf streams draft PDFs without caching', function 
     expect($est->fresh()->pdf_path)->toBeNull();
 });
 
-test('GET /estimates/{number}/pdf renders sent estimates fresh, ignoring the cached pdf_path', function () {
+test('GET /estimates/{number}/pdf serves the PDF frozen at send time for a sent estimate', function () {
+    \Illuminate\Support\Facades\Storage::fake('local');
     $est = makeDraftEstimate();
-    $est->update(['status' => 'sent', 'pdf_path' => 'estimates/stale.pdf']);
+    \Illuminate\Support\Facades\Storage::disk('local')->put("estimates/{$est->number}.pdf", 'FROZEN-PDF');
+    $est->update(['status' => 'sent', 'pdf_path' => "estimates/{$est->number}.pdf"]);
+
+    $this->mock(EstimatePdfRenderer::class)->shouldNotReceive('pdfBytes');
+
+    $res = $this->get("/estimates/{$est->number}/pdf")->assertOk();
+
+    expect($res->streamedContent())->toBe('FROZEN-PDF');
+    expect($res->headers->get('content-disposition'))->toContain($est->pdfFilename());
+});
+
+test('GET /estimates/{number}/pdf renders live when a sent estimate has no stored file', function () {
+    \Illuminate\Support\Facades\Storage::fake('local');
+    $est = makeDraftEstimate();
+    $est->update(['status' => 'sent', 'pdf_path' => 'estimates/missing.pdf']);
 
     $this->mock(EstimatePdfRenderer::class, function ($mock) use ($est) {
         $mock->shouldReceive('pdfBytes')
@@ -247,9 +282,6 @@ test('GET /estimates/{number}/pdf renders sent estimates fresh, ignoring the cac
         ->assertOk()
         ->assertStreamed()
         ->assertStreamedContent('%PDF-fresh');
-
-    // The frozen as-sent copy stays untouched for reminder emails.
-    expect($est->fresh()->pdf_path)->toBe('estimates/stale.pdf');
 });
 
 test('PATCH /estimates/{id} edits a draft notes + lines and recomputes totals', function () {

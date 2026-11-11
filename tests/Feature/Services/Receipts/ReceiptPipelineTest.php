@@ -324,6 +324,114 @@ test('a Dropbox outage fails the receipt only after the last retry', function ()
     Storage::disk('local')->assertExists($receipt->local_path);
 });
 
+test('a photo that never became a PDF is not uploaded under a .pdf name and keeps its local file', function (string $ext, string $bytes) {
+    Http::fake();
+    $receipt = receipt(['original_mime' => 'image/jpeg', 'ext' => $ext, 'target_year' => 2026, 'target_month' => 9], $bytes);
+
+    expect(app(ReceiptFiler::class)->file($receipt))->toBeFalse();
+
+    $receipt->refresh();
+    expect($receipt->filing_status)->toBe('failed');
+    expect($receipt->filing_error)->toBe(ReceiptFiler::NOT_A_PDF);
+    expect($receipt->dropbox_file_id)->toBeNull();
+    Storage::disk('local')->assertExists($receipt->local_path);
+    Http::assertNothingSent();
+})->with([
+    'still an image' => ['jpg', "\xFF\xD8\xFF\xE0 jpeg bytes"],
+    'image bytes behind a .pdf name' => ['pdf', "\x00\x00\x00\x18ftypheic"],
+]);
+
+test('a failed conversion ends with a receipt marked failed, never with an upload', function () {
+    Http::fake();
+    $converter = test()->mock(ReceiptImageConverter::class);
+    $converter->shouldReceive('toPdf')->andThrow(new RuntimeException('no decode delegate for this image format'));
+    fakeExtractor();
+    $receipt = receipt(['original_mime' => 'image/heic', 'ext' => 'heic'], 'heic bytes');
+
+    $prepare = new PrepareReceiptPdf($receipt->id);
+    $prepare->tries = 1;
+    $prepare->handle($converter);
+    (new ExtractReceipt($receipt->id))->handle(app(ReceiptExtractor::class), app(PdfText::class), app(DropboxClient::class));
+    (new FileReceipt($receipt->id))->handle(app(ReceiptFiler::class));
+
+    $receipt->refresh();
+    expect($receipt->extraction_status)->toBe('failed');
+    expect($receipt->filing_status)->toBe('failed');
+    expect($receipt->filing_error)->toBe(ReceiptFiler::NOT_A_PDF);
+    Storage::disk('local')->assertExists($receipt->local_path);
+    Http::assertNothingSent();
+});
+
+// ── Jobs that fail or time out ──
+
+test('an error that a retry cannot fix marks the receipt at once', function () {
+    fakeExtractor(throws: new App\Services\Receipts\PermanentReceiptFailure('ANTHROPIC_API_KEY is not configured.'));
+    $receipt = receipt();
+
+    (new ExtractReceipt($receipt->id))->handle(app(ReceiptExtractor::class), app(PdfText::class), app(DropboxClient::class));
+
+    expect($receipt->fresh()->extraction_status)->toBe('failed');
+    expect($receipt->fresh()->extraction_error)->toBe('ANTHROPIC_API_KEY is not configured.');
+});
+
+test('a passing error is thrown again so the queue retries it', function () {
+    fakeExtractor(throws: new RuntimeException('model unavailable'));
+    $receipt = receipt();
+
+    expect(fn () => (new ExtractReceipt($receipt->id))->handle(app(ReceiptExtractor::class), app(PdfText::class), app(DropboxClient::class)))
+        ->toThrow(RuntimeException::class, 'model unavailable');
+    expect($receipt->fresh()->extraction_status)->not->toBe('failed');
+});
+
+test('the extractor reports a missing API key as permanent', function () {
+    config(['services.anthropic.api_key' => null]);
+
+    expect(fn () => (new ReceiptExtractor)->read('%PDF-1.4'))->toThrow(App\Services\Receipts\PermanentReceiptFailure::class);
+});
+
+test('a timed-out extraction marks the receipt failed and still sends it on to filing', function () {
+    Illuminate\Support\Facades\Queue::fake();
+    $receipt = receipt(['created_at' => '2026-10-05 10:00:00']);
+    $job = (new ExtractReceipt($receipt->id))->chain([new FileReceipt($receipt->id)]);
+
+    $job->failed(new Illuminate\Queue\MaxAttemptsExceededException('timed out'));
+
+    $receipt->refresh();
+    expect($receipt->extraction_status)->toBe('failed');
+    expect($receipt->extraction_error)->toContain('did not finish in time');
+    expect($receipt->target_month)->toBe(10);
+    Illuminate\Support\Facades\Queue::assertPushed(FileReceipt::class, fn (FileReceipt $j) => $j->receiptId === $receipt->id);
+});
+
+test('a timed-out extraction outside a chain queues no filing', function () {
+    Illuminate\Support\Facades\Queue::fake();
+    $receipt = receipt();
+
+    (new ExtractReceipt($receipt->id))->failed(null);
+
+    expect($receipt->fresh()->extraction_status)->toBe('failed');
+    Illuminate\Support\Facades\Queue::assertNothingPushed();
+});
+
+test('a timed-out filing or conversion does not leave the receipt pending', function () {
+    $pdf = receipt();
+    (new FileReceipt($pdf->id))->failed(null);
+    expect($pdf->fresh()->filing_status)->toBe('failed');
+    expect($pdf->fresh()->filing_error)->toContain('did not finish in time');
+
+    $photo = receipt(['original_mime' => 'image/jpeg', 'ext' => 'jpg'], 'jpeg');
+    (new PrepareReceiptPdf($photo->id))->failed(null);
+    expect($photo->fresh()->extraction_status)->toBe('failed');
+    expect($photo->fresh()->filing_status)->toBe('failed');
+    Storage::disk('local')->assertExists($photo->local_path);
+});
+
+test('the queue waits longer than any job may run before handing it out again', function () {
+    $longest = max((new ExtractReceipt(1))->timeout, (new FileReceipt(1))->timeout, (new PrepareReceiptPdf(1))->timeout, 120);
+
+    expect(config('queue.connections.database.retry_after'))->toBeGreaterThan($longest);
+});
+
 // ── After filing ──
 
 function filedReceipt(array $attrs = []): Receipt

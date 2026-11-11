@@ -8,7 +8,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 test('shared props expose running_entry as null when nothing is running', function () {
     $user = User::factory()->create();
-    $this->actingAs($user)->get('/profile')
+    $this->actingAs($user)->get('/clients')
         ->assertInertia(fn (Assert $page) => $page->where('running_entry', null));
 });
 
@@ -26,7 +26,7 @@ test('shared props expose the running entry with project + task labels', functio
         'billable' => true,
     ]);
 
-    $this->actingAs($user)->get('/profile')
+    $this->actingAs($user)->get('/clients')
         ->assertInertia(fn (Assert $page) => $page
             ->has('running_entry', fn (Assert $e) => $e
                 ->where('project.name', 'Fleet Console v2')
@@ -51,7 +51,7 @@ test('sidebar pinned lists only pinned active projects, alphabetically', functio
     // Pinned but archived — must be excluded:
     Project::factory()->create(['client_id' => $client->id, 'status' => 'archived', 'name' => 'Archived One', 'pinned_at' => now()]);
 
-    $this->actingAs($user)->get('/profile')
+    $this->actingAs($user)->get('/clients')
         ->assertInertia(fn (Assert $page) => $page
             ->has('sidebar.pinned', 2)
             ->where('sidebar.pinned.0.name', 'Atlas')
@@ -64,7 +64,7 @@ test('sidebar shared prop contains nav_counts, pinned, week_hours', function () 
     $client = Client::factory()->create();
     Project::factory()->count(3)->create(['client_id' => $client->id, 'status' => 'active']);
 
-    $this->actingAs($user)->get('/profile')
+    $this->actingAs($user)->get('/clients')
         ->assertInertia(fn (Assert $page) => $page
             ->has('sidebar', fn (Assert $s) => $s
                 ->has('nav_counts.projects')

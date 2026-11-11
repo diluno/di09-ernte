@@ -59,15 +59,32 @@ class EstimateProjections
     /** Full single-estimate detail array (shared by the web show page and the API). */
     public static function detail(Estimate $estimate): array
     {
-        $estimate->loadMissing(['client', 'project', 'convertedInvoice:id,number', 'lines', 'sections']);
+        $estimate->loadMissing(['client', 'project', 'convertedInvoice:id,number', 'lines', 'sections', 'events']);
+
+        $hours = (float) $estimate->lines->sum('hours');
+        $weightedRate = $hours > 0
+            ? $estimate->lines->sum(fn (EstimateLine $l) => (float) $l->hours * $l->rate_rappen) / $hours
+            : null;
+        $sentEvent = $estimate->events->where('kind', 'sent')->sortByDesc('occurred_at')->first();
+        $today = Carbon::today();
+        $validUntil = $estimate->valid_until?->copy()->startOfDay();
 
         return [
             'id' => $estimate->id,
             'number' => $estimate->number,
             'status' => $estimate->status,
             'expired' => $estimate->expired,
+            // Whole days until valid_until for a sent estimate (0 = last valid day),
+            // and how long ago it ran out once expired; null when not applicable.
+            'days_left' => ($estimate->status === 'sent' && $validUntil && ! $estimate->expired)
+                ? (int) $today->diffInDays($validUntil, false) : null,
+            'days_expired' => ($estimate->expired && $validUntil)
+                ? max(0, (int) $validUntil->diffInDays($today, false)) : null,
+            'issued_channel' => $sentEvent ? (($sentEvent->payload['manual'] ?? false) ? 'manual' : 'email') : null,
+            'avg_rate' => $weightedRate !== null ? round($weightedRate / 100, 2) : null,
             'title' => $estimate->title,
             'client' => $estimate->client->only('id', 'name'),
+            'recipients' => $estimate->effectiveRecipients(),
             'project_name' => $estimate->project?->name,
             'issued_on' => $estimate->issued_on?->toDateString(),
             'valid_until' => $estimate->valid_until?->toDateString(),
@@ -103,16 +120,34 @@ class EstimateProjections
         ];
     }
 
-    /** Top-of-page summary numbers in CHF (plus an acceptance-rate percentage). */
+    /**
+     * Top-of-page summary numbers. Sums are taken in integer rappen and returned
+     * as CHF (like InvoiceProjections::stats), plus counts and an acceptance rate.
+     * 'expired' uses the same rule as the Expired filter: sent, valid_until < today.
+     */
     public static function stats(): array
     {
+        $today = Carbon::today();
+
         // 'open' = all sent estimates (includes ones past valid_until — 'expired' is a virtual UI-only state, not a stored status).
         $open = (int) Estimate::open()->sum('total_rappen');
+        $openCount = Estimate::open()->count();
 
-        $acceptedYtd = (int) Estimate::query()
+        $expiredRow = Estimate::open()
+            ->whereDate('valid_until', '<', $today)
+            ->selectRaw('COUNT(*) AS n, COALESCE(SUM(total_rappen), 0) AS rappen')
+            ->first();
+
+        $acceptedYtdQuery = Estimate::query()
             ->where('status', 'accepted')
-            ->whereYear('decided_at', Carbon::now()->year)
-            ->sum('total_rappen');
+            ->whereYear('decided_at', Carbon::now()->year);
+        $acceptedYtd = (int) (clone $acceptedYtdQuery)->sum('total_rappen');
+        $acceptedYtdCount = (clone $acceptedYtdQuery)->count();
+
+        $draftsRow = Estimate::query()
+            ->where('status', 'draft')
+            ->selectRaw('COUNT(*) AS n, COALESCE(SUM(total_rappen), 0) AS rappen')
+            ->first();
 
         $accepted = Estimate::where('status', 'accepted')->count();
         $declined = Estimate::where('status', 'declined')->count();
@@ -120,8 +155,16 @@ class EstimateProjections
 
         return [
             'open' => round($open / 100, 2),
+            'open_count' => $openCount,
+            'expired' => round(((int) ($expiredRow->rappen ?? 0)) / 100, 2),
+            'expired_count' => (int) ($expiredRow->n ?? 0),
             'accepted_ytd' => round($acceptedYtd / 100, 2),
+            'accepted_ytd_count' => $acceptedYtdCount,
             'acceptance_rate' => $decided > 0 ? (int) round($accepted / $decided * 100) : null,
+            'accepted_count' => $accepted,
+            'decided_count' => $decided,
+            'drafts' => round(((int) ($draftsRow->rappen ?? 0)) / 100, 2),
+            'drafts_count' => (int) ($draftsRow->n ?? 0),
             'count' => Estimate::count(),
         ];
     }

@@ -12,42 +12,29 @@ class BootstrapSeeder extends Seeder
 {
     public function run(): void
     {
-        $email = env('ERNTE_USER_EMAIL', 'owner@ernte.local');
-        $name = env('ERNTE_USER_NAME', 'Owner');
-        $password = env('ERNTE_USER_PASSWORD', 'changeme');
+        $owner = config('ernte.owner');
 
-        User::firstOrCreate(
-            ['email' => $email],
-            [
-                'name' => $name,
-                'password' => Hash::make($password),
+        // Only a missing user needs the password; later deploys run this seeder with the
+        // variable long removed from the environment.
+        if (! User::where('email', $owner['email'])->exists()) {
+            if (blank($owner['password'])) {
+                throw new \RuntimeException('ERNTE_USER_PASSWORD is empty: set it in the environment before the first seed. There is no default password.');
+            }
+
+            User::create([
+                'email' => $owner['email'],
+                'name' => $owner['name'],
+                'password' => Hash::make($owner['password']),
                 'email_verified_at' => now(),
                 'settings' => [
                     'theme' => 'paper',
                     'density' => 'comfortable',
                     'accent' => '#2d4a3a',
                 ],
-            ]
-        );
+            ]);
+        }
 
-        BusinessProfile::firstOrCreate(
-            ['id' => 1],
-            [
-                'name' => env('BUSINESS_NAME', 'Your Name'),
-                'address_line_1' => env('BUSINESS_ADDRESS_LINE_1', ''),
-                'postal_code' => env('BUSINESS_POSTAL_CODE', ''),
-                'city' => env('BUSINESS_CITY', ''),
-                'country' => env('BUSINESS_COUNTRY', 'CH'),
-                'uid' => env('BUSINESS_UID', ''),
-                'vat_id' => env('BUSINESS_VAT_ID', ''),
-                'iban' => env('BUSINESS_IBAN', ''),
-                'qr_iban' => env('BUSINESS_QR_IBAN', ''),
-                'email' => env('BUSINESS_EMAIL', ''),
-                'default_currency' => env('BUSINESS_DEFAULT_CURRENCY', 'CHF'),
-                'default_vat_rate' => env('BUSINESS_DEFAULT_VAT_RATE', '8.10'),
-                'reminder_days_after_due' => (int) env('BUSINESS_REMINDER_DAYS_AFTER_DUE', 7),
-            ]
-        );
+        BusinessProfile::firstOrCreate(['id' => 1], config('ernte.business'));
 
         foreach ($this->vatRates() as $rate) {
             VatRate::updateOrCreate(['valid_from' => $rate['valid_from']], $rate);

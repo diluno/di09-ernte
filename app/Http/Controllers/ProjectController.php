@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Project;
 use App\Support\DashboardProjections;
 use App\Support\ProjectDetail;
+use App\Support\ProjectProjections;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -23,7 +24,11 @@ class ProjectController extends Controller
 
         return Inertia::render('Projects/Index', [
             'projects' => DashboardProjections::projects($filter, $search)->values(),
-            'stats' => DashboardProjections::stats($request->user()),
+            // DashboardProjections::stats is shared with the API; the web strip adds its own figures.
+            'stats' => [
+                ...DashboardProjections::stats($request->user()),
+                ...ProjectProjections::indexStats($request->user()),
+            ],
             'counts' => [
                 'active' => Project::active()->count(),
                 'all' => Project::count(),
@@ -38,10 +43,14 @@ class ProjectController extends Controller
         return Client::active()->orderBy('name')->get(['id', 'name']);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
+        $clients = $this->activeClients();
+
         return Inertia::render('Projects/Create', [
-            'clients' => $this->activeClients(),
+            'clients' => $clients,
+            // "New project" from a client page preselects that client.
+            'client_id' => $clients->firstWhere('id', $request->integer('client'))?->id,
         ]);
     }
 

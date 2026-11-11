@@ -35,6 +35,8 @@ class BankController extends Controller
     public function index(Request $request, StatementPositions $positions): Response
     {
         $this->standing = StandingDocument::where('active', true)->get();
+        // Gaps and month completeness are asked for by several parts of the page.
+        $positions->memoised();
 
         // The page shows one quarter at a time, the unit the accountant works in.
         $quarters = StatementLine::where('source', StatementImporter::SOURCE)
@@ -52,8 +54,8 @@ class BankController extends Controller
             ->groupBy(fn (Statement $b) => $b->bankLine->booked_on->format('Y-m'));
         $billByDebit = $bills->flatten()->keyBy('bank_line_id');
 
-        $monthKeys = StatementLine::where('source', StatementImporter::SOURCE)->whereYear('booked_on', $year)
-            ->whereIn(\Illuminate\Support\Facades\DB::raw('MONTH(booked_on)'), $quarter->months())
+        $quarterRange = StatementPositions::monthRange($year, $quarter->months()[0], $quarter->months()[2]);
+        $monthKeys = StatementLine::where('source', StatementImporter::SOURCE)->whereBetween('booked_on', $quarterRange)
             ->selectRaw('DISTINCT MONTH(booked_on) AS m')->orderByDesc('m')->pluck('m');
 
         $lists = MonthList::where('year', $year)->get()->mapWithKeys(fn (MonthList $l) => [$l->month => $l->written_at->toIso8601String()]);
@@ -95,7 +97,7 @@ class BankController extends Controller
 
         $review = StatementLine::whereIn('match_state', ['proposed', 'unmatched'])
             ->where('is_credit', true)->where('source', StatementImporter::SOURCE)
-            ->whereYear('booked_on', $year)->whereIn(\Illuminate\Support\Facades\DB::raw('MONTH(booked_on)'), $quarter->months())
+            ->whereBetween('booked_on', $quarterRange)
             ->with($with)
             ->orderBy('booked_on')->orderBy('id')
             ->get()
@@ -113,12 +115,12 @@ class BankController extends Controller
             'quarters' => $quarters->map->toArray()->all(),
             'camt_file' => [
                 'written_at' => QuarterFile::where(['year' => $quarter->year, 'quarter' => $quarter->number, 'kind' => CamtQuarterExporter::KIND])->value('written_at')?->toIso8601String(),
-                'blocker' => app(CamtQuarterExporter::class)->blocker($quarter),
+                'blocker' => app()->make(CamtQuarterExporter::class, ['positions' => $positions])->blocker($quarter),
             ],
             'months' => $months,
             'review' => $review,
             'pool' => $pool,
-            'gaps' => StatementImporter::gaps(),
+            'gaps' => $positions->gaps(),
             'open_receipts' => Receipt::whereNull('match_state')->whereNull('duplicate_of_id')
                 ->orderByDesc('document_date')->orderByDesc('id')->limit(300)->get()
                 ->map(fn (Receipt $r) => [
@@ -200,13 +202,14 @@ class BankController extends Controller
     /** Confirm every confident proposal of one month (bank rows and the card bills under it). */
     public function confirmConfident(string $month, ReceiptRowMatcher $matcher): RedirectResponse
     {
-        abort_unless(preg_match('/^(\d{4})-(\d{2})$/', $month, $m), 404);
+        abort_unless(preg_match('/^(\d{4})-(0[1-9]|1[0-2])$/', $month, $m), 404);
 
+        $range = StatementPositions::monthRange((int) $m[1], (int) $m[2]);
         $billIds = Statement::where('source', VisecaImporter::SOURCE)->whereNotNull('bank_line_id')
-            ->whereHas('bankLine', fn ($q) => $q->whereYear('booked_on', (int) $m[1])->whereMonth('booked_on', (int) $m[2]))->pluck('id');
+            ->whereHas('bankLine', fn ($q) => $q->whereBetween('booked_on', $range))->pluck('id');
         $receipts = Receipt::where('match_state', 'proposed')->where('match_confident', true)
             ->whereHas('statementLine', fn ($q) => $q
-                ->where(fn ($b) => $b->where('source', StatementImporter::SOURCE)->whereYear('booked_on', (int) $m[1])->whereMonth('booked_on', (int) $m[2]))
+                ->where(fn ($b) => $b->where('source', StatementImporter::SOURCE)->whereBetween('booked_on', $range))
                 ->orWhereIn('statement_id', $billIds))
             ->with('statementLine')->get();
 
@@ -335,6 +338,14 @@ class BankController extends Controller
             $matcher->apply($line, $invoice, 'manual');
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
+        }
+
+        $difference = $line->amount_rappen - $invoice->total_rappen;
+        if ($difference !== 0) {
+            $chf = fn (int $rappen) => 'CHF '.number_format(abs($rappen) / 100, 2, '.', "'");
+
+            return back()->with('success', "Payment matched to invoice {$invoice->number}. Received {$chf($line->amount_rappen)} instead of {$chf($invoice->total_rappen)}: "
+                .$chf($difference).($difference < 0 ? ' short' : ' over').'. The invoice counts as paid; the difference is noted in its history.');
         }
 
         return back()->with('success', "Payment matched to invoice {$invoice->number}.");

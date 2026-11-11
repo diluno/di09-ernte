@@ -28,7 +28,7 @@ const submit = () => {
         <form class="auth-card" @submit.prevent="submit">
             <div class="auth-brand">ernte</div>
 
-            <p v-if="status" class="auth-status">{{ status }}</p>
+            <p v-if="status" class="auth-status" role="status">{{ status }}</p>
 
             <label class="field">
                 <span>Email</span>
@@ -37,11 +37,12 @@ const submit = () => {
                     type="email"
                     class="input"
                     v-model="form.email"
+                    :aria-invalid="!!form.errors.email"
                     required
                     autofocus
                     autocomplete="username"
                 />
-                <span v-if="form.errors.email" class="error">{{ form.errors.email }}</span>
+                <small v-if="form.errors.email" class="error">{{ form.errors.email }}</small>
             </label>
 
             <label class="field">
@@ -51,76 +52,22 @@ const submit = () => {
                     type="password"
                     class="input"
                     v-model="form.password"
+                    :aria-invalid="!!form.errors.password"
                     required
                     autocomplete="current-password"
                 />
-                <span v-if="form.errors.password" class="error">{{ form.errors.password }}</span>
+                <small v-if="form.errors.password" class="error">{{ form.errors.password }}</small>
             </label>
 
-            <label class="auth-remember">
+            <label class="field is-check">
                 <input type="checkbox" v-model="form.remember" />
-                <span>remember me</span>
+                <span>Remember me</span>
             </label>
 
             <button type="submit" class="btn primary auth-submit" :disabled="form.processing">
-                <span>sign in</span>
+                <span>Sign in</span>
                 <span aria-hidden="true">&rarr;</span>
             </button>
         </form>
     </GuestLayout>
 </template>
-
-<style scoped>
-.auth-card {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    width: 100%;
-    max-width: 360px;
-    padding: 28px;
-    background: var(--paper);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    box-shadow: 0 12px 32px rgba(26, 26, 26, 0.08);
-}
-
-.auth-brand {
-    font-size: var(--fs-lg);
-    color: var(--ink);
-    letter-spacing: -0.5px;
-    padding-bottom: 14px;
-    border-bottom: 1px solid var(--border);
-}
-
-.auth-status {
-    margin: 0;
-    font-size: var(--fs-sm);
-    color: var(--forest);
-}
-
-.auth-remember {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: var(--fs-sm);
-    color: var(--ink-2);
-    cursor: pointer;
-}
-
-.auth-remember input {
-    accent-color: var(--accent);
-    cursor: pointer;
-}
-
-.auth-submit {
-    justify-content: center;
-    width: 100%;
-    min-height: var(--row-h);
-    font-size: var(--fs-sm);
-}
-
-.auth-submit:disabled {
-    opacity: 0.5;
-    cursor: default;
-}
-</style>

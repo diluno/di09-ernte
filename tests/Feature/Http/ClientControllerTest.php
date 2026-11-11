@@ -144,3 +144,49 @@ test('DELETE /clients/{id} archives instead of deleting', function () {
     $this->delete("/clients/{$c->id}")->assertRedirect();
     expect($c->fresh()->archived_at)->not->toBeNull();
 });
+
+test('GET /clients stats strip: active clients, outstanding and unbilled in rappen', function () {
+    $c = Client::factory()->create();
+    Client::factory()->create(['archived_at' => now()]);
+    $p = Project::factory()->create(['client_id' => $c->id, 'rate_rappen' => 12000]);
+    TimeEntry::create([
+        'user_id' => $this->user->id, 'project_id' => $p->id,
+        'description' => 'work', 'started_at' => now()->subHours(3), 'ended_at' => now()->subHours(2),
+        'billable' => true,
+    ]);
+    Invoice::factory()->create(['client_id' => $c->id, 'status' => 'sent', 'total_rappen' => 50000, 'due_on' => now()->subDays(3)->toDateString()]);
+    Invoice::factory()->create(['client_id' => $c->id, 'status' => 'sent', 'total_rappen' => 25000, 'due_on' => now()->addDays(10)->toDateString()]);
+
+    $this->get('/clients')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('stats.active', 1)
+            ->where('stats.archived', 1)
+            ->where('stats.outstanding_rappen', 75000)
+            ->where('stats.outstanding_count', 2)
+            ->where('stats.overdue_count', 1)
+            ->where('stats.unbilled_rappen', 12000)
+            ->where('stats.unbilled_clients', 1)
+        );
+});
+
+test('GET /clients/{id} stats include rappen totals and overdue count', function () {
+    $c = Client::factory()->create();
+    $p = Project::factory()->create(['client_id' => $c->id, 'rate_rappen' => 12000]);
+    TimeEntry::create([
+        'user_id' => $this->user->id, 'project_id' => $p->id,
+        'description' => 'work', 'started_at' => now()->subHours(3), 'ended_at' => now()->subHours(1),
+        'billable' => true,
+    ]);
+    Invoice::factory()->create(['client_id' => $c->id, 'status' => 'sent', 'total_rappen' => 31349, 'due_on' => now()->subDay()->toDateString()]);
+
+    $this->get("/clients/{$c->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('stats.outstanding_rappen', 31349)
+            ->where('stats.outstanding_count', 1)
+            ->where('stats.overdue_count', 1)
+            ->where('stats.unbilled_rappen', 24000)
+            ->has('client.locale')
+        );
+});

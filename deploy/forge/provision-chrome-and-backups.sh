@@ -97,6 +97,34 @@ mysqldump. Install a compatible MySQL client manually before relying on backups.
 EOF
 }
 
+# Receipts: pdftotext for the text layer of PDFs, and an ImageMagick that reads the HEIC
+# photos iPhones take (PHP's imagick extension decodes through the system library).
+install_receipt_tools() {
+  apt_install poppler-utils
+
+  if ! apt_install libheif1 libheif-plugin-libde265 libheif-plugin-aomdec; then
+    # Older releases ship the decoders inside libheif1 itself.
+    apt_install libheif1 || true
+  fi
+
+  local php_version
+  php_version="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;' 2>/dev/null || true)"
+  if [ -n "$php_version" ] && ! php -m 2>/dev/null | grep -qi '^imagick$'; then
+    apt_install "php${php_version}-imagick" || echo "WARNING: could not install php${php_version}-imagick; photographed receipts cannot be converted." >&2
+  fi
+
+  if php -r 'exit(extension_loaded("imagick") && Imagick::queryFormats("HEIC") ? 0 : 1);' 2>/dev/null; then
+    echo "Imagick reads HEIC."
+  else
+    cat >&2 <<'EOF'
+WARNING: PHP's Imagick cannot read HEIC on this server. iPhone photos of
+receipts will stay unconverted and will not be filed. The distribution's
+ImageMagick is built without libheif; install a build with HEIC support, then
+restart PHP-FPM and the queue worker and check `php artisan ernte:doctor`.
+EOF
+  fi
+}
+
 apt_update
 apt_install \
   ca-certificates \
@@ -109,6 +137,7 @@ apt_install \
 
 install_atk_bridge
 ensure_mysqldump
+install_receipt_tools
 
 curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
   | gpg --dearmor \
@@ -123,3 +152,5 @@ apt_install google-chrome-stable
 echo
 echo "Set this in Forge environment:"
 echo "BROWSERSHOT_CHROME_PATH=/usr/bin/google-chrome-stable"
+echo
+echo "Then restart PHP-FPM and the queue worker and run: php artisan ernte:doctor"

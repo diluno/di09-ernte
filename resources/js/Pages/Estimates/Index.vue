@@ -2,9 +2,11 @@
 import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import Icon from '@/Components/Icon.vue';
 import Pagination from '@/Components/Pagination.vue';
 import { fmtDate } from '@/formatters/date.js';
+import { fmtMoney } from '@/formatters/money.js';
+import { fmtHours } from '@/formatters/duration.js';
+import { rowClick } from '@/composables/useRowLink.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -27,23 +29,24 @@ function onSearch() {
   t = setTimeout(() => router.get('/estimates', { filter: filter.value, q: search.value || undefined }, { preserveState: true, preserveScroll: true }), 250);
 }
 
-function fmtMoney(v)      { return 'CHF ' + Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-function fmtMoneyShort(v) { return 'CHF ' + Math.round(v).toLocaleString('de-CH'); }
-
-// Map estimate status → an existing invoice badge class + a display label.
-function badge(est) {
-  if (est.expired) return { cls: 'overdue', label: 'expired' };
-  return { cls: { draft: 'draft', sent: 'sent', accepted: 'paid', declined: 'void' }[est.status] ?? 'draft', label: est.status };
-}
+// Stat tiles show whole francs (aggregates); rows always show two decimals.
+const fmtChf0 = (v) => fmtMoney(v, { whole: true });
+function plural(n, one, many) { return `${n} ${n === 1 ? one : many}`; }
 
 const TABS = computed(() => [
   { id: 'all',      label: 'All',      count: props.counts.all },
   { id: 'draft',    label: 'Draft',    count: props.counts.draft },
   { id: 'sent',     label: 'Sent',     count: props.counts.sent },
+  { id: 'expired',  label: 'Expired',  count: props.counts.expired, red: true },
   { id: 'accepted', label: 'Accepted', count: props.counts.accepted },
   { id: 'declined', label: 'Declined', count: props.counts.declined },
-  { id: 'expired',  label: 'Expired',  count: props.counts.expired },
 ]);
+
+// Expired is virtual (sent + past valid_until); it wins over the stored status.
+const rowStatus = (est) => est.expired ? 'expired' : est.status;
+// Row treatment from the shared table vocabulary: expired = red tint and bar
+// (like an overdue invoice), draft = muted, decided = quiet (like paid).
+const ROW_CLASS = { expired: 'is-overdue', draft: 'is-draft', accepted: 'is-paid', declined: 'is-paid' };
 </script>
 
 <template>
@@ -51,13 +54,10 @@ const TABS = computed(() => [
 
   <div class="page-head">
     <div>
-      <div class="crumb">~ / estimates</div>
-      <h1 class="page-title">
-        Estimates
-        <span class="meta">{{ counts.all }} total<span class="ascii-dot">·</span>FY {{ new Date().getFullYear() }}</span>
-      </h1>
+      <div class="crumb">Estimates · FY {{ new Date().getFullYear() }} · {{ plural(counts.all, 'document', 'documents') }}</div>
+      <h1 class="page-title">Estimates</h1>
     </div>
-    <div style="display: flex; gap: 8px">
+    <div class="page-actions">
       <Link href="/estimates/new" class="btn primary">+ New estimate</Link>
     </div>
   </div>
@@ -65,65 +65,70 @@ const TABS = computed(() => [
   <div class="stats">
     <div class="stat">
       <div class="label">Open</div>
-      <div class="val" style="color: var(--rust)">{{ fmtMoneyShort(stats.open) }}</div>
-      <div class="delta">{{ counts.sent }} sent</div>
+      <div class="val">{{ fmtChf0(stats.open) }}<span class="unit">CHF</span></div>
+      <div class="foot">
+        {{ stats.open_count }} sent<template v-if="stats.expired_count > 0"> · <span class="estimates-foot-red">{{ stats.expired_count }} expired</span></template>
+      </div>
     </div>
     <div class="stat">
       <div class="label">Accepted YTD</div>
-      <div class="val">{{ fmtMoneyShort(stats.accepted_ytd) }}</div>
+      <div class="val">{{ fmtChf0(stats.accepted_ytd) }}<span class="unit">CHF</span></div>
+      <div class="foot">{{ stats.accepted_ytd_count }} accepted</div>
     </div>
     <div class="stat">
       <div class="label">Acceptance rate</div>
       <div class="val">{{ stats.acceptance_rate ?? '—' }}<span v-if="stats.acceptance_rate !== null" class="unit">%</span></div>
+      <div class="foot">
+        <template v-if="stats.decided_count > 0">{{ stats.accepted_count }} of {{ stats.decided_count }} decided · all time</template>
+        <template v-else>nothing decided yet</template>
+      </div>
     </div>
     <div class="stat">
-      <div class="label">Total</div>
-      <div class="val">{{ stats.count }}</div>
+      <div class="label">Drafts</div>
+      <div class="val">{{ fmtChf0(stats.drafts) }}<span class="unit">CHF</span></div>
+      <div class="foot">{{ plural(stats.drafts_count, 'draft', 'drafts') }} not sent</div>
     </div>
   </div>
 
   <div class="filter-row">
-    <button v-for="tab in TABS" :key="tab.id" class="chip" :aria-pressed="filter === tab.id" @click="setFilter(tab.id)">
-      {{ tab.label }} <span class="dim" style="margin-left: 4px">{{ tab.count }}</span>
+    <button v-for="tab in TABS" :key="tab.id" class="chip" :class="{ 'is-red': tab.red }" :aria-pressed="filter === tab.id" @click="setFilter(tab.id)">
+      {{ tab.label }} <span class="dim">{{ tab.count }}</span>
     </button>
-    <div class="search">
-      <Icon name="search" style="color: var(--ink-4)" />
-      <input v-model="search" placeholder="filter…" @input="onSearch" />
-    </div>
+    <label class="search">
+      <input v-model="search" placeholder="filter…" aria-label="Filter" data-filter-input @input="onSearch" />
+      <span class="kbd sm">/</span>
+    </label>
   </div>
 
   <div class="table-wrap">
-    <table class="table table--docs">
+    <table class="table table--docs estimates-table">
       <thead>
         <tr>
-          <th class="pad-l">Estimate</th>
-          <th style="width: 230px">Client</th>
-          <th class="num" style="width: 120px">Issued</th>
-          <th class="num" style="width: 120px">Valid until</th>
-          <th class="num" style="width: 90px">Hours</th>
-          <th class="num" style="width: 150px">Total</th>
-          <th style="width: 130px">Status</th>
+          <th class="pad-l" style="width: 170px">No.</th>
+          <th>Subject</th>
+          <th style="width: 180px">Client</th>
+          <th class="num is-sorted" style="width: 110px">Issued ↓</th>
+          <th class="num" style="width: 110px">Valid until</th>
+          <th class="num" style="width: 72px">Hours</th>
+          <th class="num" style="width: 130px">CHF</th>
+          <th class="pad-r" style="width: 140px">Status</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="est in estimates.data" :key="est.id"
-            :class="{ 'is-overdue': est.expired, 'is-open': est.status === 'sent' && !est.expired }"
-            @click="router.visit(`/estimates/${est.number}`)">
-          <td class="pad-l strong">
-            <div class="doc-id">
-              <span class="mono-tag" style="padding: 2px 6px; color: var(--ink); border-color: var(--border-strong)">#{{ est.number }}</span>
-              <span v-if="est.title" class="doc-id__title" :title="est.title">{{ est.title }}</span>
-            </div>
-          </td>
-          <td>{{ est.client.name }}</td>
+            class="is-clickable" :class="ROW_CLASS[rowStatus(est)]"
+            @click="rowClick($event, `/estimates/${est.number}`)">
+          <td class="pad-l code"><Link :href="`/estimates/${est.number}`" class="row-link" :aria-label="`Estimate ${est.number}${est.title ? ` — ${est.title}` : ''}`">{{ est.number }}</Link></td>
+          <td class="subject" :title="est.title || undefined">{{ est.title || '—' }}</td>
+          <td class="trunc" :title="est.client.name">{{ est.client.name }}</td>
           <td class="num">{{ fmtDate(est.issued_on) }}</td>
-          <td class="num" :style="{ color: est.expired ? 'var(--red)' : undefined }">{{ fmtDate(est.valid_until) }}</td>
-          <td class="num">{{ est.hours.toFixed(1) }}h</td>
-          <td class="num strong">{{ fmtMoney(est.total) }}</td>
-          <td><span class="badge dot" :class="badge(est).cls">{{ badge(est).label }}</span></td>
+          <td class="num" :class="{ 'is-red': est.expired }">{{ fmtDate(est.valid_until) }}</td>
+          <td class="num">{{ fmtHours(est.hours) }}</td>
+          <td class="money">{{ fmtMoney(est.total) }}</td>
+          <td class="pad-r"><span class="badge dot" :class="rowStatus(est)">{{ rowStatus(est) }}</span></td>
         </tr>
         <tr v-if="estimates.data.length === 0">
-          <td colspan="7" class="pad-l muted" style="padding: 24px">No estimates match this filter.</td>
+          <td colspan="8" class="is-empty">No estimates match this filter.</td>
         </tr>
       </tbody>
     </table>

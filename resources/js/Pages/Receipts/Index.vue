@@ -1,4 +1,5 @@
 <script setup>
+import axios from 'axios';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -6,6 +7,8 @@ import Icon from '@/Components/Icon.vue';
 import Pagination from '@/Components/Pagination.vue';
 import VendorMark from '@/Components/VendorMark.vue';
 import { fmtDate } from '@/formatters/date.js';
+import { fmtMoney } from '@/formatters/money.js';
+import { rowClick } from '@/composables/useRowLink.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -19,8 +22,6 @@ const props = defineProps({
   dropbox_connected: { type: Boolean, required: true },
   inbox_folder:      { type: String, required: true },
 });
-
-function fmtAmount(v) { return Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
 const TABS = computed(() => [
   { id: 'all',       label: 'All',             count: props.counts.all },
@@ -68,7 +69,7 @@ async function upload(fileList) {
     try {
       const form = new FormData();
       form.append('file', files[i]);
-      const { data } = await window.axios.post('/receipts', form);
+      const { data } = await axios.post('/receipts', form);
       row.state = data.status;
       row.id = data.receipt.id;
     } catch (e) {
@@ -91,16 +92,25 @@ const UPLOAD_LABEL = { waiting: 'waiting', uploading: 'uploading…', created: '
 const working = computed(() => props.receipts.data.some((r) => r.extraction_status === 'pending' || r.filing_status === 'inbox' || (r.filing_status === 'pending' && props.dropbox_connected)));
 
 // The check runs in the background; look again a few times so new receipts show up.
+const checking = ref(false);
+let followUps = [];
+function clearFollowUps() { followUps.forEach(clearTimeout); followUps = []; }
 function checkInbox() {
-  router.post('/receipts/check-inbox', {}, { preserveScroll: true });
-  [4000, 9000, 16000, 30000].forEach((ms) => setTimeout(() => router.reload({ only: ['receipts', 'counts', 'months', 'quarters'] }), ms));
+  if (checking.value) return;
+  router.post('/receipts/check-inbox', {}, {
+    preserveScroll: true,
+    onStart: () => { checking.value = true; },
+    onFinish: () => { checking.value = false; },
+  });
+  clearFollowUps();
+  followUps = [4000, 9000, 16000, 30000].map((ms) => setTimeout(() => router.reload({ only: ['receipts', 'counts', 'months', 'quarters'] }), ms));
 }
 let timer = null;
 watch(working, (on) => {
   clearInterval(timer);
   if (on) timer = setInterval(() => { if (!busy.value) router.reload({ only: ['receipts', 'counts', 'months', 'quarters'] }); }, 4000);
 }, { immediate: true });
-onBeforeUnmount(() => clearInterval(timer));
+onBeforeUnmount(() => { clearInterval(timer); clearFollowUps(); });
 </script>
 
 <template>
@@ -112,7 +122,7 @@ onBeforeUnmount(() => clearInterval(timer));
       <h1 class="page-title">Receipts</h1>
     </div>
     <div class="page-actions">
-      <button v-if="dropbox_connected" class="btn" :title="`Pick up new scans from ${inbox_folder} in Dropbox`" @click="checkInbox">Check Dropbox inbox</button>
+      <button v-if="dropbox_connected" class="btn" :title="`Pick up new scans from ${inbox_folder} in Dropbox`" :disabled="checking" @click="checkInbox">Check Dropbox inbox</button>
       <button class="btn primary" :disabled="busy" @click="fileInput.click()"><Icon name="upload" />Upload receipts</button>
       <input ref="fileInput" type="file" accept="application/pdf,image/*" multiple hidden @change="upload($event.target.files)" />
     </div>
@@ -194,12 +204,12 @@ onBeforeUnmount(() => clearInterval(timer));
         </tr>
       </thead>
       <tbody>
-        <tr v-for="r in receipts.data" :key="r.id" :class="{ 'is-overdue': status(r).kind === 'attention' }" @click="router.visit(`/receipts/${r.id}`)">
+        <tr v-for="r in receipts.data" :key="r.id" class="is-clickable" :class="{ 'is-overdue': status(r).kind === 'attention' }" @click="rowClick($event, `/receipts/${r.id}`)">
           <td class="pad-l code rc-date">{{ fmtDate(r.document_date) }}</td>
-          <td class="subject" :title="r.filename ?? r.original_name"><div class="vendor-name"><VendorMark :name="r.vendor" :logo="r.logo_url" /><span>{{ r.vendor ?? '—' }}</span></div></td>
+          <td class="subject" :title="r.filename ?? r.original_name"><Link :href="`/receipts/${r.id}`" class="vendor-name row-link" :aria-label="`Receipt: ${r.vendor ?? r.filename ?? r.original_name ?? r.id}`"><VendorMark :name="r.vendor" :logo="r.logo_url" /><span>{{ r.vendor ?? '—' }}</span></Link></td>
           <td class="trunc rc-file" :title="r.filename ?? r.original_name">{{ r.filename ?? r.original_name }}</td>
           <td class="money">
-            <template v-if="r.total !== null">{{ fmtAmount(r.total) }}<span class="rc-unit">{{ r.currency }}</span></template>
+            <template v-if="r.total !== null">{{ fmtMoney(r.total) }}<span class="rc-unit">{{ r.currency }}</span></template>
             <template v-else>—</template>
           </td>
           <td class="code rc-folder">{{ r.folder ?? '—' }}</td>
@@ -228,7 +238,6 @@ onBeforeUnmount(() => clearInterval(timer));
 .rc-month .ledger-select { width: auto; }
 .rc-paid { display: inline-flex; align-items: center; gap: 8px; }
 .rc-card { font-size: 15px; color: var(--ink); }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .rc-unit { margin-left: 6px; font-size: 12px; font-weight: 400; color: var(--ink-3); }
 /* Fixed columns stay narrow enough that the vendor always has room; the least needed
    columns drop out as the window narrows, so the table never scrolls sideways. */

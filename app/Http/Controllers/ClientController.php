@@ -17,6 +17,7 @@ class ClientController extends Controller
     {
         return Inertia::render('Clients/Index', [
             'clients' => ClientProjections::index()->values(),
+            'stats' => ClientProjections::stats(),
         ]);
     }
 

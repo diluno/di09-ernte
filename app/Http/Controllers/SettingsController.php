@@ -71,6 +71,10 @@ class SettingsController extends Controller
             'problem' => null,
         ];
 
+        if ($profile->dropboxTokenUnreadable()) {
+            $status['problem'] = 'The stored Dropbox connection was made with a different APP_KEY (a restored or copied database) and cannot be read here. Connect Dropbox again.';
+        }
+
         if ($status['connected']) {
             try {
                 $status['root_ok'] = $dropbox->exists($dropbox->root());

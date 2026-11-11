@@ -12,10 +12,11 @@ use App\Models\User;
 use App\Services\Invoicing\InvoiceBuilder;
 use App\Services\Invoicing\InvoicePdfRenderer;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
-    BusinessProfile::create(['name' => 'Ernte Test', 'country' => 'CH', 'default_currency' => 'CHF', 'default_vat_rate' => 8.10]);
+    BusinessProfile::create(['name' => 'Ernte Test', 'country' => 'CH', 'default_currency' => 'CHF', 'default_vat_rate' => 8.10, 'iban' => 'CH9300762011623852957']);
     $this->user = User::factory()->create();
     $this->actingAs($this->user);
     $this->client = Client::factory()->create(['name' => 'Atlas Robotics', 'short_code' => 'AR']);
@@ -215,6 +216,47 @@ test('GET /invoices/new excludes running (in-progress) timers', function () {
             ->has('entries', 1, fn (Assert $e) => $e->where('description', 'Finished')->etc()));
 });
 
+test('GET /invoices/new reports unbilled entries outside the chosen period', function () {
+    $entry = fn (string $start, array $attrs = []) => TimeEntry::factory()->create($attrs + [
+        'user_id' => $this->user->id, 'project_id' => $this->project->id, 'description' => 'Work',
+        'started_at' => $start, 'ended_at' => \Illuminate\Support\Carbon::parse($start)->addHour(), 'billable' => true,
+    ]);
+    $entry('2026-03-03 23:30:00'); // late evening wall-clock: still the 3rd
+    $entry('2026-05-20 09:00:00');
+    $entry('2026-04-10 09:00:00'); // inside the period
+    $entry('2026-02-01 09:00:00', ['billable' => false]);
+    $entry('2026-02-02 09:00:00', ['ended_at' => null]); // running
+    $entry('2026-02-03 09:00:00', ['invoice_id' => makeDraftWithoutEntries()->id]);
+    $otherProject = Project::factory()->create(['client_id' => $this->client->id, 'billable' => true, 'rate_rappen' => 10000]);
+    $entry('2026-01-15 09:00:00', ['project_id' => $otherProject->id]);
+
+    $this->get("/invoices/new?client={$this->client->id}&project={$this->project->id}&from=2026-04-01&to=2026-04-30")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Invoices/Create')
+            ->has('entries', 1)
+            ->where('unbilled_outside_period', ['count' => 2, 'first_on' => '2026-03-03', 'last_on' => '2026-05-20']));
+
+    // Without a project filter, the client's other projects count too.
+    $this->get("/invoices/new?client={$this->client->id}&from=2026-04-01&to=2026-04-30")
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('unbilled_outside_period', ['count' => 3, 'first_on' => '2026-01-15', 'last_on' => '2026-05-20']));
+
+    // Nothing outside the period.
+    $this->get("/invoices/new?client={$this->client->id}&from=2026-01-01&to=2026-12-31")
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('unbilled_outside_period', ['count' => 0, 'first_on' => null, 'last_on' => null]));
+});
+
+function makeDraftWithoutEntries(): Invoice
+{
+    return app(InvoiceBuilder::class)->createDraft(
+        client: test()->client, project: test()->project,
+        periodStart: '2026-02-01', periodEnd: '2026-02-28',
+        lines: [['description' => 'Fixed', 'hours' => 1.0, 'rate_rappen' => 14500]], entryIds: [],
+    );
+}
+
 test('POST /invoices rejects a project belonging to a different client', function () {
     $otherClient = Client::factory()->create(['name' => 'Other Co', 'short_code' => 'OC']);
     $otherProject = Project::factory()->create(['client_id' => $otherClient->id, 'billable' => true, 'rate_rappen' => 10000]);
@@ -259,6 +301,26 @@ test('GET /invoices/{number} renders Invoices/Show with invoice + lines + events
             ->has('events', 1, fn (Assert $e) => $e->where('kind', 'created')->etc())
             ->has('linked_entries')
             ->where('preview_url', "/invoices/{$inv->number}/preview"));
+});
+
+test('GET /invoices/{number} marks only drafts and never-sent void invoices as deletable', function () {
+    $inv = makeDraft();
+    $assertDeletable = fn (bool $expected) => $this->get("/invoices/{$inv->number}")->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('invoice.deletable', $expected));
+
+    $assertDeletable(true);
+
+    $inv->update(['status' => 'void']);
+    $assertDeletable(true);
+
+    $inv->update(['status' => 'void', 'sent_at' => now()]);
+    $assertDeletable(false);
+
+    $inv->update(['status' => 'sent', 'issued_on' => now(), 'due_on' => now()->addDays(30)]);
+    $assertDeletable(false);
+
+    $inv->update(['status' => 'paid', 'paid_at' => now()]);
+    $assertDeletable(false);
 });
 
 test('GET /invoices/{number}/edit renders the draft invoice editor', function () {
@@ -332,27 +394,6 @@ test('GET /invoices/{number}/pdf streams draft PDFs without caching on the invoi
         ->assertStreamedContent('%PDF-draft');
 
     expect($inv->fresh()->pdf_path)->toBeNull();
-});
-
-test('GET /invoices/{number}/pdf renders sent invoices fresh, ignoring the cached pdf_path', function () {
-    $inv = makeDraft();
-    $inv->update(['status' => 'sent', 'pdf_path' => 'invoices/stale.pdf']);
-
-    $this->mock(InvoicePdfRenderer::class, function ($mock) use ($inv) {
-        $mock->shouldReceive('pdfBytes')
-            ->once()
-            ->with(Mockery::on(fn ($invoice) => $invoice->is($inv)))
-            ->andReturn('%PDF-fresh');
-        $mock->shouldNotReceive('pdf');
-    });
-
-    $this->get("/invoices/{$inv->number}/pdf")
-        ->assertOk()
-        ->assertStreamed()
-        ->assertStreamedContent('%PDF-fresh');
-
-    // The frozen as-sent copy stays untouched for reminder emails.
-    expect($inv->fresh()->pdf_path)->toBe('invoices/stale.pdf');
 });
 
 test('PATCH /invoices/{id} edits a draft notes + lines and recomputes totals', function () {
@@ -433,13 +474,111 @@ test('DELETE /invoices/{id} deletes it, cascades lines/events, and releases link
     expect(TimeEntry::find($entryId)->invoice_id)->toBeNull(); // back to unbilled
 });
 
-test('DELETE /invoices/{id} works regardless of status (e.g. paid)', function () {
+test('DELETE /invoices/{id} refuses issued invoices and keeps their billed time linked', function (array $state) {
     $inv = makeDraft();
-    $inv->update(['status' => 'paid', 'paid_at' => now()]);
+    $entryId = TimeEntry::first()->id;
+    $inv->update($state);
+
+    $this->from("/invoices/{$inv->number}")
+        ->delete("/invoices/{$inv->id}")
+        ->assertRedirect("/invoices/{$inv->number}")
+        ->assertSessionHas('error', fn ($message) => str_contains($message, 'Void it instead'));
+
+    expect(Invoice::find($inv->id))->not->toBeNull();
+    expect(TimeEntry::find($entryId)->invoice_id)->toBe($inv->id);
+})->with([
+    'sent' => [['status' => 'sent', 'sent_at' => '2026-05-01 10:00:00']],
+    'paid' => [['status' => 'paid', 'sent_at' => '2026-05-01 10:00:00', 'paid_at' => '2026-05-10 10:00:00']],
+    'void after sending' => [['status' => 'void', 'sent_at' => '2026-05-01 10:00:00']],
+]);
+
+test('DELETE /invoices/{id} deletes a draft that was voided without ever being sent', function () {
+    $inv = makeDraft();
+    app(\App\Services\Invoicing\InvoiceLifecycle::class)->void($inv);
 
     $this->delete("/invoices/{$inv->id}")->assertRedirect('/invoices');
 
     expect(Invoice::find($inv->id))->toBeNull();
+});
+
+test('GET /invoices/{number}/preview explains a missing IBAN instead of rendering a slip', function () {
+    BusinessProfile::current()->update(['iban' => null, 'qr_iban' => null]);
+    $inv = makeDraft();
+
+    $this->get("/invoices/{$inv->number}/preview")
+        ->assertStatus(422)
+        ->assertSee('No IBAN is configured');
+});
+
+test('GET /invoices/{number}/pdf serves the PDF frozen at send time for an issued invoice', function () {
+    Storage::fake('local');
+    $inv = makeDraft();
+    Storage::disk('local')->put("invoices/{$inv->number}.pdf", 'FROZEN-PDF');
+    $inv->update(['status' => 'sent', 'sent_at' => now(), 'pdf_path' => "invoices/{$inv->number}.pdf"]);
+
+    // Would fail if the controller rendered: there is no Chromium behind this mock.
+    $this->mock(InvoicePdfRenderer::class)->shouldNotReceive('pdfBytes');
+
+    $res = $this->get("/invoices/{$inv->number}/pdf")->assertOk();
+
+    expect($res->streamedContent())->toBe('FROZEN-PDF');
+    expect($res->headers->get('content-disposition'))->toContain($inv->pdfFilename());
+});
+
+test('GET /invoices/{number}/pdf renders live for a draft even if a stale file exists', function () {
+    Storage::fake('local');
+    $inv = makeDraft();
+    Storage::disk('local')->put("invoices/{$inv->number}.pdf", 'STALE');
+    $inv->update(['pdf_path' => "invoices/{$inv->number}.pdf"]);
+
+    $this->mock(InvoicePdfRenderer::class)->shouldReceive('pdfBytes')->once()->andReturn('LIVE-PDF');
+
+    expect($this->get("/invoices/{$inv->number}/pdf")->assertOk()->streamedContent())->toBe('LIVE-PDF');
+});
+
+test('GET /invoices/{number}/pdf renders live when an issued invoice has no stored file', function () {
+    Storage::fake('local');
+    $inv = makeDraft();
+    $inv->update(['status' => 'sent', 'sent_at' => now(), 'pdf_path' => 'invoices/missing.pdf']);
+
+    $this->mock(InvoicePdfRenderer::class)->shouldReceive('pdfBytes')->once()->andReturn('LIVE-PDF');
+
+    expect($this->get("/invoices/{$inv->number}/pdf")->assertOk()->streamedContent())->toBe('LIVE-PDF');
+});
+
+test('POST /invoices rejects entry ids that may not be billed on this invoice', function (Closure $makeEntry) {
+    $entry = $makeEntry();
+    $invoices = Invoice::count();
+
+    $this->from('/invoices/new')->post('/invoices', [
+        'client_id' => $this->client->id,
+        'lines' => [['description' => 'Work', 'hours' => 1, 'rate_rappen' => 14500]],
+        'entry_ids' => [$entry->id],
+    ])->assertSessionHasErrors('entry_ids.0');
+
+    expect(Invoice::count())->toBe($invoices);
+    expect($entry->fresh()->invoice_id)->toBe($entry->invoice_id);
+})->with([
+    'another client\'s entry' => [fn () => TimeEntry::factory()->create(['user_id' => test()->user->id])],
+    'a running entry' => [fn () => TimeEntry::factory()->running()->create(['user_id' => test()->user->id, 'project_id' => test()->project->id])],
+    'a non-billable entry' => [fn () => TimeEntry::factory()->create(['user_id' => test()->user->id, 'project_id' => test()->project->id, 'billable' => false])],
+    'an already invoiced entry' => [fn () => TimeEntry::factory()->create([
+        'user_id' => test()->user->id, 'project_id' => test()->project->id,
+        'invoice_id' => Invoice::factory()->create(['client_id' => test()->client->id])->id,
+    ])],
+]);
+
+test('POST /invoices/{id}/remind refuses a second reminder within a minute', function () {
+    Mail::fake();
+    Contact::factory()->for($this->client)->create(['is_default' => true]);
+    $inv = makeDraft();
+    $inv->update(['status' => 'sent', 'sent_at' => now()->subDays(40), 'due_on' => now()->subDays(10)->toDateString()]);
+
+    $this->post("/invoices/{$inv->id}/remind")->assertSessionHas('success');
+    $this->post("/invoices/{$inv->id}/remind")->assertSessionHas('error');
+
+    expect($inv->events()->where('kind', 'reminded')->count())->toBe(1);
+    Mail::assertSent(\App\Mail\InvoiceReminderMail::class, 1);
 });
 
 test('POST /invoices/{id}/paid marks a sent invoice paid', function () {
@@ -553,4 +692,19 @@ test('POST /invoices/{id}/remind refuses drafts', function () {
 
     $this->post("/invoices/{$inv->id}/remind")->assertSessionHas('error');
     \Illuminate\Support\Facades\Queue::assertNothingPushed();
+});
+
+test('POST /invoices/{id}/send fails with a flash error when no IBAN is configured', function () {
+    BusinessProfile::current()->update(['iban' => null, 'qr_iban' => null]);
+    Contact::factory()->for($this->client)->create(['is_default' => true]);
+    Mail::fake();
+    $inv = makeDraft();
+
+    $this->from("/invoices/{$inv->number}")
+        ->post("/invoices/{$inv->id}/send")
+        ->assertRedirect("/invoices/{$inv->number}")
+        ->assertSessionHas('error', fn ($message) => str_contains($message, 'No IBAN is configured'));
+
+    expect($inv->fresh()->status)->toBe('draft');
+    Mail::assertNothingSent();
 });

@@ -1,9 +1,19 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 
-function isTypingTarget(target) {
-  const tag = target?.tagName?.toLowerCase();
-  return tag === 'input' || tag === 'textarea' || tag === 'select' || target?.isContentEditable;
+// Elements that own their keystrokes: form controls, anything activatable with
+// space/enter, and everything inside a dialog or menu.
+const INTERACTIVE = [
+  'input', 'textarea', 'select', 'button', 'a[href]', 'summary',
+  '[contenteditable]:not([contenteditable="false"])',
+  '[role="button"]', '[role="link"]', '[role="menuitem"]', '[role="tab"]',
+  '[role="option"]', '[role="checkbox"]', '[role="switch"]', '[role="combobox"]',
+  '[role="textbox"]', 'dialog', '[role="dialog"]', '[role="menu"]', '[role="listbox"]',
+].join(',');
+
+function isInteractiveTarget(target) {
+  if (!(target instanceof Element)) return false;
+  return target.isContentEditable || target.closest(INTERACTIVE) !== null;
 }
 
 function focusFilter() {
@@ -25,22 +35,29 @@ export function useKeyboardShortcuts({ openCommandPalette, openProjectPalette })
   function onKeydown(event) {
     if (event.repeat) return;
 
-    const typing = isTypingTarget(event.target);
+    const interactive = isInteractiveTarget(event.target);
+    const mod = event.metaKey || event.ctrlKey;
 
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+    // ⌘K / Ctrl+K works everywhere, including inside inputs.
+    if (mod && !event.altKey && event.key.toLowerCase() === 'k') {
       event.preventDefault();
       openCommandPalette();
       return;
     }
 
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'p') {
-      if (typing) return;
+    if (mod && !event.altKey && event.key.toLowerCase() === 'p') {
+      if (interactive) return;
       event.preventDefault();
       openProjectPalette();
       return;
     }
 
-    if (typing) return;
+    // Single-key shortcuts: never while a modifier is held (⌘N, Ctrl+G, …) and
+    // never while a control, link or dialog has focus (space/enter belong to it).
+    if (mod || event.altKey || interactive) {
+      pendingG.value = false;
+      return;
+    }
 
     if (event.key === '/') {
       event.preventDefault();

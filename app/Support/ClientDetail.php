@@ -41,6 +41,7 @@ class ClientDetail
             'city' => $client->city,
             'country' => $client->country,
             'vat_id' => $client->vat_id,
+            'locale' => $client->locale,
             'default_rate' => $client->default_rate_rappen ? round($client->default_rate_rappen / 100, 2) : null,
             'archived' => $client->archived_at !== null,
         ];
@@ -52,20 +53,27 @@ class ClientDetail
         $secondsYtd = (int) TimeEntry::query()
             ->whereIn('project_id', $projectIds)
             ->where('started_at', '>=', $yearStart)
-            ->selectRaw('COALESCE(SUM(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, UTC_TIMESTAMP()))), 0) AS secs')
+            ->selectRaw('COALESCE(SUM('.EntryDuration::secondsSql().'), 0) AS secs')
             ->value('secs');
 
-        $unbilled = TimeEntry::query()
-            ->whereIn('project_id', $projectIds)
-            ->whereNull('invoice_id')
-            ->where('billable', true)
-            ->selectRaw('COALESCE(SUM(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, UTC_TIMESTAMP()))), 0) AS secs')
-            ->value('secs');
+        $unbilledRow = TimeEntry::query()
+            ->whereIn('time_entries.project_id', $projectIds)
+            ->whereNull('time_entries.invoice_id')
+            ->where('time_entries.billable', true)
+            ->join('projects', 'projects.id', '=', 'time_entries.project_id')
+            ->selectRaw('
+                COALESCE(SUM('.EntryDuration::secondsSql('time_entries').'), 0) AS secs,
+                COALESCE(SUM('.EntryDuration::secondsSql('time_entries').' * projects.rate_rappen) / 3600, 0) AS rappen
+            ')
+            ->first();
+        $unbilled = (int) $unbilledRow->secs;
 
-        $outstanding = (int) Invoice::query()
+        $sent = Invoice::query()
             ->where('client_id', $client->id)
-            ->where('status', 'sent')
-            ->sum('total_rappen');
+            ->where('status', 'sent');
+        $outstanding = (int) (clone $sent)->sum('total_rappen');
+        $outstandingCount = (clone $sent)->count();
+        $overdueCount = (clone $sent)->whereDate('due_on', '<', Carbon::today())->count();
 
         $paidYtd = (int) Invoice::query()
             ->where('client_id', $client->id)
@@ -80,6 +88,12 @@ class ClientDetail
             'unbilled_hours' => round(((int) $unbilled) / 3600, 1),
             'outstanding' => round($outstanding / 100, 2),
             'paid_ytd' => round($paidYtd / 100, 2),
+            // Integer rappen and counts for the stats strip.
+            'outstanding_rappen' => $outstanding,
+            'outstanding_count' => $outstandingCount,
+            'overdue_count' => $overdueCount,
+            'paid_ytd_rappen' => $paidYtd,
+            'unbilled_rappen' => (int) round((float) $unbilledRow->rappen),
         ];
     }
 
@@ -93,7 +107,7 @@ class ClientDetail
             ->map(function (Project $project) {
                 $seconds = (int) TimeEntry::query()
                     ->where('project_id', $project->id)
-                    ->selectRaw('COALESCE(SUM(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, UTC_TIMESTAMP()))), 0) AS secs')
+                    ->selectRaw('COALESCE(SUM('.EntryDuration::secondsSql().'), 0) AS secs')
                     ->value('secs');
                 $hours = round($seconds / 3600, 2);
                 $pct = $project->budget_hours > 0 ? (int) round(($hours / $project->budget_hours) * 100) : 0;

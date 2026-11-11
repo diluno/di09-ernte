@@ -2,9 +2,15 @@
 
 namespace App\Jobs;
 
+use Anthropic\Core\Exceptions\AuthenticationException;
+use Anthropic\Core\Exceptions\BadRequestException;
+use Anthropic\Core\Exceptions\NotFoundException;
+use Anthropic\Core\Exceptions\PermissionDeniedException;
+use Anthropic\Core\Exceptions\UnprocessableEntityException;
 use App\Models\Receipt;
 use App\Services\Dropbox\DropboxClient;
 use App\Services\Receipts\PdfText;
+use App\Services\Receipts\PermanentReceiptFailure;
 use App\Services\Receipts\ReceiptExtractor;
 use App\Services\Receipts\VendorLogos;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -24,6 +30,9 @@ class ExtractReceipt implements ShouldQueue
 
     public int $timeout = 100;
 
+    /** @var list<int> seconds before the second and third attempt */
+    public array $backoff = [15, 90];
+
     public function __construct(public int $receiptId) {}
 
     public function handle(ReceiptExtractor $extractor, PdfText $pdfText, DropboxClient $dropbox, ?VendorLogos $logos = null): void
@@ -39,13 +48,10 @@ class ExtractReceipt implements ShouldQueue
             $receipt->update(['text_layer' => $this->textLayer($pdf, $pdfText)]);
             $fields = $extractor->read($pdf);
         } catch (\Throwable $e) {
-            if ($this->attempts() < $this->tries) {
+            if (! $this->isPermanent($e) && $this->attempts() < $this->tries) {
                 throw $e;
             }
-            $receipt->update([
-                'extraction_status' => 'failed',
-                'extraction_error' => mb_substr($e->getMessage(), 0, 250),
-            ] + $this->targetFrom($receipt, null));
+            $this->markFailed($receipt, $e->getMessage());
 
             return;
         }
@@ -82,12 +88,51 @@ class ExtractReceipt implements ShouldQueue
         }
     }
 
+    /**
+     * Reached when the worker gave up on the job itself, which in practice is a timeout:
+     * handle() turns every other failure into a marked receipt. Without this the receipt
+     * would stay "pending" for good, and the chain's filing step would never run.
+     */
+    public function failed(?\Throwable $e): void
+    {
+        $receipt = Receipt::find($this->receiptId);
+        if (! $receipt) {
+            return;
+        }
+        if ($receipt->extraction_status !== 'done') {
+            $this->markFailed($receipt, 'Reading the receipt did not finish in time. Read it again.');
+        }
+        // A failed job ends its chain, but an unread receipt must still reach the folder.
+        if (! empty($this->chained)) {
+            FileReceipt::dispatch($receipt->id);
+        }
+    }
+
+    private function markFailed(Receipt $receipt, string $message): void
+    {
+        $receipt->update([
+            'extraction_status' => 'failed',
+            'extraction_error' => mb_substr($message, 0, 250),
+        ] + $this->targetFrom($receipt, null));
+    }
+
+    /** Errors another attempt would only repeat: configuration, refusals, requests the API rejects. */
+    private function isPermanent(\Throwable $e): bool
+    {
+        return $e instanceof PermanentReceiptFailure
+            || $e instanceof AuthenticationException
+            || $e instanceof PermissionDeniedException
+            || $e instanceof BadRequestException
+            || $e instanceof NotFoundException
+            || $e instanceof UnprocessableEntityException;
+    }
+
     private function pdfBytes(Receipt $receipt, DropboxClient $dropbox): string
     {
         $disk = Storage::disk('local');
         if ($receipt->local_path && $disk->exists($receipt->local_path)) {
             if (! str_ends_with($receipt->local_path, '.pdf')) {
-                throw new \RuntimeException('The image could not be converted to PDF.');
+                throw new PermanentReceiptFailure('The image could not be converted to PDF.');
             }
 
             return $disk->get($receipt->local_path);
@@ -96,7 +141,7 @@ class ExtractReceipt implements ShouldQueue
             return $dropbox->download($receipt->dropbox_file_id);
         }
 
-        throw new \RuntimeException('The file is neither on the server nor in Dropbox.');
+        throw new PermanentReceiptFailure('The file is neither on the server nor in Dropbox.');
     }
 
     private function textLayer(string $pdf, PdfText $pdfText): ?string

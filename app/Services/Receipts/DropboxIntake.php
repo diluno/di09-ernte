@@ -8,6 +8,7 @@ use App\Models\Receipt;
 use App\Services\Dropbox\DropboxClient;
 use App\Services\Dropbox\DropboxNotFound;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -23,12 +24,33 @@ class DropboxIntake
         return $this->dropbox->root().'/'.trim((string) config('services.dropbox.inbox_folder', '_Inbox'), '/');
     }
 
+    public const SCAN_LOCK = 'receipts.inbox-scan';
+
     /**
-     * Register every new PDF in the inbox and queue it for reading and sorting.
+     * Register every new PDF in the inbox and queue it for reading and sorting. Only one
+     * scan runs at a time: the timed check and the button on the page would otherwise both
+     * find the same new file and register it twice. A scan that finds another one running
+     * does nothing and says so with "busy".
      *
-     * @return array{new: int, duplicates: int, skipped: int, resorted: int}
+     * @return array{new: int, duplicates: int, skipped: int, resorted: int, busy?: true}
      */
     public function scanInbox(): array
+    {
+        // Long enough for a full inbox of downloads; it frees itself if a scan dies.
+        $lock = Cache::lock(self::SCAN_LOCK, 900);
+        if (! $lock->get()) {
+            return ['new' => 0, 'duplicates' => 0, 'skipped' => 0, 'resorted' => 0, 'busy' => true];
+        }
+
+        try {
+            return $this->scan();
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /** @return array{new: int, duplicates: int, skipped: int, resorted: int} */
+    private function scan(): array
     {
         $result = ['new' => 0, 'duplicates' => 0, 'skipped' => 0, 'resorted' => 0];
         $inbox = $this->inboxPath();

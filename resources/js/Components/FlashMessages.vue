@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
+import Icon from '@/Components/Icon.vue';
 
 const page = usePage();
 
@@ -36,6 +37,7 @@ watch(
 );
 </script>
 
+<!-- Styles: resources/css/pages/timer-settings.css (Flash toasts). -->
 <template>
   <div class="flash-stack" aria-live="polite">
     <div
@@ -43,84 +45,12 @@ watch(
       :key="toast.id"
       class="flash"
       :class="toast.type"
-      role="status"
+      :role="toast.type === 'error' ? 'alert' : 'status'"
       @click="dismiss(toast.id)"
     >
-      <span class="flash-dot" />
+      <span class="flash-mark" aria-hidden="true">{{ toast.type === 'error' ? '●' : '✓' }}</span>
       <span class="flash-msg">{{ toast.message }}</span>
-      <button class="flash-close" type="button" aria-label="Dismiss" @click.stop="dismiss(toast.id)">×</button>
+      <button class="btn ghost icon sm" type="button" title="Dismiss" :aria-label="toast.type === 'error' ? 'Dismiss error' : 'Dismiss message'" @click.stop="dismiss(toast.id)"><Icon name="close" /></button>
     </div>
   </div>
 </template>
-
-<style scoped>
-.flash-stack {
-  position: fixed;
-  bottom: 48px;
-  right: 16px;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-width: min(420px, calc(100vw - 32px));
-}
-
-.flash {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: var(--bg-2);
-  border: 1px solid var(--border-strong);
-  border-left-width: 3px;
-  border-radius: 4px;
-  font-family: var(--font-sans);
-  font-size: var(--fs-sm);
-  color: var(--ink);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  cursor: pointer;
-}
-
-.flash.success {
-  border-left-color: var(--forest);
-}
-
-.flash.error {
-  border-left-color: var(--red);
-}
-
-.flash-dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--ink-4);
-}
-
-.flash.success .flash-dot {
-  background: var(--forest);
-}
-
-.flash.error .flash-dot {
-  background: var(--red);
-}
-
-.flash-msg {
-  flex: 1;
-}
-
-.flash-close {
-  flex: none;
-  border: none;
-  background: none;
-  color: var(--ink-3);
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 2px;
-}
-
-.flash-close:hover {
-  color: var(--ink);
-}
-</style>

@@ -151,3 +151,47 @@ test('auto_send records unexpected delivery failures and leaves later retry poss
         ->and($invoice->events()->where('kind', 'recurring_autosend_failed')->count())->toBe(1)
         ->and($schedule->fresh()->next_run_on->toDateString())->toBe('2026-07-01');
 });
+
+test('generate() steps past an occurrence that already exists instead of leaving the schedule stuck on it', function () {
+    // The invoice for 1 June exists, but the schedule still points at 1 June.
+    $s = schedule(['cadence' => 'monthly', 'anchor_day' => 1, 'next_run_on' => '2026-06-01']);
+    $existing = Invoice::factory()->create([
+        'client_id' => $s->client_id,
+        'recurring_invoice_id' => $s->id,
+        'recurring_occurrence_on' => '2026-06-01',
+    ]);
+
+    $invoice = $this->gen->generate($s, Carbon::parse('2026-06-01'));
+
+    expect($invoice->id)->toBe($existing->id)
+        ->and(Invoice::count())->toBe(1)
+        ->and($s->fresh()->next_run_on->toDateString())->toBe('2026-07-01')
+        ->and($s->fresh()->last_generated_on->toDateString())->toBe('2026-06-01');
+});
+
+test('generate() takes the VAT rate in force at the end of the billed period, not the schedule column', function () {
+    \App\Models\VatRate::query()->delete();
+    \App\Models\VatRate::create(['rate' => 8.10, 'valid_from' => '2024-01-01', 'valid_until' => '2026-12-31']);
+    \App\Models\VatRate::create(['rate' => 8.50, 'valid_from' => '2027-01-01', 'valid_until' => null]);
+    // Yearly from 1 June 2026 bills up to 31 May 2027, when 8.5 % applies.
+    $s = schedule(['vat_rate' => 2.50, 'cadence' => 'yearly', 'anchor_day' => 1, 'next_run_on' => '2026-06-01']);
+
+    expect($s->nextVatRate())->toBe(8.5);
+    expect(\App\Support\RecurringInvoiceProjections::detail($s)['vat_rate'])->toBe(8.5);
+
+    $invoice = $this->gen->generate($s, Carbon::parse('2026-06-01'));
+
+    expect((float) $invoice->vat_rate)->toBe(8.5);
+});
+
+test('auto-send retry does not log a failure when the invoice was already sent by someone else', function () {
+    $s = schedule(['auto_send' => true, 'client' => ['email' => 'client@example.test']]);
+    $invoice = Invoice::factory()->create([
+        'client_id' => $s->client_id, 'recurring_invoice_id' => $s->id,
+        'recurring_occurrence_on' => '2026-06-01', 'status' => 'sent',
+    ]);
+
+    expect($this->gen->retryAutoSend($invoice))->toBeTrue();
+    expect($invoice->events()->where('kind', 'recurring_autosend_failed')->count())->toBe(0);
+    Mail::assertNothingSent();
+});

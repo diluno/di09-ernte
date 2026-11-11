@@ -18,7 +18,9 @@
 
   $chf = fn ($rappen) => number_format($rappen / 100, 2, '.', '’');
   $rateLabel = fn ($rate) => rtrim(rtrim(number_format((float) $rate, 2), '0'), '.');
-  $hours = fn ($h) => number_format((float) $h, 1, '.', '’');
+  // Hours are stored to two decimals. One decimal is the house style, but a quarter hour
+  // must not print as "0.3" next to an amount computed from 0.25.
+  $hours = fn ($h) => number_format((float) $h, round((float) $h, 1) == round((float) $h, 2) ? 1 : 2, '.', '’');
   $date = fn ($d) => $d?->format('d.m.Y') ?? '';
 
   $client = $doc->client;

@@ -11,6 +11,7 @@ beforeEach(function () {
         'name' => 'Ernte Test', 'country' => 'CH',
         'default_currency' => 'CHF', 'default_vat_rate' => 8.10,
         'address_line_1' => 'Bahnhofstrasse 1', 'postal_code' => '8001', 'city' => 'Zürich',
+        'iban' => 'CH9300762011623852957',
     ]);
 });
 
@@ -58,4 +59,18 @@ test('html uses the shared sheet: window address with contact, mono meta, terms 
     expect($html)->toContain('* ohne MwSt');
     expect($html)->not->toContain('CHF 888.00');
     expect($html)->toContain('Total CHF');
+});
+
+test('html prints quarter hours in full so hours times rate matches the amount', function () {
+    $client = Client::factory()->create();
+    $invoice = Invoice::factory()->create(['client_id' => $client->id]);
+    InvoiceLine::factory()->create(['invoice_id' => $invoice->id, 'description' => 'Quarter', 'hours' => 0.25, 'rate_rappen' => 15000, 'amount_rappen' => 3750]);
+    InvoiceLine::factory()->create(['invoice_id' => $invoice->id, 'description' => 'Half', 'hours' => 1.5, 'rate_rappen' => 15000, 'amount_rappen' => 22500]);
+    InvoiceLine::factory()->create(['invoice_id' => $invoice->id, 'description' => 'Whole', 'hours' => 4, 'rate_rappen' => 15000, 'amount_rappen' => 60000]);
+
+    $html = app(InvoicePdfRenderer::class)->html($invoice);
+
+    expect($html)->toContain('<td class="num">0.25</td>');
+    expect($html)->toContain('<td class="num">1.5</td>');
+    expect($html)->toContain('<td class="num">4.0</td>');
 });

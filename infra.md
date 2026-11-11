@@ -20,6 +20,10 @@ _Last audited: 2026-07-08 (verified over SSH)._
   - `ernte:invoices:generate-recurring` — daily 06:00
   - `ernte:invoices:remind` — daily 09:00
   - `ernte:invoices:stamp-overdue` — daily
+  - `ernte:receipts:check-inbox` — every 5 minutes, `withoutOverlapping`; only while `DROPBOX_INBOX_CHECK` is on (default on — switch it off on every installation but one). A scan also holds the cache lock `receipts.inbox-scan`, so the "check now" button and the timer never run side by side.
+  - A failed `ernte:backup` logs at error level and mails the first user (when `MAIL_MAILER` is a real mailer).
+- **Queue timing:** jobs time out at 100 s, the worker at 120 s; `retry_after` (config/queue.php, `DB_QUEUE_RETRY_AFTER`) is 200 s and must stay above both, or a running job is started a second time.
+- **Receipts need:** `pdftotext` (poppler-utils) and PHP Imagick with HEIC support — both installed by the provision script, both checked by `ernte:doctor`.
 - **PDF generation:** Browsershot with system Chrome at `/usr/bin/google-chrome-stable`
   (installed via `deploy/forge/provision-chrome-and-backups.sh`; `PUPPETEER_SKIP_DOWNLOAD=true`)
 
@@ -47,4 +51,6 @@ _Last audited: 2026-07-08 (verified over SSH)._
 - A `*.quarantine-*` release dir sits in the site root from the migration — leftover, ignorable/deletable.
 - Old apt-mirror fallback logic in the provision script targeted DigitalOcean mirrors; harmless on Hetzner.
 - `ernte:doctor --advisory` lets first deploys activate even with incomplete SMTP/Chrome config — check its output after deploying.
-- Backups land in `storage/app/private/backups/` on the server (daily, ~24 kept).
+- Backups land in `storage/app/private/backups/` on the server (daily, ~24 kept). Each holds the database dump plus `invoices`, `estimates`, `statements` (the bank's original camt files) and `receipts` (uploads not yet in Dropbox) as `.tar.gz`; `ernte:backup:verify` checks every archive against the manifest.
+- **`APP_KEY` is part of a restore.** The Dropbox refresh token in `business_profile` is encrypted with it. A database restored under a different key still works, but Dropbox shows as disconnected (one warning in the log) until it is connected again in Settings. Keep the key somewhere outside the server.
+- BootstrapSeeder refuses to create the first user while `ERNTE_USER_PASSWORD` is empty; once the user exists the variable is not read any more.

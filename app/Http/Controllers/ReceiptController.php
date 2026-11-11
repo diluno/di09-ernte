@@ -240,7 +240,9 @@ class ReceiptController extends Controller
     public function extract(Receipt $receipt): RedirectResponse
     {
         $receipt->update(['extraction_status' => 'pending', 'extraction_error' => null]);
-        ExtractReceipt::dispatch($receipt->id);
+        $this->awaitsConversion($receipt)
+            ? Bus::chain([new PrepareReceiptPdf($receipt->id), new ExtractReceipt($receipt->id)])->dispatch()
+            : ExtractReceipt::dispatch($receipt->id);
 
         return back()->with('success', 'Reading the receipt again…');
     }
@@ -257,7 +259,13 @@ class ReceiptController extends Controller
         $receipt->update($receipt->dropbox_file_id
             ? ['filing_status' => 'inbox', 'filing_error' => null, 'target_edited' => true]
             : ['filing_status' => 'pending', 'filing_error' => null]);
-        FileReceipt::dispatch($receipt->id);
+        if ($this->awaitsConversion($receipt)) {
+            // The photo never became a PDF; filing it as it is would be refused again.
+            $receipt->update(['extraction_status' => 'pending', 'extraction_error' => null]);
+            Bus::chain([new PrepareReceiptPdf($receipt->id), new ExtractReceipt($receipt->id), new FileReceipt($receipt->id)])->dispatch();
+        } else {
+            FileReceipt::dispatch($receipt->id);
+        }
 
         return back()->with('success', 'Filing the receipt…');
     }
@@ -318,6 +326,12 @@ class ReceiptController extends Controller
         return response()->file(Storage::disk('local')->path($logos->path($domain)), [
             'Content-Type' => 'image/png', 'Cache-Control' => 'private, max-age=604800',
         ]);
+    }
+
+    /** A photo whose conversion to PDF failed: the image is still what lies on the server. */
+    private function awaitsConversion(Receipt $receipt): bool
+    {
+        return $receipt->isPhoto() && $receipt->local_path !== null && ! str_ends_with($receipt->local_path, '.pdf');
     }
 
     /** finfo reports HEIC inconsistently across versions; fall back on the extension for it. */

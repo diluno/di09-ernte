@@ -18,3 +18,8 @@ web_extra_daemons:
   - name: queue
     command: "php artisan queue:work --queue=default,emails --tries=3"
     directory: /var/www/html
+hooks:
+  post-start:
+    # `artisan test --parallel` creates db_test_test_<n> per process; let the app user do that.
+    - exec: mysql -uroot -proot -e "GRANT ALL PRIVILEGES ON \`db\\_test%\`.* TO \`db\`@\`%\`"
+      service: db

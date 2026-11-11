@@ -60,6 +60,39 @@ class BackupVerifier
             $total += $actualSize;
         }
 
+        // Backups made before the manifest listed its archives have no such section.
+        $listed = array_column($manifest['files'], 'path');
+        foreach ($manifest['archives'] ?? [] as $archive) {
+            $path = $archive['path'] ?? null;
+            $expected = $archive['files'] ?? null;
+            $directory = $archive['directory'] ?? '?';
+            if (! is_string($path) || ! is_int($expected) || ! in_array($path, $listed, true)) {
+                throw new RuntimeException("Backup manifest lists an archive for \"{$directory}\" that is not among its files.");
+            }
+            $actual = $this->countFiles($disk->path($path), "{$directory}/");
+            if ($actual !== $expected) {
+                throw new RuntimeException("Archive of \"{$directory}\" holds {$actual} file(s), the manifest says {$expected}: {$path}");
+            }
+        }
+
         return ['files' => count($manifest['files']), 'size_bytes' => $total];
+    }
+
+    /** Files in the archive that sit under the directory it claims to hold. */
+    private function countFiles(string $archivePath, string $prefix): int
+    {
+        try {
+            $count = 0;
+            $root = 'phar://'.$archivePath.'/';
+            foreach (new \RecursiveIteratorIterator(new \PharData($archivePath)) as $file) {
+                if ($file->isFile() && str_starts_with(substr($file->getPathname(), strlen($root)), $prefix)) {
+                    $count++;
+                }
+            }
+
+            return $count;
+        } catch (\Exception $exception) {
+            throw new RuntimeException("Document archive cannot be read: {$archivePath}", previous: $exception);
+        }
     }
 }

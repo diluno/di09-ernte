@@ -33,7 +33,7 @@ class SendInvoiceReminderMail implements ShouldQueue
             return;
         }
 
-        $recipients = $invoice->recipients ?: ($invoice->client?->defaultRecipients() ?? []);
+        $recipients = $invoice->effectiveRecipients();
 
         $to = array_map(fn ($r) => new Address($r['email'], $r['name']), $recipients);
         Mail::to($to[0])->cc(array_slice($to, 1))->send(new InvoiceReminderMail($invoice));
@@ -55,7 +55,12 @@ class SendInvoiceReminderMail implements ShouldQueue
             return false;
         }
 
-        if (empty($invoice->recipients ?: ($invoice->client?->defaultRecipients() ?? []))) {
+        if (empty($invoice->effectiveRecipients())) {
+            return false;
+        }
+
+        // A double submit (or a retried job) must not mail the client twice.
+        if (self::remindedJustNow($invoice)) {
             return false;
         }
 
@@ -68,11 +73,28 @@ class SendInvoiceReminderMail implements ShouldQueue
         }
 
         $days = max(1, BusinessProfile::current()->reminder_days_after_due ?? 7);
-        $threshold = now()->subDays($days);
 
-        return ! $invoice->events()
+        return ! self::remindedWithinDays($invoice, $days);
+    }
+
+    /**
+     * Whether a reminder went out fewer than $days calendar days ago. Compared by
+     * date, not by timestamp: the nightly run exactly $days days later starts a
+     * few seconds before or after the previous one, and must still count as due.
+     */
+    public static function remindedWithinDays(Invoice $invoice, int $days): bool
+    {
+        return $invoice->events()
             ->where('kind', 'reminded')
-            ->where('occurred_at', '>=', $threshold)
+            ->whereDate('occurred_at', '>', Carbon::today()->subDays($days))
+            ->exists();
+    }
+
+    public static function remindedJustNow(Invoice $invoice): bool
+    {
+        return $invoice->events()
+            ->where('kind', 'reminded')
+            ->where('occurred_at', '>=', now()->subMinute())
             ->exists();
     }
 }

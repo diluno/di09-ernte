@@ -47,7 +47,7 @@ test('the endpoint is closed to unauthenticated callers', function () {
 });
 
 test('an authenticated caller can list the tools over HTTP', function () {
-    Sanctum::actingAs($this->user);
+    Sanctum::actingAs($this->user, ['mcp']);
 
     $response = $this->postJson('/api/mcp', [
         'jsonrpc' => '2.0',
@@ -303,4 +303,20 @@ test('send_invoice refuses unknown and non-draft invoices', function () {
     ErnteServer::actingAs($this->user)
         ->tool(SendInvoice::class, ['number' => $sent->number])
         ->assertHasErrors();
+});
+
+test('send_invoice reports a missing IBAN as an error and leaves the draft untouched', function () {
+    Contact::factory()->for($this->client)->create(['is_default' => true]);
+    $invoice = app(\App\Services\Invoicing\InvoiceBuilder::class)->createDraft(
+        $this->client, $this->project, null, null,
+        [['description' => 'Work', 'hours' => 1, 'rate_rappen' => 14500]], [],
+    );
+    \Illuminate\Support\Facades\Mail::fake();
+
+    ErnteServer::actingAs($this->user)
+        ->tool(SendInvoice::class, ['number' => $invoice->number])
+        ->assertHasErrors(['No IBAN is configured']);
+
+    expect($invoice->fresh()->status)->toBe('draft');
+    \Illuminate\Support\Facades\Mail::assertNothingSent();
 });

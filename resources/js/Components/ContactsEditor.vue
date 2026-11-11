@@ -1,5 +1,20 @@
 <script setup>
+import Icon from '@/Components/Icon.vue';
+
 const model = defineModel({ type: Array, required: true });
+
+const props = defineProps({
+  // The surrounding form's errors; rows read `contacts.{i}.{name|email|role|is_default}`.
+  errors: { type: Object, default: () => ({}) },
+});
+
+const FIELDS = ['name', 'email', 'role', 'is_default'];
+function rowErrors(i) {
+  return FIELDS.map((f) => props.errors[`contacts.${i}.${f}`]).filter(Boolean);
+}
+function invalid(i, field) {
+  return props.errors[`contacts.${i}.${field}`] ? 'true' : undefined;
+}
 
 function addRow() {
   model.value = [...model.value, { name: '', email: '', role: '', is_default: model.value.length === 0 }];
@@ -11,38 +26,25 @@ function removeRow(i) {
 
 <template>
   <div class="contacts-editor">
-    <div v-for="(c, i) in model" :key="c.id ?? `new-${i}`" class="contact-row">
-      <input v-model="c.name" placeholder="Name" aria-label="Contact name" />
-      <input type="email" v-model="c.email" placeholder="Email" aria-label="Contact email" />
-      <input v-model="c.role" placeholder="Role (optional)" aria-label="Contact role" />
-      <label class="default-toggle" title="Default recipient">
-        <input type="checkbox" v-model="c.is_default" /> default
-      </label>
-      <button type="button" class="contact-remove" @click="removeRow(i)" aria-label="Remove contact">✕</button>
+    <div v-if="model.length" class="contact-head" aria-hidden="true">
+      <span>Name</span><span>Email</span><span>Role</span><span>Default</span><span />
     </div>
-    <button type="button" class="btn ghost" @click="addRow">+ Add contact</button>
+    <div v-for="(c, i) in model" :key="c.id ?? `new-${i}`" class="contact-block" :class="{ 'is-invalid': rowErrors(i).length }">
+      <div class="contact-row">
+        <input v-model="c.name" class="input" placeholder="Name" :aria-label="`Contact ${i + 1} name`" :aria-invalid="invalid(i, 'name')" />
+        <input v-model="c.email" type="email" class="input" placeholder="Email" :aria-label="`Contact ${i + 1} email`" :aria-invalid="invalid(i, 'email')" />
+        <input v-model="c.role" class="input" placeholder="Role (optional)" :aria-label="`Contact ${i + 1} role`" :aria-invalid="invalid(i, 'role')" />
+        <label class="contact-default" title="Default recipient of invoices and estimates">
+          <input v-model="c.is_default" type="checkbox" :aria-label="`Contact ${i + 1} is a default recipient`" />
+          <span>default</span>
+        </label>
+        <button type="button" class="btn icon sm ghost contact-remove" :aria-label="`Remove contact ${i + 1}`" title="Remove contact" @click="removeRow(i)">
+          <Icon name="close" />
+        </button>
+      </div>
+      <small v-for="message in rowErrors(i)" :key="message" class="error contact-err" role="alert">{{ message }}</small>
+    </div>
+    <p v-if="!model.length" class="hint">No contacts yet. Invoices and estimates are emailed to the default contacts.</p>
+    <button type="button" class="btn sm contact-add" @click="addRow">+ Add contact</button>
   </div>
 </template>
-
-<style scoped>
-.contact-row { display: grid; grid-template-columns: 1fr 1fr 0.7fr auto auto; gap: 8px; align-items: center; margin-bottom: 8px; }
-.contact-row input[type="text"],
-.contact-row input[type="email"],
-.contact-row input:not([type]) {
-  border: 1px solid var(--border-strong); background: var(--paper);
-  padding: 6px 8px; font-family: inherit; font-size: var(--fs-sm); color: var(--ink);
-  min-width: 0;
-}
-.contact-row input:focus { outline: none; border-color: var(--accent); }
-.default-toggle { display: flex; align-items: center; gap: 4px; font-size: var(--fs-xs); color: var(--ink-3); white-space: nowrap; }
-.contact-remove {
-  border: none;
-  background: none;
-  cursor: pointer;
-  color: var(--ink-3);
-  font-size: 14px;
-  line-height: 1;
-  padding: 2px 6px;
-}
-.contact-remove:hover { color: var(--red); }
-</style>

@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Receipt;
+use App\Services\Receipts\ReceiptFiler;
 use App\Services\Receipts\ReceiptImageConverter;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -16,6 +17,9 @@ class PrepareReceiptPdf implements ShouldQueue
     public int $tries = 3;
 
     public int $timeout = 100;
+
+    /** @var list<int> seconds before the second and third attempt */
+    public array $backoff = [10, 60];
 
     public function __construct(public int $receiptId) {}
 
@@ -34,7 +38,8 @@ class PrepareReceiptPdf implements ShouldQueue
             if ($this->attempts() < $this->tries) {
                 throw $e;
             }
-            // Leave the image in place; extraction and filing will report the receipt as unreadable.
+            // Leave the image in place. Extraction reports the receipt as unreadable and the
+            // filer refuses anything that is not a PDF, so the image never reaches Dropbox.
             $receipt->update(['extraction_status' => 'failed', 'extraction_error' => 'The image could not be converted to PDF.']);
 
             return;
@@ -45,5 +50,18 @@ class PrepareReceiptPdf implements ShouldQueue
         $disk->put($path, $pdf);
         $receipt->update(['local_path' => $path]);
         $disk->delete($image);
+    }
+
+    /** Reached on a timeout, which also ends the chain: say so on the receipt instead of leaving it pending. */
+    public function failed(?\Throwable $e): void
+    {
+        $receipt = Receipt::find($this->receiptId);
+        if (! $receipt || str_ends_with((string) $receipt->local_path, '.pdf')) {
+            return;
+        }
+        $receipt->update([
+            'extraction_status' => 'failed', 'extraction_error' => 'The image could not be converted to PDF.',
+            'filing_status' => 'failed', 'filing_error' => ReceiptFiler::NOT_A_PDF,
+        ]);
     }
 }

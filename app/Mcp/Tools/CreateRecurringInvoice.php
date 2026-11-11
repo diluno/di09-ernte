@@ -16,7 +16,7 @@ class CreateRecurringInvoice extends Tool
 
     protected string $name = 'create_recurring_invoice';
 
-    protected string $description = 'Create a recurring invoice schedule: the same lines are invoiced every period (monthly, quarterly, half-yearly or yearly) from next_run_on on. Nothing is generated or sent by this call. VAT uses the rate in force on the run date; totals are computed server-side.';
+    protected string $description = 'Create a recurring invoice schedule: the same lines are invoiced every period (monthly, quarterly, half-yearly or yearly) from next_run_on on. Nothing is generated or sent by this call. Each generated invoice uses the VAT rate in force at the end of the period it bills (shown as `vat_rate` for the next invoice); totals are computed server-side.';
 
     public function schema(JsonSchema $schema): array
     {

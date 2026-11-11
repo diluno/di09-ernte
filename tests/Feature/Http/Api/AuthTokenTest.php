@@ -88,3 +88,65 @@ test('POST /api/auth/token is rate limited', function () {
         'device_name' => 'iPhone',
     ])->assertStatus(429);
 });
+
+function mcpListTools(string $plainToken)
+{
+    // Each call must authenticate from its own header, not a cached guard user.
+    app('auth')->forgetGuards();
+
+    return test()->withToken($plainToken)->postJson(
+        '/api/mcp',
+        ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list'],
+        ['Accept' => 'application/json, text/event-stream'],
+    );
+}
+
+test('the token endpoint mints a companion token that cannot reach the MCP server', function () {
+    $user = User::factory()->create(['email' => 'owner@ernte.test', 'password' => bcrypt('secret-pass')]);
+
+    $plain = $this->postJson('/api/auth/token', [
+        'email' => 'owner@ernte.test', 'password' => 'secret-pass', 'device_name' => 'iPhone',
+    ])->assertOk()->json('token');
+
+    expect($user->tokens()->sole()->abilities)->toBe(['companion']);
+
+    mcpListTools($plain)->assertForbidden();
+
+    app('auth')->forgetGuards();
+    $this->withToken($plain)->getJson('/api/me')->assertOk();
+});
+
+test('scope "mcp" mints a token the MCP server accepts', function () {
+    $user = User::factory()->create(['email' => 'owner@ernte.test', 'password' => bcrypt('secret-pass')]);
+
+    $plain = $this->postJson('/api/auth/token', [
+        'email' => 'owner@ernte.test', 'password' => 'secret-pass', 'device_name' => 'claude-mcp', 'scope' => 'mcp',
+    ])->assertOk()->json('token');
+
+    expect($user->tokens()->sole()->abilities)->toBe(['mcp']);
+
+    $names = collect(mcpListTools($plain)->assertOk()->json('result.tools'))->pluck('name');
+    expect($names)->toContain('send_invoice');
+});
+
+test('an unknown scope is rejected', function () {
+    User::factory()->create(['email' => 'owner@ernte.test', 'password' => bcrypt('secret-pass')]);
+
+    $this->postJson('/api/auth/token', [
+        'email' => 'owner@ernte.test', 'password' => 'secret-pass', 'device_name' => 'x', 'scope' => '*',
+    ])->assertJsonValidationErrors('scope');
+});
+
+test('tokens minted before scopes existed (abilities *) keep working for the API and MCP', function () {
+    $user = User::factory()->create();
+    $plain = $user->createToken('legacy')->plainTextToken;
+
+    expect($user->tokens()->sole()->abilities)->toBe(['*']);
+
+    mcpListTools($plain)->assertOk();
+
+    app('auth')->forgetGuards();
+    $this->withToken($plain)->getJson('/api/me')->assertOk();
+    app('auth')->forgetGuards();
+    $this->withToken($plain)->getJson('/api/timer')->assertOk();
+});

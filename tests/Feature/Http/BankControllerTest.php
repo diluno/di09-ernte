@@ -185,3 +185,26 @@ test('the bank page shows one quarter at a time, the latest by default', functio
     $this->get('/bank?year=2026')->assertInertia(fn (Assert $page) => $page->where('quarter.key', '2026-Q3'));
     $this->get('/bank?quarter=nonsense')->assertInertia(fn (Assert $page) => $page->where('quarter.key', '2026-Q3'));
 });
+
+test('accepting a payment of a different amount says so and keeps the difference in the invoice history', function () {
+    $invoice = Invoice::factory()->sent()->create(['number' => '2026-099', 'total_rappen' => 25000, 'issued_on' => '2026-07-01']);
+    $this->post('/bank/statements', ['files' => [camtUpload('a.xml', julyStatement())]]);
+    $line = StatementLine::where('bank_ref', 'C2')->first();
+
+    $this->post("/bank/lines/{$line->id}/match", ['invoice_id' => $invoice->id])
+        ->assertSessionHas('success', fn (string $message) => str_contains($message, 'Received CHF 200.00 instead of CHF 250.00: CHF 50.00 short'));
+
+    expect($invoice->fresh()->status)->toBe('paid');
+    expect($invoice->events()->where('kind', 'paid')->first()->payload)
+        ->toMatchArray(['paid_rappen' => 20000, 'invoice_total_rappen' => 25000, 'difference_rappen' => -5000]);
+});
+
+test('an upload that does not reconcile is reported as rejected with the reason', function () {
+    $this->post('/bank/statements', ['files' => [
+        camtUpload('bad.xml', CamtXml::statement('2026-07-03', 125, '100', '500', [['ref' => 'X1', 'amount' => '10']])),
+    ]])->assertOk()
+        ->assertJsonPath('files.0.ok', false)
+        ->assertJsonPath('files.0.reason', fn (string $reason) => str_contains($reason, 'does not add up'));
+
+    expect(StatementLine::count())->toBe(0);
+});

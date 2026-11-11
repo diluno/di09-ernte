@@ -11,10 +11,12 @@ use App\Http\Controllers\Api\TimerController;
 use App\Mcp\Servers\ErnteServer;
 use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Facades\Mcp;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 
-// Streamable-HTTP MCP endpoint, authed with the same Sanctum tokens as the rest
-// of /api. Lives at /api/mcp.
-Mcp::web('/mcp', ErnteServer::class)->middleware(['auth:sanctum', 'throttle:60,1']);
+// Streamable-HTTP MCP endpoint at /api/mcp. Its tools can email clients, so it
+// takes only tokens minted for it (scope "mcp", or a legacy `*` token) — not the
+// companion app's token.
+Mcp::web('/mcp', ErnteServer::class)->middleware(['auth:sanctum', CheckAbilities::class.':mcp', 'throttle:60,1']);
 
 Route::post('/auth/token', [AuthController::class, 'store'])->middleware('throttle:5,1');
 

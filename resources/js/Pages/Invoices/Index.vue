@@ -5,6 +5,9 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import InvoiceBarChart from '@/Components/InvoiceBarChart.vue';
 import { fmtDate } from '@/formatters/date.js';
+import { fmtMoney } from '@/formatters/money.js';
+import { fmtHours } from '@/formatters/duration.js';
+import { rowClick } from '@/composables/useRowLink.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -37,9 +40,8 @@ function changeChartYear(year) {
   });
 }
 
-// Ledger numerals: Swiss apostrophe thousands, no currency prefix (the unit sits beside the value).
-function fmtChf(v)  { return Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-function fmtChf0(v) { return Math.round(v).toLocaleString('de-CH'); }
+// Stat tiles show whole francs (aggregates); rows always show two decimals.
+const fmtChf0 = (v) => fmtMoney(v, { whole: true });
 function plural(n, one, many) { return `${n} ${n === 1 ? one : many}`; }
 
 const exportQuarters = computed(() => {
@@ -83,7 +85,7 @@ const rowStatus = (inv) => inv.overdue ? 'overdue' : inv.status;
       <h1 class="page-title">Invoices</h1>
     </div>
     <div class="page-actions">
-      <select class="btn" title="Download all paid invoices of a quarter as ZIP" @change="exportQuarter">
+      <select class="btn" title="Download all paid invoices of a quarter as ZIP" aria-label="Download paid invoices of a quarter" @change="exportQuarter">
         <option value="">↓ Paid PDFs</option>
         <option v-for="q in exportQuarters" :key="q.label" :value="`${q.year}-${q.quarter}`">{{ q.label }}</option>
       </select>
@@ -130,7 +132,7 @@ const rowStatus = (inv) => inv.overdue ? 'overdue' : inv.status;
       {{ tab.label }} <span class="dim">{{ tab.count }}</span>
     </button>
     <label class="search">
-      <input v-model="search" placeholder="filter…" data-filter-input @input="onSearch" />
+      <input v-model="search" placeholder="filter…" aria-label="Filter" data-filter-input @input="onSearch" />
       <span class="kbd sm">/</span>
     </label>
   </div>
@@ -140,7 +142,7 @@ const rowStatus = (inv) => inv.overdue ? 'overdue' : inv.status;
       <thead>
         <tr>
           <th class="pad-l" style="width: 130px">No.</th>
-          <th style="width: 260px">Subject</th>
+          <th>Subject</th>
           <th style="width: 220px">Client</th>
           <th class="num is-sorted" style="width: 120px">Issued ↓</th>
           <th class="num" style="width: 120px">Due</th>
@@ -151,19 +153,19 @@ const rowStatus = (inv) => inv.overdue ? 'overdue' : inv.status;
       </thead>
       <tbody>
         <tr v-for="inv in invoices.data" :key="inv.id"
-            :class="`is-${rowStatus(inv)}`"
-            @click="router.visit(`/invoices/${inv.number}`)">
-          <td class="pad-l code">{{ inv.number }}</td>
+            class="is-clickable" :class="`is-${rowStatus(inv)}`"
+            @click="rowClick($event, `/invoices/${inv.number}`)">
+          <td class="pad-l code"><Link :href="`/invoices/${inv.number}`" class="row-link" :aria-label="`Invoice ${inv.number}${inv.title ? ` — ${inv.title}` : ''}`">{{ inv.number }}</Link></td>
           <td class="subject" :title="inv.title || undefined">{{ inv.title || '—' }}</td>
           <td class="trunc" :title="inv.client.name">{{ inv.client.name }}</td>
           <td class="num">{{ fmtDate(inv.issued_on) }}</td>
           <td class="num" :class="{ 'is-red': inv.overdue }">{{ fmtDate(inv.due_on) }}</td>
-          <td class="num">{{ inv.hours.toFixed(1) }}</td>
-          <td class="money">{{ fmtChf(inv.total) }}</td>
+          <td class="num">{{ fmtHours(inv.hours) }}</td>
+          <td class="money">{{ fmtMoney(inv.total) }}</td>
           <td class="pad-r"><span class="badge dot" :class="rowStatus(inv)">{{ rowStatus(inv) }}</span></td>
         </tr>
         <tr v-if="invoices.data.length === 0">
-          <td colspan="8" class="pad-l muted" style="padding: 24px 40px; cursor: default">No invoices match this filter.</td>
+          <td colspan="8" class="is-empty">No invoices match this filter.</td>
         </tr>
       </tbody>
     </table>

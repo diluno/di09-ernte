@@ -47,3 +47,21 @@ test('GET /invoices/export redirects back with an error when the quarter is empt
         ->assertRedirect('/invoices')
         ->assertSessionHas('error');
 });
+
+test('GET /invoices/export redirects back with a clear error when an invoice needs a live render but no IBAN is configured', function () {
+    Storage::fake('local');
+    BusinessProfile::current()->update(['iban' => null, 'qr_iban' => null]);
+
+    $stored = Invoice::factory()->create([
+        'status' => 'paid', 'paid_at' => '2026-05-10 12:00:00', 'pdf_path' => 'invoices/2026-001.pdf',
+    ]);
+    Storage::disk('local')->put('invoices/2026-001.pdf', '%PDF-fake');
+    // Marked sent by hand, so no PDF was ever stored: the export must render it live.
+    $unstored = Invoice::factory()->create(['status' => 'paid', 'paid_at' => '2026-05-12 12:00:00', 'pdf_path' => null]);
+
+    $this->from('/invoices')
+        ->get('/invoices/export?year=2026&quarter=2')
+        ->assertRedirect('/invoices')
+        ->assertSessionHas('error', fn (string $message) => str_contains($message, "invoice {$unstored->number}")
+            && str_contains($message, 'No IBAN is configured'));
+});

@@ -16,7 +16,7 @@ test('shared props include user settings, app and business info', function () {
     ]);
 
     $this->actingAs($user)
-        ->get('/profile')
+        ->get('/clients')
         ->assertInertia(fn (Assert $page) => $page
             ->where('auth.user.settings.theme', 'dark')
             ->where('auth.user.settings.density', 'compact')

@@ -91,3 +91,41 @@ test('retries a previously failed auto-send on the existing invoice', function (
         ->and($schedule->fresh()->next_run_on->toDateString())->toBe('2026-07-01');
     Mail::assertSent(InvoiceMail::class, 1);
 });
+
+test('a schedule stuck on an existing occurrence is advanced instead of spinning', function () {
+    $schedule = makeSchedule(['cadence' => 'monthly', 'anchor_day' => 1, 'next_run_on' => '2026-06-01']);
+    Invoice::factory()->create([
+        'client_id' => $schedule->client_id,
+        'recurring_invoice_id' => $schedule->id,
+        'recurring_occurrence_on' => '2026-06-01',
+    ]);
+
+    $this->artisan('ernte:invoices:generate-recurring')->assertExitCode(0);
+
+    expect(Invoice::count())->toBe(1);
+    expect($schedule->fresh()->next_run_on->toDateString())->toBe('2026-07-01');
+});
+
+test('one failing schedule does not stop the others, and the run reports the failure', function () {
+    $broken = makeSchedule(['cadence' => 'monthly', 'anchor_day' => 1, 'next_run_on' => '2026-06-01']);
+    $healthy = makeSchedule(['cadence' => 'monthly', 'anchor_day' => 1, 'next_run_on' => '2026-06-01']);
+
+    $real = app(\App\Services\Invoicing\RecurringInvoiceGenerator::class);
+    $this->mock(\App\Services\Invoicing\RecurringInvoiceGenerator::class, function ($mock) use ($real, $broken) {
+        $mock->shouldReceive('generate')->andReturnUsing(function ($schedule, $runDate) use ($real, $broken) {
+            if ($schedule->is($broken)) {
+                throw new RuntimeException('boom');
+            }
+
+            return $real->generate($schedule, $runDate);
+        });
+    });
+
+    $this->artisan('ernte:invoices:generate-recurring')
+        ->expectsOutputToContain("Recurring schedule #{$broken->id} failed: boom")
+        ->assertExitCode(1);
+
+    expect(Invoice::where('recurring_invoice_id', $healthy->id)->count())->toBe(1);
+    expect($healthy->fresh()->next_run_on->toDateString())->toBe('2026-07-01');
+    expect(Invoice::where('recurring_invoice_id', $broken->id)->count())->toBe(0);
+});

@@ -133,10 +133,11 @@ class InvoiceProjections
             'number' => $invoice->number,
             'status' => $invoice->status,
             'overdue' => $invoice->overdue,
+            'deletable' => $invoice->isDeletable(),
             'reminders_paused' => $invoice->reminders_paused_at !== null,
             'title' => $invoice->title,
             'client' => $invoice->client->only('id', 'name'),
-            'recipients' => $invoice->recipients ?: $invoice->client->defaultRecipients(),
+            'recipients' => $invoice->effectiveRecipients(),
             'terms_days' => ($invoice->issued_on && $invoice->due_on)
                 ? (int) $invoice->issued_on->diffInDays($invoice->due_on)
                 : null,

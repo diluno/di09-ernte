@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\BusinessProfile;
 use App\Services\Dropbox\DropboxClient;
+use App\Services\Invoicing\QrBillRenderer;
 use App\Support\SwissIban;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,7 @@ class DoctorCommand extends Command
             $this->database(),
             $this->tables(),
             $this->businessProfile(),
+            $this->paymentIban(),
             $this->storage(),
             $this->queue(),
             $this->mail(),
@@ -34,6 +36,7 @@ class DoctorCommand extends Command
             $this->mysqldump(),
             $this->dropbox(),
             $this->pdftotext(),
+            $this->imagick(),
         ];
 
         if ($this->option('json')) {
@@ -108,6 +111,23 @@ class DoctorCommand extends Command
             return $this->checkOk('business profile', 'seeded');
         } catch (Throwable $e) {
             return $this->checkFail('business profile', $e->getMessage());
+        }
+    }
+
+    private function paymentIban(): array
+    {
+        try {
+            $profile = BusinessProfile::query()->first();
+
+            if (! $profile) {
+                return $this->requiredDependency('payment IBAN', 'no business profile yet');
+            }
+
+            return $this->checkOk('payment IBAN', QrBillRenderer::creditorIban($profile).' is used on QR bills');
+        } catch (\DomainException) {
+            return $this->requiredDependency('payment IBAN', 'no IBAN or QR-IBAN in the business profile; invoices cannot be issued until one is set in Settings');
+        } catch (Throwable $e) {
+            return $this->checkFail('payment IBAN', $e->getMessage());
         }
     }
 
@@ -214,6 +234,24 @@ class DoctorCommand extends Command
         return $path
             ? $this->checkOk('pdftotext', $path)
             : $this->checkWarn('pdftotext', 'not found; receipts are still read, but without a stored text layer (install poppler-utils)');
+    }
+
+    /** Photographed receipts (iPhone HEIC above all) are decoded by Imagick before Chrome makes the PDF. */
+    private function imagick(): array
+    {
+        if (! extension_loaded('imagick')) {
+            return $this->checkWarn('imagick', 'PHP extension not loaded; photographed receipts cannot be converted to PDF');
+        }
+
+        try {
+            $missing = array_values(array_filter(['HEIC', 'JPEG', 'PNG'], fn (string $format) => \Imagick::queryFormats($format) === []));
+        } catch (Throwable $e) {
+            return $this->checkWarn('imagick', $e->getMessage());
+        }
+
+        return $missing === []
+            ? $this->checkOk('imagick', 'reads HEIC, JPEG and PNG')
+            : $this->checkWarn('imagick', 'cannot read '.implode(', ', $missing).'; such photos stay unconverted and are not filed (install libheif and an ImageMagick built with it)');
     }
 
     private function requiredDependency(string $name, string $detail): array

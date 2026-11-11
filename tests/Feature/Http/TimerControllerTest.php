@@ -128,6 +128,31 @@ test('today payload flags the running entry so the row can hide edit/delete cont
         );
 });
 
+test('today payload flags entries billed on an issued invoice as locked, with the invoice number', function () {
+    $sent = \App\Models\Invoice::factory()->create(['status' => 'sent', 'number' => '2026-091']);
+    $draft = \App\Models\Invoice::factory()->create(['status' => 'draft', 'number' => '2026-092']);
+    foreach ([[9, $sent->id], [10, $draft->id], [11, null]] as [$hour, $invoiceId]) {
+        TimeEntry::create([
+            'user_id' => $this->user->id, 'project_id' => $this->project->id,
+            'description' => "at {$hour}", 'billable' => true, 'invoice_id' => $invoiceId,
+            'started_at' => today()->setHour($hour), 'ended_at' => today()->setHour($hour)->addMinutes(15),
+        ]);
+    }
+
+    $this->get('/timer')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Timer/Today')
+            ->where('entries.0.is_locked', true)
+            ->where('entries.0.invoice_number', '2026-091')
+            ->where('entries.1.is_locked', false)
+            ->where('entries.1.invoice_number', '2026-092')
+            ->where('entries.2.is_locked', false)
+            ->where('entries.2.invoice_number', null)
+            ->etc()
+        );
+});
+
 test('GET /timer exposes all active projects for manual entry, including budget-less ones beyond the recent 4', function () {
     Project::factory()->count(4)->create(); // pushes the others out of the recent-4 quick_start
     Project::factory()->create([

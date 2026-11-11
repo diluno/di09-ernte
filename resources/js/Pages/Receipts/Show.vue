@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import VendorMark from '@/Components/VendorMark.vue';
+import { fmtDate } from '@/formatters/date.js';
+import { fmtMoney } from '@/formatters/money.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -144,7 +146,7 @@ const MONTHS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11'
           <div class="side-row">
             {{ receipt.paid_by.kind }} · {{ receipt.paid_by.payee }}
             <span class="sub">
-              {{ receipt.paid_by.date }} · CHF {{ receipt.paid_by.amount.toFixed(2) }}<template v-if="receipt.paid_by.original"> ({{ receipt.paid_by.original.amount.toFixed(2) }} {{ receipt.paid_by.original.currency }})</template>
+              {{ fmtDate(receipt.paid_by.date) }} · {{ fmtMoney(receipt.paid_by.amount, { currency: true }) }}<template v-if="receipt.paid_by.original"> ({{ fmtMoney(receipt.paid_by.original.amount) }} {{ receipt.paid_by.original.currency }})</template>
               · {{ receipt.paid_by.state === 'matched' ? (isNumbered ? `numbered ${receipt.number_prefix}` : 'confirmed, not numbered yet') : 'proposed, not confirmed' }}
             </span>
           </div>

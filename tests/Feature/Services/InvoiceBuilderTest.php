@@ -271,3 +271,61 @@ test('createDraft stamps an explicit vat rate when provided', function () {
     expect((float) $invoice->vat_rate)->toBe(2.60);
     expect($invoice->vat_rappen)->toBe(260); // 2.60% of 10000
 });
+
+test('createDraft links only this client\'s finished, billable, unbilled entries', function () {
+    $mine = makeEntry($this->user, $this->project, 'Mine', 60);
+    $foreign = makeEntry($this->user, Project::factory()->create(), 'Other client', 60);
+    $running = TimeEntry::factory()->running()->create(['user_id' => $this->user->id, 'project_id' => $this->project->id]);
+    $unbillable = makeEntry($this->user, $this->project, 'Internal', 60, billable: false);
+    $other = $this->svc->createDraft($this->client, null, null, null, [['description' => 'x', 'hours' => 1, 'rate_rappen' => 100]], []);
+    $billed = makeEntry($this->user, $this->project, 'Billed', 60);
+    $billed->update(['invoice_id' => $other->id]);
+
+    $invoice = $this->svc->createDraft(
+        $this->client, $this->project, null, null,
+        [['description' => 'Work', 'hours' => 1, 'rate_rappen' => 14500]],
+        [$mine->id, $foreign->id, $running->id, $unbillable->id, $billed->id],
+    );
+
+    expect($invoice->timeEntries()->pluck('id')->all())->toBe([$mine->id]);
+    expect($foreign->fresh()->invoice_id)->toBeNull();
+    expect($running->fresh()->invoice_id)->toBeNull();
+    expect($unbillable->fresh()->invoice_id)->toBeNull();
+    expect($billed->fresh()->invoice_id)->toBe($other->id);
+    expect($invoice->events->firstWhere('kind', 'created')->payload['entries_count'])->toBe(1);
+});
+
+test('unbilledEntries offers the same set the builder will link', function () {
+    $mine = makeEntry($this->user, $this->project, 'Mine', 60);
+    makeEntry($this->user, Project::factory()->create(), 'Other client', 60);
+    TimeEntry::factory()->running()->create(['user_id' => $this->user->id, 'project_id' => $this->project->id, 'started_at' => now()->subHour()]);
+    makeEntry($this->user, $this->project, 'Internal', 60, billable: false);
+
+    $entries = $this->svc->unbilledEntries($this->client, null, now()->subDays(7), now());
+
+    expect($entries->pluck('id')->all())->toBe([$mine->id]);
+});
+
+test('updateDraft touches only the given fields and recomputes totals when lines change', function () {
+    $invoice = $this->svc->createDraft(
+        $this->client, $this->project, '2026-05-01', '2026-05-31',
+        [['description' => 'Old', 'hours' => 1, 'rate_rappen' => 10000]],
+        [], title: 'Keep me', notes: 'Old notes',
+    );
+
+    $updated = $this->svc->updateDraft($invoice, [
+        'notes' => null,
+        'lines' => [
+            ['description' => 'New A', 'hours' => 2, 'rate_rappen' => 10000, 'amount_rappen' => 1],
+            ['description' => 'New B', 'hours' => 1, 'rate_rappen' => 5000, 'vat_exempt' => true],
+        ],
+    ]);
+
+    expect($updated->title)->toBe('Keep me');
+    expect($updated->notes)->toBeNull();
+    expect($updated->period_end->toDateString())->toBe('2026-05-31');
+    expect($updated->lines->pluck('description')->all())->toBe(['New A', 'New B']);
+    expect($updated->lines->pluck('amount_rappen')->all())->toBe([20000, 5000]);
+    expect($updated->subtotal_rappen)->toBe(25000);
+    expect($updated->vat_rappen)->toBe(1620); // 8.1 % of the 200.00 taxable line only
+});

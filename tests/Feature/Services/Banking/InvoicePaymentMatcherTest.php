@@ -34,6 +34,12 @@ function sentInvoice(string $number, int $rappen, string $issued = '2026-07-01',
     ]);
 }
 
+/** The credit names the invoice's client as payer, as a bank transfer from that client would. */
+function fromClient(Invoice $invoice, array $attrs = []): array
+{
+    return $attrs + ['counterparty_name' => $invoice->client->name];
+}
+
 test('QR reference and amount: invoice is marked paid on the booking date', function () {
     $invoice = sentInvoice('2026-030', 100000, attrs: ['qr_reference' => '000000000000000000000001236']);
     sentInvoice('2026-031', 100000); // same amount, would make pass 3 ambiguous
@@ -87,7 +93,7 @@ test('a number inside a longer run of digits does not count', function () {
 test('amount that fits exactly one invoice', function () {
     $invoice = sentInvoice('2026-009', 340515);
     sentInvoice('2026-010', 64860);
-    $line = credit('2026-07-30', 340515);
+    $line = credit('2026-07-30', 340515, fromClient($invoice));
 
     $this->matcher->run();
 
@@ -98,7 +104,7 @@ test('amount that fits exactly one invoice', function () {
 test('same-amount pair: the text decides one, which leaves the other for the amount pass', function () {
     $a = sentInvoice('2026-004', 64860, '2026-06-18');
     $b = sentInvoice('2026-010', 64860, '2026-07-06');
-    $first = credit('2026-08-04', 64860, ['remittance_text' => '06.07.2026 362']);
+    $first = credit('2026-08-04', 64860, fromClient($b, ['remittance_text' => '06.07.2026 362']));
     $second = credit('2026-08-10', 64860, ['remittance_text' => 'RECHNUNG 2026-004']);
 
     $result = $this->matcher->run();
@@ -136,7 +142,7 @@ test('two credits competing for one invoice: neither is applied', function () {
 test('a credit booked before the invoice was issued is not an amount candidate', function () {
     $invoice = sentInvoice('2026-016', 129720, '2026-09-15');
     $mistaken = credit('2026-09-14', 129720);
-    $real = credit('2026-09-21', 129720);
+    $real = credit('2026-09-21', 129720, fromClient($invoice));
 
     $this->matcher->run();
 
@@ -146,7 +152,7 @@ test('a credit booked before the invoice was issued is not an amount candidate',
 
 test('an invoice marked paid by hand is linked and its date corrected', function () {
     $invoice = sentInvoice('2026-018', 138370, '2026-09-15', ['status' => 'paid', 'paid_at' => '2026-09-23 09:00:00']);
-    $line = credit('2026-09-21', 138370);
+    $line = credit('2026-09-21', 138370, fromClient($invoice));
 
     $this->matcher->run();
 
@@ -189,10 +195,10 @@ test('draft and void invoices never match; debits, reversals and collective book
 });
 
 test('running again changes nothing and keeps ignored entries ignored', function () {
-    sentInvoice('2026-009', 340515);
+    $paid = sentInvoice('2026-009', 340515);
     sentInvoice('2026-004', 64860);
     sentInvoice('2026-010', 64860);
-    credit('2026-07-30', 340515);
+    credit('2026-07-30', 340515, fromClient($paid));
     credit('2026-08-04', 64860);
     $ignored = credit('2026-08-05', 1000, ['match_state' => 'ignored']);
 
@@ -208,7 +214,7 @@ test('running again changes nothing and keeps ignored entries ignored', function
 
 test('unmatch reopens an invoice the import had marked paid and stops re-matching', function () {
     $invoice = sentInvoice('2026-009', 340515);
-    $line = credit('2026-07-30', 340515);
+    $line = credit('2026-07-30', 340515, fromClient($invoice));
     $this->matcher->run();
 
     $this->matcher->unmatch($line->fresh());
@@ -224,7 +230,7 @@ test('unmatch reopens an invoice the import had marked paid and stops re-matchin
 
 test('unmatch leaves an invoice that was paid by hand as paid', function () {
     $invoice = sentInvoice('2026-018', 138370, '2026-09-15', ['status' => 'paid', 'paid_at' => '2026-09-21 09:00:00']);
-    $line = credit('2026-09-21', 138370);
+    $line = credit('2026-09-21', 138370, fromClient($invoice));
     $this->matcher->run();
 
     $this->matcher->unmatch($line->fresh());
@@ -234,7 +240,7 @@ test('unmatch leaves an invoice that was paid by hand as paid', function () {
 
 test('a second credit can be linked by hand without moving the paid date', function () {
     $invoice = sentInvoice('2026-016', 129720, '2026-09-01');
-    $first = credit('2026-09-10', 129720);
+    $first = credit('2026-09-10', 129720, fromClient($invoice));
     $this->matcher->run();
     $second = credit('2026-09-21', 129720);
 
@@ -269,4 +275,90 @@ test('ignore and restore', function () {
 
     $this->matcher->setIgnored($line->fresh(), false);
     expect($line->fresh()->match_state)->toBe('unmatched');
+});
+
+test('a partial payment carrying invoice A\'s reference does not mark same-amount invoice B paid', function () {
+    $a = sentInvoice('2026-060', 100000, attrs: ['qr_reference' => '000000000000000000000006001']);
+    $b = sentInvoice('2026-061', 40000, attrs: ['qr_reference' => '000000000000000000000006018', 'client_id' => $a->client_id]);
+    $line = credit('2026-08-10', 40000, fromClient($a, ['creditor_reference' => '000000000000000000000006001']));
+
+    $result = $this->matcher->run();
+
+    expect($result)->toMatchArray(['matched' => 0, 'proposed' => 1]);
+    expect($b->fresh()->status)->toBe('sent');
+    expect($a->fresh()->status)->toBe('sent');
+    $line->refresh();
+    expect($line->match_state)->toBe('proposed');
+    expect($line->invoice_id)->toBe($a->id);
+    expect($line->match_note)->toBe('amount_mismatch');
+});
+
+test('a reference ernte does not know keeps a same-amount invoice from being marked paid', function () {
+    $invoice = sentInvoice('2026-062', 40000, attrs: ['qr_reference' => '000000000000000000000006203']);
+    $line = credit('2026-08-10', 40000, fromClient($invoice, ['creditor_reference' => '000000000000000000000009999']));
+
+    $this->matcher->run();
+
+    expect($invoice->fresh()->status)->toBe('sent');
+    expect($line->fresh()->match_state)->toBe('proposed');
+    expect($line->fresh()->match_note)->toBe('reference_conflict');
+});
+
+test('text naming another invoice keeps a same-amount invoice from being marked paid', function () {
+    $named = sentInvoice('2026-063', 100000);
+    $other = sentInvoice('2026-064', 40000);
+    $line = credit('2026-08-10', 40000, fromClient($other, ['remittance_text' => 'Anzahlung Rechnung 2026-063']));
+
+    $this->matcher->run();
+
+    expect($other->fresh()->status)->toBe('sent');
+    expect($line->fresh()->match_state)->toBe('proposed');
+    expect($line->fresh()->invoice_id)->toBe($named->id);
+    expect($line->fresh()->match_note)->toBe('amount_mismatch');
+});
+
+test('a same-amount credit from a different payer is only proposed', function (?string $payer) {
+    $invoice = sentInvoice('2026-065', 340515);
+    $invoice->client->update(['name' => 'Atlas Robotics AG']);
+    $line = credit('2026-08-10', 340515, ['counterparty_name' => $payer]);
+
+    $result = $this->matcher->run();
+
+    expect($result)->toMatchArray(['matched' => 0, 'proposed' => 1]);
+    expect($invoice->fresh()->status)->toBe('sent');
+    expect($line->fresh()->match_state)->toBe('proposed');
+    expect($line->fresh()->invoice_id)->toBe($invoice->id);
+    expect($line->fresh()->match_note)->toBe('payer_mismatch');
+})->with(['Steueramt Kanton Zürich', 'Atlas Immobilien AG', null]);
+
+test('the right payer and a unique amount still match automatically', function (string $payer) {
+    $invoice = sentInvoice('2026-066', 340515);
+    $invoice->client->update(['name' => 'Atelier Müller & Söhne GmbH']);
+    $line = credit('2026-08-10', 340515, ['counterparty_name' => $payer]);
+
+    $result = $this->matcher->run();
+
+    expect($result['matched'])->toBe(1);
+    expect($line->fresh()->match_method)->toBe('amount');
+    expect($invoice->fresh()->status)->toBe('paid');
+})->with(['Atelier Müller & Söhne GmbH', 'ATELIER MUELLER + SOEHNE GMBH, 8004 ZUERICH', 'Atelier Muller Sohne']);
+
+test('names agree only when the shorter one is contained in the longer', function () {
+    expect(InvoicePaymentMatcher::namesAgree('Stadt Zuerich', 'Stadt Zürich Kultur'))->toBeTrue();
+    expect(InvoicePaymentMatcher::namesAgree('Garage Zürich AG', 'Studio Zürich AG'))->toBeFalse();
+    expect(InvoicePaymentMatcher::namesAgree('AG', 'AG'))->toBeFalse();
+    expect(InvoicePaymentMatcher::namesAgree(null, 'Studio Zürich AG'))->toBeFalse();
+});
+
+test('applying a credit of a different amount records the difference on the invoice', function () {
+    $invoice = sentInvoice('2026-067', 100000);
+    $line = credit('2026-08-10', 90000);
+
+    $this->matcher->apply($line, $invoice, 'manual');
+
+    expect($invoice->fresh()->status)->toBe('paid');
+    expect($invoice->events()->where('kind', 'paid')->first()->payload)->toMatchArray([
+        'statement_line_id' => $line->id, 'method' => 'manual',
+        'paid_rappen' => 90000, 'invoice_total_rappen' => 100000, 'difference_rappen' => -10000,
+    ]);
 });

@@ -5,11 +5,80 @@ namespace App\Support;
 use App\Models\Invoice;
 use App\Models\RecurringInvoice;
 use App\Models\RecurringInvoiceLine;
-use Illuminate\Support\Carbon;
 
-/** Read models for recurring invoice schedules (MCP tools). Amounts in francs. */
+/**
+ * Read models for recurring invoice schedules. summary()/detail() feed the MCP
+ * tools (amounts in francs); indexRow()/indexStats() feed the web list (integer rappen).
+ */
 class RecurringInvoiceProjections
 {
+    /** Invoices one schedule generates per year. */
+    private const RUNS_PER_YEAR = ['monthly' => 12, 'quarterly' => 4, 'half-yearly' => 2, 'yearly' => 1];
+
+    /**
+     * The title the next generated invoice will carry: "{period}" resolved for the
+     * next occurrence, exactly as RecurringInvoiceGenerator does it.
+     */
+    public static function nextTitle(RecurringInvoice $s, ?array $period = null): ?string
+    {
+        if ($s->title === null) {
+            return null;
+        }
+        $period ??= $s->nextPeriod();
+
+        return $period ? str_replace('{period}', $period['label'], $s->title) : $s->title;
+    }
+
+    /** One row of the web list. Expects client (with locale) and lines loaded, and invoices_count. */
+    public static function indexRow(RecurringInvoice $s): array
+    {
+        $paused = $s->isPaused();
+
+        return [
+            'id' => $s->id,
+            'client' => $s->client->only('id', 'name'),
+            'title' => $s->title,
+            'resolved_title' => self::nextTitle($s),
+            'cadence' => $s->cadence,
+            'next_run_on' => $s->next_run_on?->toDateString(),
+            // An active schedule whose run date has passed without the daily job generating it.
+            'run_late' => ! $paused && $s->next_run_on !== null && $s->next_run_on->lt(today()),
+            'auto_send' => (bool) $s->auto_send,
+            'paused' => $paused,
+            'invoices_count' => (int) $s->invoices_count,
+            'subtotal_per_run' => self::subtotalRappen($s), // rappen, excl. VAT
+        ];
+    }
+
+    /**
+     * Stats strip of the web list. Volume is the net (excl. VAT) yearly amount of
+     * the active schedules, in integer rappen.
+     *
+     * @param  iterable<RecurringInvoice>  $schedules  with client and lines loaded
+     */
+    public static function indexStats(iterable $schedules): array
+    {
+        $active = collect($schedules)->reject(fn (RecurringInvoice $s) => $s->isPaused());
+        $paused = collect($schedules)->count() - $active->count();
+        $next = $active->filter(fn (RecurringInvoice $s) => $s->next_run_on !== null)
+            ->sortBy(fn (RecurringInvoice $s) => $s->next_run_on->toDateString())
+            ->first();
+
+        return [
+            'active' => $active->count(),
+            'active_auto_send' => $active->filter(fn (RecurringInvoice $s) => $s->auto_send)->count(),
+            'paused' => $paused,
+            'next_run' => $next ? [
+                'on' => $next->next_run_on->toDateString(),
+                'client' => $next->client->name,
+                'late' => $next->next_run_on->lt(today()),
+            ] : null,
+            'yearly_rappen' => (int) $active->sum(
+                fn (RecurringInvoice $s) => self::subtotalRappen($s) * (self::RUNS_PER_YEAR[$s->cadence] ?? 0)
+            ),
+        ];
+    }
+
     public static function summary(RecurringInvoice $s): array
     {
         return [
@@ -27,8 +96,7 @@ class RecurringInvoiceProjections
     public static function detail(RecurringInvoice $s): array
     {
         $s->loadMissing(['client', 'project', 'lines' => fn ($q) => $q->orderBy('sort_order')]);
-        $locale = $s->client?->locale ?? DocumentLocale::DEFAULT;
-        $period = $s->next_run_on ? BillingPeriod::for($s->cadence, Carbon::parse($s->next_run_on), $s->anchor_day, $locale) : null;
+        $period = $s->nextPeriod();
 
         return [
             'id' => $s->id,
@@ -42,13 +110,14 @@ class RecurringInvoiceProjections
             'next_invoice' => $period ? [
                 'period_start' => $period['start']->toDateString(),
                 'period_end' => $period['end']->toDateString(),
-                'title' => $s->title !== null ? str_replace('{period}', $period['label'], $s->title) : null,
+                'title' => self::nextTitle($s, $period),
             ] : null,
             'last_generated_on' => $s->last_generated_on?->toDateString(),
             'auto_send' => (bool) $s->auto_send,
             'paused' => $s->isPaused(),
             'currency' => $s->currency,
-            'vat_rate' => (float) $s->vat_rate,
+            // The rate the next invoice will carry (in force at its period end).
+            'vat_rate' => $s->nextVatRate(),
             'notes' => $s->notes,
             'recipients' => $s->recipients ?? [],
             'lines' => $s->lines->map(fn (RecurringInvoiceLine $l) => [

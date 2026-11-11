@@ -81,3 +81,22 @@ test('self-heals a missing qr_reference under a QR-IBAN profile (no 500)', funct
     expect(strlen($invoice->qr_reference))->toBe(27);
     expect($invoice->qr_reference)->toMatch('/^\d{27}$/');
 });
+
+test('refuses to render a payment slip when the business profile has no IBAN', function () {
+    BusinessProfile::current()->update(['iban' => null, 'qr_iban' => null]);
+    $invoice = Invoice::factory()->create(['client_id' => $this->client->id, 'total_rappen' => 10_000]);
+
+    expect(fn () => app(QrBillRenderer::class)->html($invoice))
+        ->toThrow(\DomainException::class, 'No IBAN is configured');
+});
+
+test('never prints an account that is not the operator\'s own', function () {
+    BusinessProfile::current()->update(['iban' => 'CH5604835012345678009', 'qr_iban' => null]);
+    $invoice = Invoice::factory()->create(['client_id' => $this->client->id, 'total_rappen' => 10_000]);
+
+    $html = app(QrBillRenderer::class)->html($invoice);
+
+    expect($html)->toContain('CH56 0483 5012 3456 7800 9');
+    expect($html)->not->toContain('CH93 0076 2011 6238 5295 7');
+    expect($html)->not->toContain('CH44 3199 9123 0008 8901 2');
+});

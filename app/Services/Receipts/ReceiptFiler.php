@@ -15,6 +15,8 @@ class ReceiptFiler
 
     public const DUPLICATE_PREFIX = 'DUPLICATE-';
 
+    public const NOT_A_PDF = 'This file is not a PDF (the photo could not be converted), so it was not put into Dropbox. File it again to retry the conversion, or upload it as a PDF.';
+
     public function __construct(private DropboxClient $dropbox) {}
 
     /**
@@ -46,6 +48,15 @@ class ReceiptFiler
             return false;
         }
 
+        // Everything is filed under a ".pdf" name, so it has to be one: a photo whose
+        // conversion failed is still an image here, whatever its record says.
+        $contents = Storage::disk('local')->get($receipt->local_path);
+        if (! self::isPdf($contents)) {
+            $receipt->update(['filing_status' => 'failed', 'filing_error' => self::NOT_A_PDF]);
+
+            return false;
+        }
+
         [$year, $month] = $this->target($receipt);
         $root = $this->dropbox->root();
         $this->dropbox->createFolder(ReceiptPaths::quarterFolder($root, $year, $month));
@@ -55,7 +66,6 @@ class ReceiptFiler
         $name = ReceiptPaths::initialName($receipt);
         // Only a name ernte made up may be varied; a name Sam or the vendor chose is kept or refused.
         $generated = ReceiptPaths::isGenerated($receipt);
-        $contents = Storage::disk('local')->get($receipt->local_path);
 
         $entry = null;
         for ($attempt = 1; $entry === null; $attempt++) {
@@ -85,6 +95,12 @@ class ReceiptFiler
         Storage::disk('local')->delete($localPath);
 
         return true;
+    }
+
+    /** The "%PDF-" signature; the standard allows a little leading junk before it. */
+    public static function isPdf(?string $bytes): bool
+    {
+        return $bytes !== null && str_contains(substr($bytes, 0, 1024), '%PDF-');
     }
 
     /**

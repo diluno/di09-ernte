@@ -56,7 +56,26 @@ Forge must run one scheduler job (`php artisan schedule:run`) and one queue daem
 The scheduler drives the daily background jobs: recurring-invoice generation
 (`ernte:invoices:generate-recurring`), payment reminders
 (`ernte:invoices:remind`), overdue stamping (`ernte:invoices:stamp-overdue`),
-and backups (`ernte:backup`).
+and backups (`ernte:backup`). It also checks the Dropbox receipts inbox every
+five minutes (`ernte:receipts:check-inbox`, switched off with
+`DROPBOX_INBOX_CHECK=false`).
+
+### Backups and restore
+
+`ernte:backup` writes the database dump and four archives of
+`storage/app/private` — `invoices`, `estimates`, `statements` (the bank's
+original camt.053 files) and `receipts` (uploads that are not in Dropbox yet) —
+and verifies them against its manifest. A scheduled backup that fails is logged
+at error level and mailed to the first user.
+
+To restore you need the backup **and the `APP_KEY`** of the installation that
+made it: the Dropbox refresh token in the database is encrypted with that key.
+Restored under another key the app still runs, but Dropbox shows as
+disconnected until you connect it again in Settings. Keep a copy of `APP_KEY`
+outside the server.
+
+The queue's `retry_after` (200 s, `DB_QUEUE_RETRY_AFTER`) must stay above the
+worker's `--timeout`.
 
 ### Troubleshooting
 

@@ -46,7 +46,6 @@ class UpdateRecurringInvoice extends Tool
             'notes' => $schedule->notes,
             'cadence' => $schedule->cadence,
             'next_run_on' => $schedule->next_run_on->toDateString(),
-            'vat_rate' => $schedule->vat_rate,
             'auto_send' => (bool) $schedule->auto_send,
             'lines' => $schedule->lines->map(fn (RecurringInvoiceLine $l) => [
                 'description' => $l->description,
@@ -61,11 +60,6 @@ class UpdateRecurringInvoice extends Tool
         if (isset($data['client_id']) && $data['client_id'] != $schedule->client_id && ! array_key_exists('project_id', $data)) {
             $data['project_id'] = null;
         }
-        // Keep the stored VAT rate unless the run date moves; then re-derive it.
-        if (isset($data['next_run_on'])) {
-            $merged['vat_rate'] = null;
-        }
-
         $updated = $schedules->update($schedule, array_merge($merged, $data));
 
         return Response::structured(RecurringInvoiceProjections::detail($updated));

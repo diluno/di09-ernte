@@ -1,5 +1,9 @@
 @import './tokens.css';
 @import './base.css';
+@import './pages/billing.css';
+@import './pages/estimates.css';
+@import './pages/projects-clients.css';
+@import './pages/timer-settings.css';
 
 @font-face {
   font-family: 'Beausite';

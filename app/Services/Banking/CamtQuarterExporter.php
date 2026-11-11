@@ -203,13 +203,9 @@ class CamtQuarterExporter
     {
         $parsed = $this->parser->parse($xml);
         $statement = $parsed[0];
-        $sum = 0;
-        foreach ($statement['entries'] as $entry) {
-            $sum += $entry['is_credit'] ? $entry['amount_rappen'] : -$entry['amount_rappen'];
-        }
         if (count($parsed) !== 1 || count($statement['entries']) !== $count
             || $statement['opening_balance_rappen'] !== $opening || $statement['closing_balance_rappen'] !== $closing
-            || $opening + $sum !== $closing) {
+            || Camt053Parser::imbalance($statement) !== 0) {
             throw new \DomainException('The merged file does not add up (entries or balances differ from the daily files), so it was not written.');
         }
     }

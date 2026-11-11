@@ -1,0 +1,104 @@
+/* Page-specific Ledger styles: estimates. Shared building blocks live in base.css (see design/ledger/components.md). */
+
+/* ── Index ── */
+/* Fixed-layout list: the Subject column absorbs the slack. Below the reference
+   width (1040px of content) the table keeps that width and scrolls inside
+   .table-wrap, so Subject never collapses to nothing. */
+.table-wrap > .table.estimates-table { min-width: 1000px; }
+/* "· 2 expired" inside the neutral Open stat footnote. */
+.stat .foot .estimates-foot-red { color: var(--red); }
+
+/* ── Detail ── */
+/* Long client names truncate inside the crumb instead of widening the head. */
+.crumb .estimates-crumb-client { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.estimates-side-amount { font-size: 12px; white-space: nowrap; }
+
+/* ── Create / Edit ── */
+/* Main column of the document editor: hairline-separated .form-section blocks. */
+.estimate-form-main { display: grid; gap: 32px; min-width: 0; }
+.estimate-section-intro { margin: -8px 0 12px; }
+.estimate-summary-note { margin-top: 16px; }
+
+/* The scope table needs the width: stack the summary below the editor up to
+   the reference width (the shared .doc-grid only stacks below 1140px). */
+@media (max-width: 1279px) {
+  .doc-grid.estimate-doc-grid { grid-template-columns: minmax(0, 1fr); }
+  .estimate-doc-grid .summary-card { position: static; max-width: 440px; }
+}
+
+/* AI brief */
+.estimate-ai-draft .textarea { min-height: 88px; }
+.estimate-ai-draft__foot {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 8px 12px; margin-top: 10px;
+}
+.estimate-ai-draft .error { margin: 8px 0 0; }
+
+/* Ledger line cells for the scope and assumptions editors. The shared
+   .cell-input still carries a 3px radius, --bg-2 and an --accent focus glow;
+   flatten it here (reported for base.css). */
+.estimate-scope .cell-input,
+.estimate-assumptions .cell-input {
+  border-radius: 0;
+  background: var(--paper-2);
+  box-shadow: none;
+  min-width: 0;
+}
+.estimate-scope .cell-input:focus,
+.estimate-assumptions .cell-input:focus {
+  border-color: var(--ink);
+  background: var(--paper);
+  box-shadow: none;
+}
+.estimate-scope .cell-input.num { font-family: var(--font-mono); padding-left: 6px; padding-right: 6px; }
+/* No native spinners: they eat the width a value like 1250.00 needs. */
+.estimate-scope input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+.estimate-scope input[type="number"]::-webkit-inner-spin-button,
+.estimate-scope input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* ── Scope editor (Components/EstimateScopeEditor.vue) ── */
+.estimate-scope { display: flex; flex-direction: column; gap: 16px; align-items: flex-start; min-width: 0; }
+.estimate-scope__section { width: 100%; }
+.estimate-scope__head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 10px 12px;
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--border);
+}
+.estimate-scope__head .cell-input { background: var(--paper); border-color: var(--border); }
+.estimate-scope__head .cell-input:focus { border-color: var(--ink); }
+.estimate-scope__label { flex: 1 1 160px; max-width: 240px; font-weight: 600; }
+.estimate-scope__title { flex: 999 1 200px; }
+.estimate-scope__head .line-actions { margin-left: auto; }
+
+/* The line table scrolls sideways inside its card on narrow windows. */
+.estimate-scope__scroll { overflow-x: auto; }
+.estimate-scope__table { table-layout: fixed; min-width: 560px; }
+.estimate-scope__table thead th { padding: 10px 12px; }
+.estimate-scope__table tbody td { vertical-align: top; }
+.estimate-scope__table th.num, .estimate-scope__table td.num { padding-left: 6px; padding-right: 6px; }
+.estimate-scope__table td.money { padding-top: 17px; white-space: nowrap; }
+.estimate-scope__table td:last-child, .estimate-scope__table th:last-child { padding-left: 8px; padding-right: 12px; }
+.estimate-scope__table .line-actions { padding-top: 6px; justify-content: flex-end; }
+.estimate-scope__table td.is-empty { padding: 16px 12px; }
+.estimate-scope__line-title { font-weight: 600; }
+.estimate-scope__line-desc { display: block; margin-top: 4px; font-size: var(--fs-sm); color: var(--ink-2); resize: none; }
+
+.estimate-scope__foot { display: flex; align-items: stretch; border-top: 1px solid var(--border); }
+.lines-card .estimate-scope__foot .add-line { flex: 1 1 auto; width: auto; border-top: 0; }
+.estimate-scope__subtotal {
+  display: flex; align-items: center; padding: 0 12px;
+  font-family: var(--font-mono); font-size: 12px; color: var(--ink-3);
+  white-space: nowrap;
+}
+
+/* ── Assumptions editor (Components/AssumptionsEditor.vue) ── */
+.estimate-assumptions { width: 100%; }
+.estimate-assumptions__row {
+  display: grid; grid-template-columns: 12px minmax(0, 1fr) 24px;
+  gap: 10px; align-items: center;
+  padding: 8px 12px 8px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.estimate-assumptions__mark { color: var(--ink-3); }
+.lines-card.estimate-assumptions .add-line { border-top: 0; }

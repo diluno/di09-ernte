@@ -6,6 +6,8 @@ use App\Http\Requests\StoreVatRateRequest;
 use App\Http\Requests\UpdateVatRateRequest;
 use App\Models\VatRate;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -28,9 +30,20 @@ class VatRateController extends Controller
 
     public function store(StoreVatRateRequest $request): RedirectResponse
     {
-        VatRate::create($request->validated());
+        $closed = DB::transaction(function () use ($request) {
+            $data = $request->validated();
+            $open = $request->openRateToClose();
+            $open?->update(['valid_until' => Carbon::parse($data['valid_from'])->subDay()->toDateString()]);
+            VatRate::create($data);
 
-        return back()->with('success', 'VAT rate added.');
+            return $open;
+        });
+
+        $message = $closed
+            ? sprintf('VAT rate added. The %s%% rate now ends on %s.', number_format((float) $closed->rate, 2), $closed->valid_until->format('d M Y'))
+            : 'VAT rate added.';
+
+        return back()->with('success', $message);
     }
 
     public function update(UpdateVatRateRequest $request, VatRate $vatRate): RedirectResponse

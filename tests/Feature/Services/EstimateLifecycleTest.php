@@ -176,3 +176,85 @@ test('mail failures keep the estimate as draft and write no sent event', functio
     expect($estimate->fresh()->sent_at)->toBeNull();
     expect($estimate->events()->where('kind', 'sent')->count())->toBe(0);
 })->group('browsershot');
+
+/** A lifecycle whose PDF "render" just drops a file, so these tests need no Chromium. */
+function estimateLifecycleWithFakePdf(): EstimateLifecycle
+{
+    \Illuminate\Support\Facades\Storage::fake('local');
+
+    $pdf = Mockery::mock(\App\Services\Estimating\EstimatePdfRenderer::class);
+    $pdf->shouldReceive('pdf')->andReturnUsing(function (\App\Models\Estimate $estimate) {
+        $path = "estimates/{$estimate->number}.pdf";
+        \Illuminate\Support\Facades\Storage::disk('local')->put($path, '%PDF-fake');
+        $estimate->update(['pdf_path' => $path]);
+
+        return $path;
+    });
+
+    return new EstimateLifecycle($pdf, app(\App\Services\Invoicing\InvoiceBuilder::class));
+}
+
+test('send re-checks the status under a lock, so a second submit with a stale copy sends nothing', function () {
+    $estimate = draftEstimate();
+    $stale = \App\Models\Estimate::find($estimate->id);
+    $lifecycle = estimateLifecycleWithFakePdf();
+    Mail::fake();
+
+    $lifecycle->send($estimate);
+
+    expect(fn () => $lifecycle->send($stale))->toThrow(\DomainException::class, 'Only a draft can be sent');
+    Mail::assertSent(\App\Mail\EstimateMail::class, 1);
+    expect($estimate->events()->where('kind', 'sent')->count())->toBe(1);
+});
+
+test('send mails only after its transaction has committed, and a mail failure restores the draft', function () {
+    $estimate = draftEstimate();
+    $lifecycle = estimateLifecycleWithFakePdf();
+    $outer = \Illuminate\Support\Facades\DB::transactionLevel();
+
+    Mail::shouldReceive('to')->once()->andReturnUsing(function () use ($outer, $estimate) {
+        expect(\Illuminate\Support\Facades\DB::transactionLevel())->toBe($outer);
+        expect($estimate->fresh()->status)->toBe('sent');
+
+        throw new RuntimeException('SMTP down');
+    });
+
+    expect(fn () => $lifecycle->send($estimate))->toThrow(RuntimeException::class, 'SMTP down');
+
+    $fresh = $estimate->fresh();
+    expect($fresh->status)->toBe('draft');
+    expect($fresh->issued_on)->toBeNull();
+    expect($fresh->valid_until)->toBeNull();
+    expect($fresh->sent_at)->toBeNull();
+    expect($fresh->pdf_path)->toBeNull();
+    expect($fresh->events()->whereIn('kind', ['sent', 'pdf_generated'])->count())->toBe(0);
+});
+
+test('send has committed its sent event before the mail goes out, so a crash there leaves no sent estimate without one', function () {
+    $estimate = draftEstimate();
+    $lifecycle = estimateLifecycleWithFakePdf();
+    $kindsWhileMailing = null;
+
+    \Illuminate\Support\Facades\Event::listen(\Illuminate\Mail\Events\MessageSending::class, function () use (&$kindsWhileMailing, $estimate) {
+        $kindsWhileMailing = $estimate->events()->whereIn('kind', ['pdf_generated', 'sent'])->pluck('kind')->sort()->values()->all();
+    });
+
+    $lifecycle->send($estimate);
+
+    expect($kindsWhileMailing)->toBe(['pdf_generated', 'sent']);
+    expect($estimate->events()->where('kind', 'sent')->count())->toBe(1);
+    expect($estimate->events()->where('kind', 'sent')->first()->payload['email_to'])->not->toBeEmpty();
+});
+
+test('convertToInvoice checks under a lock, so a double submit creates one invoice', function () {
+    $estimate = draftEstimate();
+    $estimate->update(['status' => 'accepted', 'decided_at' => now()]);
+    $stale = \App\Models\Estimate::find($estimate->id);
+
+    $invoice = test()->lifecycle->convertToInvoice($estimate);
+
+    expect($stale->converted_invoice_id)->toBeNull();
+    expect(fn () => test()->lifecycle->convertToInvoice($stale))->toThrow(\DomainException::class, 'already been converted');
+    expect(Invoice::count())->toBe(1);
+    expect($estimate->fresh()->converted_invoice_id)->toBe($invoice->id);
+});

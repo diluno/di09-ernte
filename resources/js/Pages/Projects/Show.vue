@@ -7,8 +7,12 @@ import EntryRow from '@/Components/EntryRow.vue';
 import TaskRow from '@/Components/TaskRow.vue';
 import ProjectNotes from '@/Components/ProjectNotes.vue';
 import Icon from '@/Components/Icon.vue';
+import ActionMenu from '@/Components/ActionMenu.vue';
 import { pushRecent } from '@/composables/useRecent.js';
-import { formatChf } from '@/formatters/money.js';
+import { usePendingAction } from '@/composables/usePendingAction.js';
+import { fmtMoney } from '@/formatters/money.js';
+import { fmtDate, toIsoDate } from '@/formatters/date.js';
+import { fmtHours } from '@/formatters/duration.js';
 import { glyphClass } from '@/formatters/glyph.js';
 
 defineOptions({ layout: AppLayout });
@@ -21,7 +25,6 @@ const props = defineProps({
   heatmap: { type: Array, required: true },
   counts:  { type: Object, required: true },
 });
-
 
 const showAddTask = ref(false);
 const taskForm = useForm({
@@ -41,26 +44,39 @@ onMounted(() => {
   pushRecent({ url: `/projects/${props.project.code}`, label: props.project.name });
 });
 
+// ── Actions ──
+const { pending, pendingKey, run: act } = usePendingAction();
+const isArchived = computed(() => props.project.status === 'archived');
+
 function togglePin() {
-  const url = props.project.is_pinned
-    ? `/projects/${props.project.code}/unpin`
-    : `/projects/${props.project.code}/pin`;
-  router.post(url, {}, { preserveScroll: true });
+  act('post', `/projects/${props.project.code}/${props.project.is_pinned ? 'unpin' : 'pin'}`, {}, { key: 'pin' });
 }
 
 function startTimer() {
-  router.post('/timer/start', { project_id: props.project.id }, {
-    preserveScroll: true,
+  act('post', '/timer/start', { project_id: props.project.id }, {
+    key: 'timer',
     onSuccess: () => router.visit('/timer'),
   });
 }
 
-function editEntry(entry) {
-  const date = new Date(entry.started_at);
-  const pad = (value) => String(value).padStart(2, '0');
-  const dateString = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+function archive() {
+  act('post', `/projects/${props.project.code}/archive`, {}, {
+    confirm: `Archive ${props.project.name}? It will be hidden from active lists.`,
+  });
+}
+function unarchive() { act('post', `/projects/${props.project.code}/unarchive`); }
 
-  router.get('/timer', { date: dateString, edit: entry.id });
+const menuItems = computed(() => [
+  { label: 'Edit project', href: `/projects/${props.project.code}/edit` },
+  { label: `Open ${props.project.client.name}`, href: `/clients/${props.project.client.id}` },
+  { separator: true },
+  isArchived.value
+    ? { label: 'Unarchive', action: unarchive }
+    : { label: 'Archive…', action: archive },
+]);
+
+function editEntry(entry) {
+  router.get('/timer', { date: toIsoDate(entry.started_at), edit: entry.id });
 }
 
 function deleteEntry(entry) {
@@ -69,10 +85,26 @@ function deleteEntry(entry) {
   }
 }
 
-function fmtHours(h) { return `${h.toFixed(1)}h`; }
-function fmtMoneyShort(v) { return formatChf(v); }
+// ── Stats ──
+// Budget tiles show whole francs (aggregates, unit set separately); the rate shows two decimals.
+const tile = (v) => fmtMoney(v, { whole: true });
+const hasBudget = computed(() => props.project.budget_hours > 0);
+const isOver = computed(() => hasBudget.value && props.project.band === 'over');
+const remaining = computed(() => props.project.budget_hours - props.project.spent_hours);
+const rateText = computed(() => {
+  if (!props.project.billable) return 'non-billable';
+  return props.project.rate > 0 ? `CHF ${fmtMoney(props.project.rate)}/h` : 'no rate set';
+});
+const feesFoot = computed(() => {
+  if (props.project.budget_amount > 0) return `of ${tile(props.project.budget_amount)} CHF budget`;
+  return props.project.billable && props.project.rate > 0 ? `at ${rateText.value}` : rateText.value;
+});
 
-const remaining = computed(() => Math.max(0, props.project.budget_hours - props.project.spent_hours));
+const statusMeta = computed(() => {
+  if (isArchived.value) return '● archived';
+  if (isOver.value) return '● over budget';
+  return props.project.retainer ? '● retainer' : '● active';
+});
 </script>
 
 <template>
@@ -81,106 +113,111 @@ const remaining = computed(() => Math.max(0, props.project.budget_hours - props.
   <div class="page-head">
     <div>
       <div class="crumb">
-        <Link href="/projects">~ / projects</Link>
-        <span class="ascii-dot">/</span>
-        <span>{{ project.code }}</span>
+        <Link href="/projects">Projects</Link><span>/</span><span>{{ project.code }}</span><span>·</span><Link :href="`/clients/${project.client.id}`">{{ project.client.name }}</Link>
       </div>
       <h1 class="page-title">
-        <span class="proj-glyph" :class="glyphClass(project.id)" style="width: 28px; height: 28px; font-size: 14px; align-self: center">{{ project.code[0] }}</span>
-        {{ project.name }}
-        <span class="meta">{{ project.client.name }}<span class="ascii-dot">·</span>{{ fmtMoneyShort(project.rate) }}/h</span>
+        <span class="title-with-glyph">
+          <span class="proj-glyph proj-glyph--title" :class="glyphClass(project.id)" aria-hidden="true">{{ project.code[0] }}</span>
+          <span>{{ project.name }}</span>
+        </span>
+        <span class="meta" :class="{ 'is-red': isOver }">{{ statusMeta }}</span>
       </h1>
     </div>
-    <div style="display: flex; gap: 8px">
+    <div class="page-actions">
       <button
-        class="btn"
-        :class="{ primary: project.is_pinned }"
+        type="button"
+        class="btn icon pin-toggle"
+        :aria-pressed="project.is_pinned ? 'true' : 'false'"
+        :aria-label="project.is_pinned ? 'Pinned to sidebar' : 'Pin to sidebar'"
+        :title="project.is_pinned ? 'Pinned to the sidebar — click to unpin' : 'Pin to the sidebar'"
+        :disabled="pending"
         @click="togglePin"
-      >
-        <Icon name="star" :style="{ color: project.is_pinned ? 'var(--gold)' : undefined }" />
-        {{ project.is_pinned ? 'Pinned' : 'Pin' }}
+      ><Icon name="star" /></button>
+      <button type="button" class="btn" :disabled="pending" @click="startTimer">
+        <Icon name="play" />{{ pendingKey === 'timer' ? 'Starting…' : 'Start timer' }}
       </button>
-      <button class="btn" @click="startTimer"><Icon name="play" /> Start timer</button>
-      <Link :href="`/projects/${project.code}/edit`" class="btn">Edit</Link>
       <Link :href="`/invoices/new?client=${project.client.id}&project=${project.id}`" class="btn primary">+ Invoice</Link>
+      <ActionMenu :items="menuItems" :disabled="pending" />
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat" :class="{ 'is-red': isOver }">
+      <div class="label">Hours spent</div>
+      <div class="val">{{ fmtHours(project.spent_hours) }}</div>
+      <div class="foot">{{ hasBudget ? `of ${fmtHours(project.budget_hours)} budget` : 'no budget set' }}</div>
+    </div>
+    <div class="stat">
+      <div class="label">Fees</div>
+      <div class="val">{{ tile(project.spent_amount) }}<span class="unit">CHF</span></div>
+      <div class="foot">{{ feesFoot }}</div>
+    </div>
+    <div class="stat" :class="{ 'is-red': isOver }">
+      <div class="label">{{ isOver ? 'Over by' : 'Remaining' }}</div>
+      <div class="val">{{ hasBudget ? fmtHours(Math.abs(remaining)) : '—' }}</div>
+      <div class="foot">{{ !hasBudget ? 'no budget set' : isOver ? 'past the hours budget' : 'of the hours budget' }}</div>
+    </div>
+    <div class="stat" :class="{ 'is-red': isOver }">
+      <div class="label">Budget used</div>
+      <div class="val">{{ hasBudget ? project.pct_hours : '—' }}<span v-if="hasBudget" class="unit">%</span></div>
+      <div class="foot">{{ hasBudget ? (project.band === 'warn' ? 'of hours · nearly used' : 'of hours') : 'no budget set' }}</div>
     </div>
   </div>
 
   <div class="detail-grid">
     <div class="detail-main">
-      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin: 0 0 28px">
-        <div>
-          <div style="font-size: var(--fs-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3)">Hours spent</div>
-          <div style="font-size: var(--fs-xl); font-weight: 600; margin-top: 4px" :style="{ color: project.band === 'over' ? 'var(--red)' : 'var(--ink)' }">
-            {{ fmtHours(project.spent_hours) }}
-          </div>
-          <div style="font-size: var(--fs-xs); color: var(--ink-3); margin-top: 2px">of {{ fmtHours(project.budget_hours) }}</div>
+      <section class="detail-section">
+        <h2 class="section-title">Tasks <span v-if="tasks.length" class="count">{{ tasks.length }}</span></h2>
+        <div class="task-list">
+          <TaskRow v-for="t in tasks" :key="t.id" :task="t" :project-id="project.id" />
+          <div v-if="tasks.length === 0 && !showAddTask" class="section-empty">No tasks yet.</div>
         </div>
-        <div>
-          <div style="font-size: var(--fs-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3)">Fees</div>
-          <div style="font-size: var(--fs-xl); font-weight: 600; margin-top: 4px">{{ fmtMoneyShort(project.spent_amount) }}</div>
-          <div style="font-size: var(--fs-xs); color: var(--ink-3); margin-top: 2px">of {{ fmtMoneyShort(project.budget_amount) }}</div>
-        </div>
-        <div>
-          <div style="font-size: var(--fs-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3)">Remaining</div>
-          <div style="font-size: var(--fs-xl); font-weight: 600; margin-top: 4px">{{ fmtHours(remaining) }}</div>
-          <div style="font-size: var(--fs-xs); color: var(--ink-3); margin-top: 2px">{{ project.band === 'over' ? 'exceeded' : 'available' }}</div>
-        </div>
-        <div>
-          <div style="font-size: var(--fs-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3)">Budget used</div>
-          <div style="font-size: var(--fs-xl); font-weight: 600; margin-top: 4px">{{ project.pct_hours }}%</div>
-        </div>
-      </div>
-
-      <h3 class="section-title">Tasks</h3>
-      <div class="task-list">
-        <TaskRow v-for="t in tasks" :key="t.id" :task="t" :project-id="project.id" />
-        <form v-if="showAddTask" @submit.prevent="submitTask" style="display: grid; grid-template-columns: 1fr 120px auto auto; gap: 8px; align-items: center; margin-top: 12px">
-          <input v-model="taskForm.name" placeholder="task name" required class="input" />
-          <input type="number" v-model="taskForm.budget_hours" min="0" placeholder="budget h" class="input" />
-          <button type="submit" class="btn primary" :disabled="taskForm.processing">add</button>
-          <button type="button" class="btn ghost" @click="showAddTask = false">cancel</button>
+        <form v-if="showAddTask" class="task-add" @submit.prevent="submitTask">
+          <input v-model="taskForm.name" class="input" placeholder="Task name" aria-label="Task name" required :aria-invalid="!!taskForm.errors.name" />
+          <input v-model="taskForm.budget_hours" type="number" min="0" step="1" class="input num" placeholder="Budget h" aria-label="Budget hours (optional)" :aria-invalid="!!taskForm.errors.budget_hours" />
+          <button type="submit" class="btn sm" :disabled="taskForm.processing">Add task</button>
+          <button type="button" class="btn ghost sm" @click="showAddTask = false">Cancel</button>
         </form>
-        <button v-else class="btn ghost" style="margin-top: 12px; align-self: flex-start" @click="showAddTask = true">+ Add task</button>
-        <div v-if="Object.keys(taskForm.errors).length" style="color: var(--red); font-size: var(--fs-sm); margin-top: 6px">
-          {{ Object.values(taskForm.errors).join(' · ') }}
-        </div>
-      </div>
+        <button v-else type="button" class="btn ghost sm task-add-toggle" @click="showAddTask = true">+ Add task</button>
+        <small v-if="Object.keys(taskForm.errors).length" class="error" role="alert">{{ Object.values(taskForm.errors).join(' · ') }}</small>
+      </section>
 
-      <h3 class="section-title" style="margin-top: 28px">Notes <span v-if="counts.notes" class="muted">{{ counts.notes }}</span></h3>
-      <ProjectNotes :project-code="project.code" :notes="notes" />
+      <section class="detail-section">
+        <h2 class="section-title">Notes <span v-if="counts.notes" class="count">{{ counts.notes }}</span></h2>
+        <ProjectNotes :project-code="project.code" :notes="notes" />
+      </section>
 
-      <h3 class="section-title" style="margin-top: 28px">Recent entries</h3>
-      <div>
+      <section class="detail-section">
+        <h2 class="section-title">Recent entries <span v-if="counts.entries" class="count">{{ counts.entries }}</span></h2>
         <EntryRow v-for="(e, i) in recent_entries" :key="e.id" :entry="e" :color-index="i" show-date @edit="editEntry" @delete="deleteEntry" />
-        <div v-if="recent_entries.length === 0" class="muted" style="padding: 12px">No entries yet</div>
-      </div>
+        <div v-if="recent_entries.length === 0" class="section-empty">No entries yet.</div>
+      </section>
     </div>
 
-    <aside class="detail-side">
-      <h3 class="section-title">Details</h3>
-      <dl class="kv">
-        <dt>Client</dt><dd>{{ project.client.name }}</dd>
-        <dt>Code</dt><dd><span class="mono-tag">{{ project.code }}</span></dd>
-        <dt>Status</dt><dd><span class="badge dot" :class="project.status">{{ project.status }}</span></dd>
-        <dt>Started</dt><dd>{{ project.started_on ?? '—' }}</dd>
-        <dt>Due</dt><dd>{{ project.deadline_on ?? '—' }}</dd>
-        <dt>Billing</dt><dd>{{ project.billable ? `Hourly · ${fmtMoneyShort(project.rate)}/h` : 'non-billable' }}</dd>
-      </dl>
+    <aside class="detail-side side-sections">
+      <section>
+        <h3 class="section-title">Details</h3>
+        <div class="side-row split"><span class="k">Client</span><Link :href="`/clients/${project.client.id}`" class="link-ink cell-trunc">{{ project.client.name }}</Link></div>
+        <div class="side-row split"><span class="k">Code</span><span class="mono">{{ project.code }}</span></div>
+        <div class="side-row split"><span class="k">Billing</span><span>{{ rateText }}</span></div>
+        <div class="side-row split"><span class="k">Hours budget</span><span>{{ hasBudget ? fmtHours(project.budget_hours) : '—' }}</span></div>
+        <div class="side-row split"><span class="k">Fee budget</span><span>{{ project.budget_amount > 0 ? `CHF ${fmtMoney(project.budget_amount)}` : '—' }}</span></div>
+        <div class="side-row split"><span class="k">Started</span><span>{{ project.started_on ? fmtDate(project.started_on) : '—' }}</span></div>
+        <div class="side-row split"><span class="k">Deadline</span><span>{{ project.deadline_on ? fmtDate(project.deadline_on) : '—' }}</span></div>
+      </section>
 
-      <h3 class="section-title" style="margin-top: 24px">Description</h3>
-      <p style="font-size: var(--fs-sm); color: var(--ink-2); line-height: 1.6; margin: 0">{{ project.description ?? '—' }}</p>
+      <section>
+        <h3 class="section-title">Description</h3>
+        <p v-if="project.description" class="side-row side-text">{{ project.description }}</p>
+        <div v-else class="side-row is-muted">No description.</div>
+      </section>
 
-      <h3 class="section-title" style="margin-top: 24px">Activity heatmap</h3>
-      <Heatmap :cells="heatmap" />
+      <section>
+        <h3 class="section-title">Activity · 60 days</h3>
+        <div class="side-row is-flush">
+          <Heatmap :cells="heatmap" />
+        </div>
+      </section>
     </aside>
   </div>
 </template>
-
-<style scoped>
-.input {
-  border: 1px solid var(--border-strong); background: var(--paper);
-  padding: 6px 8px; font-family: inherit; color: var(--ink);
-}
-.input:focus { outline: none; border-color: var(--accent); }
-</style>

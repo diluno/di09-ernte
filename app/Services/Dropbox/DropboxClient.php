@@ -31,7 +31,7 @@ class DropboxClient
 
     public function isConnected(): bool
     {
-        return $this->isConfigured() && filled(BusinessProfile::current()->dropbox_refresh_token);
+        return $this->isConfigured() && filled(BusinessProfile::current()->dropboxRefreshToken());
     }
 
     /** The folder everything must stay inside, e.g. "/Diluno/Receipts". */
@@ -78,7 +78,9 @@ class DropboxClient
             ->post(self::API.'/2/users/get_current_account');
         $label = $account->json('email') ?? $account->json('name.display_name') ?? 'Dropbox account';
 
-        BusinessProfile::current()->update([
+        $profile = BusinessProfile::current();
+        $profile->discardUnreadableDropboxToken();
+        $profile->update([
             'dropbox_refresh_token' => $refreshToken,
             'dropbox_account_label' => $label,
             'dropbox_connected_at' => now(),
@@ -99,7 +101,9 @@ class DropboxClient
         }
 
         Cache::forget(self::TOKEN_CACHE_KEY);
-        BusinessProfile::current()->update([
+        $profile = BusinessProfile::current();
+        $profile->discardUnreadableDropboxToken();
+        $profile->update([
             'dropbox_refresh_token' => null, 'dropbox_account_label' => null, 'dropbox_connected_at' => null,
         ]);
     }
@@ -307,7 +311,7 @@ class DropboxClient
         if (! $this->isConfigured()) {
             throw new DropboxNotConnected('Dropbox app key and secret are not configured.');
         }
-        $refreshToken = BusinessProfile::current()->dropbox_refresh_token;
+        $refreshToken = BusinessProfile::current()->dropboxRefreshToken();
         if (! $refreshToken) {
             throw new DropboxNotConnected('Dropbox is not connected. Connect it in Settings.');
         }

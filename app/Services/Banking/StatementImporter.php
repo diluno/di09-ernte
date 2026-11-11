@@ -16,9 +16,12 @@ class StatementImporter
     public function __construct(private Camt053Parser $parser) {}
 
     /**
-     * @return array{statements_added: int, statements_known: int, lines_added: int, lines_known: int}
+     * lines_known counts every entry ernte already had; lines_skipped is the part of it that
+     * sat in a statement that was itself new (the same booking delivered in two files).
      *
-     * @throws CamtException when the file is unreadable or belongs to another account
+     * @return array{statements_added: int, statements_known: int, lines_added: int, lines_known: int, lines_skipped: int}
+     *
+     * @throws CamtException when the file is unreadable, belongs to another account or does not add up
      */
     public function import(string $xml, string $filename): array
     {
@@ -32,9 +35,19 @@ class StatementImporter
             if ($statement['account_iban'] !== $ownIban) {
                 throw new CamtException("Statement is for account {$statement['account_iban']}, not the business account.");
             }
+            // A file that does not add up is truncated, damaged or read wrongly. Its entries
+            // would become row numbers and payments, so nothing of it is stored.
+            $off = Camt053Parser::imbalance($statement);
+            if ($off !== null && $off !== 0) {
+                throw new CamtException(sprintf(
+                    'Statement %s (%s) does not add up: opening balance plus its %d entries is CHF %s %s than the closing balance. Nothing was imported; download the file again.',
+                    $statement['statement_ref'], $statement['to_date'], count($statement['entries']),
+                    number_format(abs($off) / 100, 2, '.', "'"), $off > 0 ? 'more' : 'less',
+                ));
+            }
         }
 
-        $result = ['statements_added' => 0, 'statements_known' => 0, 'lines_added' => 0, 'lines_known' => 0];
+        $result = ['statements_added' => 0, 'statements_known' => 0, 'lines_added' => 0, 'lines_known' => 0, 'lines_skipped' => 0];
 
         // The bank's file is kept as it came, so a quarter can later be handed on as one file.
         $rawPath = 'statements/'.hash('sha256', $xml).'.xml';
@@ -66,6 +79,7 @@ class StatementImporter
                 foreach ($entries as $entry) {
                     if (StatementLine::where('source', self::SOURCE)->where('bank_ref', $entry['bank_ref'])->exists()) {
                         $result['lines_known']++;
+                        $result['lines_skipped']++;
 
                         continue;
                     }
@@ -95,7 +109,7 @@ class StatementImporter
             }
             $date = \Illuminate\Support\Carbon::parse($entry['booked_on']);
             $frozen = StatementLine::where('source', self::SOURCE)->whereNotNull('position')
-                ->whereYear('booked_on', $date->year)->whereMonth('booked_on', $date->month)->exists();
+                ->whereBetween('booked_on', [$date->copy()->startOfMonth()->toDateString(), $date->copy()->endOfMonth()->toDateString()])->exists();
             if ($frozen) {
                 throw new CamtException("Receipts of {$date->format('m/Y')} are already numbered; a new entry on {$entry['booked_on']} would shift the numbers.");
             }

@@ -1,4 +1,5 @@
 <script setup>
+import axios from 'axios';
 import { computed, ref, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -7,7 +8,9 @@ import RecipientPicker from '@/Components/RecipientPicker.vue';
 import EstimateScopeEditor from '@/Components/EstimateScopeEditor.vue';
 import AssumptionsEditor from '@/Components/AssumptionsEditor.vue';
 import { assumptionsPayload, flattenLines, makeLine, makeSection, sectionsPayload } from '@/formatters/estimateScope.js';
-import { totalsForLines } from '@/formatters/vat.js';
+import TotalsCard from '@/Components/TotalsCard.vue';
+import { useDocumentTotals } from '@/composables/useDocumentTotals.js';
+import { useDirtySnapshot, useUnsavedGuard } from '@/composables/useUnsavedGuard.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -51,69 +54,79 @@ const draftError = ref('');
 
 const canDraft = computed(() => clientId.value && brief.value.trim().length >= 10 && !drafting.value);
 
+// True once the scope holds anything worth keeping (text or hours).
+const scopeHasContent = computed(() => flattenLines(sections.value).some((l) =>
+  (l.title ?? '').trim() || (l.description ?? '').trim() || Number(l.hours) > 0));
+
 async function draftWithAi() {
   if (!canDraft.value) return;
+  if (scopeHasContent.value && !window.confirm('Replace the current scope lines with an AI draft? Your existing lines will be discarded.')) return;
   drafting.value = true;
   draftError.value = '';
 
   try {
-    const res = await fetch('/estimates/draft', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        // Laravel sets an XSRF-TOKEN cookie; plain fetch doesn't echo it back on its own.
-        'X-XSRF-TOKEN': decodeURIComponent(document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/)?.[1] ?? ''),
-      },
-      body: JSON.stringify({
-        brief: brief.value,
-        client_id: clientId.value,
-        project_id: projectId.value || null,
-      }),
+    const { data } = await axios.post('/estimates/draft', {
+      brief: brief.value,
+      client_id: clientId.value,
+      project_id: projectId.value || null,
     });
-
-    const payload = await res.json();
-    if (!res.ok) throw new Error(payload.message || 'Drafting failed.');
 
     // Replace the scope wholesale — the draft is the starting point, not an addition.
     sections.value = [makeSection(defaultRate.value, {
-      lines: payload.lines.map((l) => makeLine(defaultRate.value, {
+      lines: (data.lines ?? []).map((l) => makeLine(defaultRate.value, {
         description: l.description,
         hours: l.hours,
         rate: l.rate || defaultRate.value,
       })),
     })];
-    if (payload.title && !title.value) title.value = payload.title;
-    if (payload.notes && !notes.value) notes.value = payload.notes;
+    if (data.title && !title.value) title.value = data.title;
+    if (data.notes && !notes.value) notes.value = data.notes;
   } catch (e) {
-    draftError.value = e.message;
+    draftError.value = e.response?.data?.message || e.message || 'Drafting failed.';
   } finally {
     drafting.value = false;
   }
 }
 
-function fmtMoney(rappen) { return 'CHF ' + (rappen / 100).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-function fmtRate(rate) { return Number(rate).toFixed(2).replace(/\.?0+$/, ''); }
-
 const lines = computed(() => flattenLines(sections.value));
-const totals = computed(() => totalsForLines(lines.value, props.vat_rates));
-const subtotalRappen = computed(() => totals.value.subtotal);
-const totalRappen = computed(() => totals.value.total);
+const totals = useDocumentTotals(lines, { catalog: () => props.vat_rates });
 
 const canSave = computed(() => clientId.value && lines.value.length > 0);
+const saveBlockedReason = computed(() => {
+  if (!clientId.value) return 'Select a client first';
+  if (!lines.value.length) return 'Add at least one line';
+  return undefined;
+});
 
 const form = useForm({ recipients: [] });
+const payload = () => ({
+  client_id: clientId.value,
+  project_id: projectId.value || null,
+  title: title.value || null,
+  notes: notes.value || null,
+  recipients: form.recipients,
+  assumptions: assumptionsPayload(assumptions.value),
+  sections: sectionsPayload(sections.value),
+});
+
+// The brief counts as unsaved work too.
+const { isDirty } = useDirtySnapshot(() => ({ ...payload(), brief: brief.value }));
+useUnsavedGuard(isDirty);
+
 function save() {
-  form.transform(() => ({
-    client_id: clientId.value,
-    project_id: projectId.value || null,
-    title: title.value || null,
-    notes: notes.value || null,
-    recipients: form.recipients,
-    assumptions: assumptionsPayload(assumptions.value),
-    sections: sectionsPayload(sections.value),
-  })).post('/estimates');
+  if (form.processing || !canSave.value) return;
+  form.transform(payload).post('/estimates');
 }
+
+// Enter in a single-line field (a line title, a rate…) must not create the
+// draft; only the footer button submits.
+function blockImplicitSubmit(e) {
+  if (e.target instanceof HTMLInputElement && e.target.type !== 'checkbox') e.preventDefault();
+}
+
+// Errors without an inline slot (scope rows, recipient rows, …).
+const INLINE = ['client_id', 'project_id', 'title', 'notes', 'recipients'];
+const otherErrors = computed(() => Object.entries(form.errors).filter(([k]) => !INLINE.includes(k)).map(([, v]) => v));
 </script>
 
 <template>
@@ -121,143 +134,109 @@ function save() {
 
   <div class="page-head">
     <div>
-      <div class="crumb">
-        <Link href="/estimates">~ / estimates</Link><span class="ascii-dot">/</span><span>new</span>
-      </div>
+      <div class="crumb"><Link href="/estimates">Estimates</Link><span>/</span><span>New</span></div>
       <h1 class="page-title">New estimate</h1>
     </div>
-    <div style="display: flex; gap: 8px">
-      <Link href="/estimates" class="btn ghost">Cancel</Link>
-      <button class="btn primary" :disabled="form.processing || !canSave" @click="save">Create draft</button>
-    </div>
   </div>
 
-  <div class="doc-grid" style="padding: 20px 28px 28px; display: grid; grid-template-columns: 1fr 360px; gap: 28px">
-    <div>
-      <h3 class="section-title">Title</h3>
-      <input v-model="title" class="cell-input" style="width: 100%; border: 1px solid var(--border-strong); padding: 8px; margin-bottom: 20px" placeholder="e.g. Partnerschaft auf Augenhöhe — shown at the top of the PDF" />
+  <form class="form-page" novalidate @submit.prevent="save" @keydown.enter="blockImplicitSubmit">
+    <div class="doc-grid estimate-doc-grid">
+      <div class="estimate-form-main">
+        <section class="form-section">
+          <h2 class="section-title">Estimate</h2>
+          <div class="form-grid">
+            <label class="field span-all">
+              <span>Title</span>
+              <input v-model="title" class="input" :aria-invalid="!!form.errors.title" placeholder="e.g. Partnerschaft auf Augenhöhe" />
+              <small v-if="form.errors.title" class="error">{{ form.errors.title }}</small>
+              <small v-else class="hint">Shown at the top of the PDF.</small>
+            </label>
+            <label class="field">
+              <span>Client</span>
+              <select v-model="clientId" class="select" :aria-invalid="!!form.errors.client_id">
+                <option :value="null" disabled>Select a client…</option>
+                <option v-for="c in clients" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+              <small v-if="form.errors.client_id" class="error">{{ form.errors.client_id }}</small>
+            </label>
+            <label class="field">
+              <span>Project (optional)</span>
+              <select v-model="projectId" class="select" :disabled="!clientId" :aria-invalid="!!form.errors.project_id">
+                <option :value="null">—</option>
+                <option v-for="p in clientProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
+              </select>
+              <small v-if="form.errors.project_id" class="error">{{ form.errors.project_id }}</small>
+              <small v-else class="hint">Sets the default hourly rate for new lines.</small>
+            </label>
+          </div>
+        </section>
 
-      <h3 class="section-title">Client</h3>
-      <div style="display: flex; gap: 12px; margin-bottom: 20px">
-        <label class="field" style="flex: 1">
-          <span>Client</span>
-          <select v-model="clientId">
-            <option :value="null" disabled>Select a client…</option>
-            <option v-for="c in clients" :key="c.id" :value="c.id">{{ c.name }}</option>
-          </select>
-        </label>
-        <label class="field" style="flex: 1">
-          <span>Project (optional)</span>
-          <select v-model="projectId" :disabled="!clientId">
-            <option :value="null">—</option>
-            <option v-for="p in clientProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
-          </select>
-        </label>
+        <section class="form-section">
+          <h2 class="section-title">Draft with AI</h2>
+          <div class="estimate-ai-draft">
+            <AutoTextarea
+              v-model="brief"
+              class="textarea"
+              aria-label="Brief for the AI draft"
+              :disabled="drafting"
+              placeholder="Describe the job — e.g. “Neue Website für den Hofladen: 6 Seiten, Bildstrecke, Bestellformular, Umzug auf unser Hosting.” The scope below gets replaced with a draft you can edit."
+            />
+            <div class="estimate-ai-draft__foot">
+              <span class="hint">
+                {{ clientId ? 'Uses this client’s past estimates as a style reference.' : 'Select a client first.' }}
+              </span>
+              <button type="button" class="btn sm" :disabled="!canDraft" :title="canDraft ? undefined : (clientId ? 'Write a brief of at least 10 characters' : 'Select a client first')" @click="draftWithAi">
+                {{ drafting ? 'Drafting…' : 'Draft lines' }}
+              </button>
+            </div>
+            <p v-if="draftError" class="error" role="alert">{{ draftError }}</p>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <h2 class="section-title">Scope</h2>
+          <EstimateScopeEditor v-model="sections" :default-rate="defaultRate" />
+        </section>
+
+        <section class="form-section">
+          <h2 class="section-title">Assumptions</h2>
+          <p class="hint estimate-section-intro">Printed as a bullet list after the totals.</p>
+          <AssumptionsEditor v-model="assumptions" />
+        </section>
+
+        <section class="form-section">
+          <h2 class="section-title">Notes</h2>
+          <label class="field">
+            <span class="sr-only">Notes</span>
+            <textarea v-model="notes" class="textarea" rows="3" :aria-invalid="!!form.errors.notes" placeholder="Optional notes shown on the estimate PDF…"></textarea>
+            <small v-if="form.errors.notes" class="error">{{ form.errors.notes }}</small>
+          </label>
+        </section>
+
+        <section class="form-section">
+          <h2 class="section-title">Recipients</h2>
+          <RecipientPicker v-model="form.recipients" :contacts="selectedClientContacts" :client-selected="Boolean(clientId)" />
+          <small v-if="form.errors.recipients" class="error">{{ form.errors.recipients }}</small>
+        </section>
       </div>
 
-      <h3 class="section-title">Draft with AI</h3>
-      <div class="ai-draft">
-        <AutoTextarea
-          v-model="brief"
-          class="cell-input framed"
-          :disabled="drafting"
-          placeholder="Describe the job — e.g. “Neue Website für den Hofladen: 6 Seiten, Bildstrecke, Bestellformular, Umzug auf unser Hosting.” The lines below get replaced with a draft you can edit."
-        />
-        <div class="ai-draft__foot">
-          <span class="dim" style="font-size: var(--fs-xs)">
-            {{ clientId ? 'Uses this client’s past estimates as a style reference.' : 'Select a client first.' }}
-          </span>
-          <button class="btn ghost" :disabled="!canDraft" @click="draftWithAi">
-            {{ drafting ? 'Drafting…' : 'Draft lines' }}
-          </button>
+      <aside class="summary-card">
+        <div class="summary-head">Totals</div>
+        <div class="summary-body">
+          <TotalsCard :totals="totals" />
+          <p class="hint estimate-summary-note">
+            Server recomputes all amounts on save. The estimate is created as a draft; send it to stamp the validity date and email the client.
+          </p>
+          <p v-if="otherErrors.length" class="error estimate-summary-note" role="alert">{{ otherErrors.join(' · ') }}</p>
         </div>
-        <p v-if="draftError" style="color: var(--red); font-size: var(--fs-sm); margin-top: 8px">{{ draftError }}</p>
-      </div>
-
-      <h3 class="section-title" style="margin-top: 28px">Scope</h3>
-      <EstimateScopeEditor v-model="sections" :default-rate="defaultRate" />
-
-      <h3 class="section-title" style="margin-top: 28px">Assumptions</h3>
-      <AssumptionsEditor v-model="assumptions" />
-
-      <h3 class="section-title" style="margin-top: 28px">Notes</h3>
-      <textarea v-model="notes" class="cell-input" rows="3" style="width: 100%; border: 1px solid var(--border-strong); padding: 8px" placeholder="Optional notes shown on the estimate PDF…"></textarea>
-
-      <h3 class="section-title" style="margin-top: 28px">Recipients</h3>
-      <div class="field">
-        <RecipientPicker :contacts="selectedClientContacts" v-model="form.recipients" />
-      </div>
+      </aside>
     </div>
 
-    <aside class="summary-card">
-      <div class="summary-head">Totals</div>
-      <div class="summary-body">
-      <div class="invoice-totals" style="display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: var(--fs-sm)">
-        <div class="label">Subtotal</div><div class="v">{{ fmtMoney(subtotalRappen) }}</div>
-        <div class="label">MwSt {{ fmtRate(totals.rate) }}%</div><div class="v">{{ fmtMoney(totals.vat) }}</div>
-        <template v-if="totals.rounding !== 0">
-          <div class="label">Rundung</div><div class="v">{{ fmtMoney(totals.rounding) }}</div>
-        </template>
-        <div class="grand-l">Total</div><div class="v grand">{{ fmtMoney(totalRappen) }}</div>
-      </div>
-      <button class="btn primary" style="width: 100%; justify-content: center; margin-top: 16px"
-              :disabled="form.processing || !canSave" @click="save">
-        Create draft
-      </button>
-      <p class="dim" style="font-size: var(--fs-xs); margin-top: 16px; line-height: 1.6">
-        Server recomputes all amounts on save. The estimate is created as a draft; send it to stamp the validity date and email the client.
-      </p>
-      <div v-if="Object.keys(form.errors).length" style="color: var(--red); font-size: var(--fs-sm); margin-top: 12px">
-        {{ Object.values(form.errors).join(' · ') }}
-      </div>
-      </div>
-    </aside>
-  </div>
+    <div class="form-foot">
+      <button type="submit" class="btn primary" :disabled="form.processing || !canSave" :title="saveBlockedReason">Create draft</button>
+      <Link href="/estimates" class="btn ghost">Cancel</Link>
+      <span v-if="otherErrors.length" class="form-foot__aside is-red">Fix the errors above</span>
+      <span v-else-if="isDirty" class="form-foot__aside">Unsaved changes</span>
+    </div>
+  </form>
 </template>
-
-<style scoped>
-/* Editable line-item cells: visible at rest, clear focus ring. */
-.cell-input {
-  width: 100%;
-  border: 1px solid transparent;
-  background: var(--bg-2);
-  padding: 8px 10px;
-  font-family: inherit;
-  color: var(--ink);
-  border-radius: 3px;
-}
-.cell-input:hover { border-color: var(--border); }
-.cell-input:focus {
-  outline: none;
-  border-color: var(--accent);
-  background: var(--paper);
-  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 14%, transparent);
-}
-.cell-input.num { text-align: right; font-variant-numeric: tabular-nums; }
-
-/* Standalone framed fields (title / notes / dates). */
-.cell-input.framed { background: var(--paper); border-color: var(--border-strong); }
-
-/* Labelled select/date/text fields above the table. */
-.field { display: flex; flex-direction: column; gap: 5px; font-size: var(--fs-sm); color: var(--ink-2); }
-.field > span { font-size: var(--fs-xs); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
-.field input, .field select {
-  border: 1px solid var(--border-strong);
-  background: var(--paper);
-  padding: 9px 11px;
-  font-family: inherit;
-  color: var(--ink);
-  border-radius: 3px;
-}
-.field input:focus, .field select:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 14%, transparent);
-}
-/* Prose-brief box that feeds the AI drafter. */
-.ai-draft { border: 1px solid var(--border-strong); background: var(--bg-2); padding: 12px; border-radius: 3px; }
-.ai-draft .cell-input { min-height: 72px; }
-.ai-draft__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
-
-.detail-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--border); }
-</style>

@@ -21,6 +21,11 @@ class CheckReceiptInboxCommand extends Command
         }
 
         $result = $intake->scanInbox();
+        if (! empty($result['busy'])) {
+            $this->line('Another inbox check is still running; skipped.');
+
+            return self::SUCCESS;
+        }
         $this->info("Inbox: {$result['new']} new, {$result['duplicates']} duplicate(s), {$result['skipped']} non-PDF file(s) skipped, {$result['resorted']} put back and sorted again.");
 
         return self::SUCCESS;

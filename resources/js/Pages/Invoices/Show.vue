@@ -1,9 +1,13 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
-import { fmtDayMonth as dayMonth } from '@/formatters/date.js';
+import ActionMenu from '@/Components/ActionMenu.vue';
+import { fmtDate, fmtDateShort, fmtDateTime } from '@/formatters/date.js';
+import { fmtMoney } from '@/formatters/money.js';
+import { fmtHours } from '@/formatters/duration.js';
+import { usePendingAction, recipientList } from '@/composables/usePendingAction.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -24,40 +28,45 @@ const STATUS_MARK = { draft: '○', sent: '◐', overdue: '●', paid: '●', vo
 const title = computed(() => props.invoice.title || `Invoice #${props.invoice.number}`);
 
 // ── Actions ──
-function send()    { router.post(`/invoices/${props.invoice.id}/send`,  {}, { preserveScroll: true }); }
+// One request at a time: every action button is disabled while one is in flight.
+const { pending, pendingKey, run: act } = usePendingAction();
+const recipients = computed(() => recipientList(props.invoice.recipients, '(no recipients set)'));
+
+function send() {
+  act('post', `/invoices/${props.invoice.id}/send`, {}, {
+    key: 'send',
+    confirm: `Email invoice #${props.invoice.number} to ${recipients.value}?\n\nThis sends the invoice with its QR bill and locks it from editing. It cannot be undone.`,
+  });
+}
 function markSent() {
-  if (!window.confirm(`Mark invoice #${props.invoice.number} as sent? It will be locked from editing.`)) return;
-  router.post(`/invoices/${props.invoice.id}/mark-sent`, {}, { preserveScroll: true });
+  act('post', `/invoices/${props.invoice.id}/mark-sent`, {}, {
+    confirm: `Mark invoice #${props.invoice.number} as sent? It will be locked from editing.`,
+  });
 }
-function markPaid(){ router.post(`/invoices/${props.invoice.id}/paid`,  {}, { preserveScroll: true }); }
-function voidIt()  {
-  if (!window.confirm(`Void invoice #${props.invoice.number}? Linked entries will become billable again.`)) return;
-  router.post(`/invoices/${props.invoice.id}/void`,  {}, { preserveScroll: true });
+function markPaid() { act('post', `/invoices/${props.invoice.id}/paid`, {}, { key: 'paid' }); }
+function voidIt() {
+  act('post', `/invoices/${props.invoice.id}/void`, {}, {
+    confirm: `Void invoice #${props.invoice.number}? Linked entries will become billable again.`,
+  });
 }
-function pauseReminders()  { router.post(`/invoices/${props.invoice.id}/pause-reminders`,  {}, { preserveScroll: true }); }
-function resumeReminders() { router.post(`/invoices/${props.invoice.id}/resume-reminders`, {}, { preserveScroll: true }); }
-function remindNow()       { router.post(`/invoices/${props.invoice.id}/remind`, {}, { preserveScroll: true }); }
+function pauseReminders()  { act('post', `/invoices/${props.invoice.id}/pause-reminders`); }
+function resumeReminders() { act('post', `/invoices/${props.invoice.id}/resume-reminders`); }
+function remindNow() {
+  act('post', `/invoices/${props.invoice.id}/remind`, {}, {
+    confirm: `Email a payment reminder for invoice #${props.invoice.number} to ${recipients.value} now?`,
+  });
+}
 function destroy() {
-  if (!window.confirm(`Delete invoice #${props.invoice.number}? This permanently removes it and its line items. Linked time entries return to unbilled.`)) return;
-  router.delete(`/invoices/${props.invoice.id}`);
+  act('delete', `/invoices/${props.invoice.id}`, {}, {
+    preserveScroll: false,
+    // A void invoice already released its entries when it was voided.
+    confirm: isDraft.value
+      ? `Delete draft invoice #${props.invoice.number}? This permanently removes it and its line items. Linked time entries return to unbilled.`
+      : `Delete void invoice #${props.invoice.number}? It was never sent, so this permanently removes it and its line items. The number is not reused.`,
+  });
 }
 
-// ── More-actions menu ──
-const menuOpen = ref(false);
-const menuRef = ref(null);
-function onDocMouseDown(e) { if (menuRef.value && !menuRef.value.contains(e.target)) menuOpen.value = false; }
-function onDocKeydown(e)   { if (e.key === 'Escape') menuOpen.value = false; }
-watch(menuOpen, (open) => {
-  const fn = open ? 'addEventListener' : 'removeEventListener';
-  document[fn]('mousedown', onDocMouseDown);
-  document[fn]('keydown', onDocKeydown);
-});
-onBeforeUnmount(() => {
-  document.removeEventListener('mousedown', onDocMouseDown);
-  document.removeEventListener('keydown', onDocKeydown);
-});
-function run(fn) { menuOpen.value = false; fn(); }
-
+// ── More-actions menu (rendered by ActionMenu) ──
 const menuItems = computed(() => {
   const items = [];
   if (isDraft.value) {
@@ -71,20 +80,19 @@ const menuItems = computed(() => {
     items.push({ label: 'Send reminder now', action: remindNow });
   }
   if (!isClosed.value) items.push({ label: 'Void invoice', action: voidIt });
-  items.push({ label: 'Delete…', action: destroy, danger: true });
+  // Only drafts and never-sent void invoices can be deleted (Invoice::isDeletable); the rest stay on record.
+  if (props.invoice.deletable) items.push({ label: 'Delete…', action: destroy, danger: true });
   return items;
 });
 
 // ── Formatting ──
-function fmtChf0(v) { return Math.round(v).toLocaleString('de-CH'); }
-function fmtChf(v)  { return Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function year(iso)     { return iso ? new Date(iso).getFullYear() : ''; }
 function plural(n, one, many) { return `${n} ${n === 1 ? one : many}`; }
 
 const issuedFoot = computed(() => {
   if (!props.invoice.issued_on) return 'not issued';
   const channel = props.invoice.issued_channel === 'manual' ? 'marked as sent' : props.invoice.issued_channel === 'email' ? 'sent by email' : null;
-  return [year(props.invoice.issued_on), channel].filter(Boolean).join(' · ');
+  return channel ?? 'issued';
 });
 const dueFoot = computed(() => {
   const parts = [];
@@ -94,7 +102,7 @@ const dueFoot = computed(() => {
 });
 const hoursFoot = computed(() => {
   const parts = [props.linked_entries.count > 0 ? plural(props.linked_entries.count, 'linked entry', 'linked entries') : 'manual lines'];
-  if (props.invoice.avg_rate !== null) parts.push(`${fmtChf0(props.invoice.avg_rate)} CHF/h`);
+  if (props.invoice.avg_rate !== null) parts.push(`${fmtMoney(props.invoice.avg_rate)} CHF/h`);
   return parts.join(' · ');
 });
 const totalHours = computed(() => props.invoice.lines.reduce((a, l) => a + l.hours, 0));
@@ -107,10 +115,7 @@ const EVENT_LABEL = {
   payment_matched: 'Bank payment linked', reopened: 'Reopened',
 };
 const MATCH_METHOD = { qr_reference: 'QR reference', number_in_text: 'invoice no. in text', amount: 'amount', manual: 'by hand' };
-function fmtWhen(iso) {
-  const d = new Date(iso);
-  return `${dayMonth(iso)} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
-}
+const fmtWhen = (iso) => fmtDateTime(iso, { short: true });
 function eventDetail(e) {
   // email_to was a single string before multi-contact support; an array since.
   const to = e.payload?.email_to;
@@ -140,41 +145,33 @@ function eventDetail(e) {
       </h1>
     </div>
 
-    <div ref="menuRef" class="page-actions">
+    <div class="page-actions">
       <a :href="pdf_url" class="btn"><Icon name="download" />PDF</a>
-      <button v-if="isDraft" class="btn primary" @click="send">Send by email</button>
-      <button v-else-if="isSent" class="btn primary" @click="markPaid"><Icon name="check" />Mark paid</button>
-      <button class="btn icon" aria-label="More actions" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
-        <Icon name="more-horizontal" style="font-size: 14px" />
-      </button>
-      <div v-if="menuOpen" class="menu" role="menu">
-        <template v-for="item in menuItems" :key="item.label">
-          <Link v-if="item.href" :href="item.href" class="menu-item" role="menuitem">{{ item.label }}</Link>
-          <button v-else class="menu-item" :class="{ 'is-danger': item.danger }" role="menuitem" @click="run(item.action)">{{ item.label }}</button>
-        </template>
-      </div>
+      <button v-if="isDraft" class="btn primary" :disabled="pending" @click="send">{{ pendingKey === 'send' ? 'Sending…' : 'Send by email' }}</button>
+      <button v-else-if="isSent" class="btn primary" :disabled="pending" @click="markPaid"><Icon name="check" />{{ pendingKey === 'paid' ? 'Saving…' : 'Mark paid' }}</button>
+      <ActionMenu v-if="menuItems.length" :items="menuItems" :disabled="pending" />
     </div>
   </div>
 
   <div class="stats">
     <div class="stat">
       <div class="label">Total</div>
-      <div class="val">{{ fmtChf0(invoice.total) }}<span class="unit">CHF</span></div>
+      <div class="val">{{ fmtMoney(invoice.total) }}<span class="unit">CHF</span></div>
       <div class="foot">incl. {{ invoice.vat_rate }}% VAT</div>
     </div>
     <div class="stat">
       <div class="label">Issued</div>
-      <div class="val">{{ dayMonth(invoice.issued_on) }}</div>
+      <div class="val">{{ fmtDateShort(invoice.issued_on) }}</div>
       <div class="foot">{{ issuedFoot }}</div>
     </div>
     <div class="stat" :class="{ 'is-red': invoice.overdue }">
       <div class="label">Due</div>
-      <div class="val">{{ dayMonth(invoice.due_on) }}</div>
+      <div class="val">{{ fmtDateShort(invoice.due_on) }}</div>
       <div class="foot">{{ dueFoot }}</div>
     </div>
     <div class="stat">
       <div class="label">Hours</div>
-      <div class="val">{{ totalHours.toFixed(1) }}</div>
+      <div class="val">{{ fmtHours(totalHours) }}</div>
       <div class="foot">{{ hoursFoot }}</div>
     </div>
   </div>
@@ -196,7 +193,7 @@ function eventDetail(e) {
       <section v-if="invoice.payments.length">
         <h3 class="section-title">Payment</h3>
         <div v-for="p in invoice.payments" :key="p.bank_ref" class="side-row">
-          Paid {{ dayMonth(p.booked_on) }} {{ year(p.booked_on) }} · {{ fmtChf(p.amount) }} CHF
+          Paid {{ fmtDate(p.booked_on) }} · {{ fmtMoney(p.amount) }} CHF
           <span class="sub">
             <Link :href="`/bank?quarter=${year(p.booked_on)}-Q${Math.floor(new Date(p.booked_on).getMonth() / 3) + 1}`" class="link-ink">bank entry {{ p.bank_ref }}</Link>
             · matched by {{ MATCH_METHOD[p.method] ?? p.method }}
@@ -214,7 +211,7 @@ function eventDetail(e) {
           </span>
         </div>
         <div v-if="next_reminder_on" class="side-row grid is-muted">
-          <span class="when">{{ dayMonth(next_reminder_on) }}</span>
+          <span class="when">{{ fmtDateShort(next_reminder_on) }}</span>
           <span>Next reminder scheduled</span>
         </div>
         <div v-if="events.length === 0" class="side-row is-muted">No activity yet.</div>
@@ -223,11 +220,11 @@ function eventDetail(e) {
       <section v-if="linked_entries.count > 0">
         <h3 class="section-title">Linked time</h3>
         <div class="side-row split">
-          <span class="cell-trunc">{{ linked_entries.project?.name ?? invoice.project_name ?? '—' }}</span>
-          <span class="mono" style="font-size: 12px">{{ linked_entries.hours.toFixed(1) }} h</span>
+          <span class="cell-trunc">{{ linked_entries.project?.name ?? invoice.project_name ?? 'Several projects' }}</span>
+          <span class="mono" style="font-size: 12px">{{ fmtHours(linked_entries.hours) }}</span>
         </div>
         <div class="side-row split meta" style="border-bottom: 0">
-          <span>{{ plural(linked_entries.count, 'entry', 'entries') }}<template v-if="linked_entries.from"> · {{ dayMonth(linked_entries.from) }}<template v-if="linked_entries.to !== linked_entries.from"> – {{ dayMonth(linked_entries.to) }}</template></template></span>
+          <span>{{ plural(linked_entries.count, 'entry', 'entries') }}<template v-if="linked_entries.from"> · {{ fmtDateShort(linked_entries.from) }}<template v-if="linked_entries.to !== linked_entries.from"> – {{ fmtDateShort(linked_entries.to) }}</template></template></span>
           <Link v-if="linked_entries.project" :href="`/projects/${linked_entries.project.code}`">View →</Link>
         </div>
       </section>

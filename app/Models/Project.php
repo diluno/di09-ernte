@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\EntryDuration;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -41,7 +42,7 @@ class Project extends Model
     public function spentHours(): float
     {
         $seconds = (int) $this->timeEntries()
-            ->selectRaw('COALESCE(SUM(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, UTC_TIMESTAMP()))), 0) AS seconds')
+            ->selectRaw('COALESCE(SUM('.EntryDuration::secondsSql().'), 0) AS seconds')
             ->value('seconds');
         return round($seconds / 3600, 2);
     }

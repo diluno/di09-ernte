@@ -17,12 +17,12 @@ use App\Models\VatRate;
 use App\Services\Invoicing\InvoiceBuilder;
 use App\Services\Invoicing\InvoiceLifecycle;
 use App\Services\Invoicing\InvoicePdfRenderer;
+use App\Support\EntryDuration;
 use App\Support\InvoiceProjections;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -84,16 +84,7 @@ class InvoiceController extends Controller
             ? Carbon::parse($request->string('to'))->endOfDay()
             : Carbon::now()->subMonthNoOverflow()->endOfMonth();
 
-        $entries = TimeEntry::query()
-            ->with(['project:id,name,code,rate_rappen'])
-            ->where('billable', true)
-            ->whereNull('invoice_id')
-            ->finished()
-            ->whereBetween('started_at', [$start, $end])
-            ->when($project, fn ($q) => $q->where('project_id', $project->id),
-                fn ($q) => $q->whereIn('project_id', $client->projects()->pluck('id')))
-            ->orderBy('started_at')
-            ->get();
+        $entries = $builder->unbilledEntries($client, $project, $start, $end);
 
         return Inertia::render('Invoices/Create', [
             'client' => $client->only('id', 'name', 'short_code') + [
@@ -121,6 +112,7 @@ class InvoiceController extends Controller
                     'rate_rappen' => $l['rate_rappen'],
                     'entry_ids' => $l['entry_ids'],
                 ])->values(),
+            'unbilled_outside_period' => $builder->unbilledOutsidePeriod($client, $project, $start, $end),
             'vat_rates' => VatRate::catalogForFrontend(),
         ]);
     }
@@ -139,6 +131,7 @@ class InvoiceController extends Controller
             lines: $data['lines'],
             entryIds: $data['entry_ids'] ?? [],
             title: $data['title'] ?? null,
+            notes: $data['notes'] ?? null,
             recipients: $data['recipients'] ?? null,
         );
 
@@ -150,7 +143,7 @@ class InvoiceController extends Controller
         $invoice->load(['client', 'project', 'recurringInvoice:id,title', 'lines' => fn ($q) => $q->orderBy('sort_order'), 'events' => fn ($q) => $q->orderByDesc('occurred_at')]);
 
         $linked = $invoice->timeEntries()
-            ->selectRaw('COUNT(*) AS n, COALESCE(SUM(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, UTC_TIMESTAMP()))),0) AS secs, MIN(started_at) AS first_at, MAX(started_at) AS last_at')
+            ->selectRaw('COUNT(*) AS n, COALESCE(SUM('.EntryDuration::secondsSql().'),0) AS secs, MIN(started_at) AS first_at, MAX(started_at) AS last_at')
             ->first();
 
         return Inertia::render('Invoices/Show', [
@@ -165,12 +158,27 @@ class InvoiceController extends Controller
                 'hours' => round(((int) $linked->secs) / 3600, 1),
                 'from' => $linked->first_at ? Carbon::parse($linked->first_at)->toDateString() : null,
                 'to' => $linked->last_at ? Carbon::parse($linked->last_at)->toDateString() : null,
-                'project' => $invoice->project ? ['name' => $invoice->project->name, 'code' => $invoice->project->code] : null,
+                'project' => $this->linkedProject($invoice),
             ],
             'next_reminder_on' => $this->nextReminderOn($invoice),
             'preview_url' => "/invoices/{$invoice->number}/preview",
             'pdf_url' => "/invoices/{$invoice->number}/pdf",
         ]);
+    }
+
+    /**
+     * The project the linked time belongs to: the invoice's own project, or — for a
+     * client-level invoice — the entries' project when they all share one.
+     */
+    private function linkedProject(Invoice $invoice): ?array
+    {
+        $project = $invoice->project;
+        if (! $project) {
+            $ids = $invoice->timeEntries()->distinct()->limit(2)->pluck('project_id');
+            $project = $ids->count() === 1 ? Project::find($ids->first()) : null;
+        }
+
+        return $project ? ['name' => $project->name, 'code' => $project->code] : null;
     }
 
     /**
@@ -198,8 +206,12 @@ class InvoiceController extends Controller
             return back()->with('error', 'Reminders only apply to sent invoices.');
         }
 
-        if (empty($invoice->recipients ?: ($invoice->client?->defaultRecipients() ?? []))) {
+        if (empty($invoice->effectiveRecipients())) {
             return back()->with('error', 'No recipient email on this invoice.');
+        }
+
+        if (SendInvoiceReminderMail::remindedJustNow($invoice)) {
+            return back()->with('error', "A reminder for invoice {$invoice->number} was sent a moment ago.");
         }
 
         SendInvoiceReminderMail::dispatch($invoice->id, force: true);
@@ -245,65 +257,29 @@ class InvoiceController extends Controller
 
     public function preview(Invoice $invoice, InvoicePdfRenderer $renderer): HttpResponse
     {
-        return response($renderer->html($invoice))->header('Content-Type', 'text/html');
+        try {
+            $html = $renderer->html($invoice);
+        } catch (\DomainException $e) {
+            // e.g. no IBAN configured: say so in the preview frame instead of a 500.
+            return response($e->getMessage(), 422)->header('Content-Type', 'text/plain; charset=UTF-8');
+        }
+
+        return response($html)->header('Content-Type', 'text/html');
     }
 
-    public function update(UpdateInvoiceRequest $request, Invoice $invoice): RedirectResponse
+    public function update(UpdateInvoiceRequest $request, Invoice $invoice, InvoiceBuilder $builder): RedirectResponse
     {
-        $data = $request->validated();
-
-        DB::transaction(function () use ($data, $invoice) {
-            if (array_key_exists('title', $data)) {
-                $invoice->title = $data['title'];
-            }
-            if (array_key_exists('notes', $data)) {
-                $invoice->notes = $data['notes'];
-            }
-            if (array_key_exists('period_start', $data)) {
-                $invoice->period_start = $data['period_start'];
-            }
-            if (array_key_exists('period_end', $data)) {
-                $invoice->period_end = $data['period_end'];
-            }
-            if (array_key_exists('locale', $data)) {
-                $invoice->locale = $data['locale'];
-            }
-            if (array_key_exists('recipients', $data)) {
-                $invoice->recipients = $data['recipients'];
-            }
-            if (! empty($data['lines'])) {
-                $invoice->lines()->delete();
-                $lineAmounts = [];
-                $exemptFlags = [];
-                $sort = 0;
-                foreach ($data['lines'] as $line) {
-                    $hours = round((float) $line['hours'], 2);
-                    $rate = (int) $line['rate_rappen'];
-                    $amount = (int) round($hours * $rate);
-                    $exempt = (bool) ($line['vat_exempt'] ?? false);
-                    $invoice->lines()->create([
-                        'description' => $line['description'], 'hours' => $hours,
-                        'rate_rappen' => $rate, 'amount_rappen' => $amount,
-                        'vat_exempt' => $exempt,
-                        'sort_order' => $sort++,
-                    ]);
-                    $lineAmounts[] = $amount;
-                    $exemptFlags[] = $exempt;
-                }
-                $totals = InvoiceBuilder::computeTotals($lineAmounts, (float) $invoice->vat_rate, $exemptFlags);
-                $invoice->subtotal_rappen = $totals['subtotal_rappen'];
-                $invoice->vat_rappen = $totals['vat_rappen'];
-                $invoice->rounding_rappen = $totals['rounding_rappen'];
-                $invoice->total_rappen = $totals['total_rappen'];
-            }
-            $invoice->save();
-        });
+        $builder->updateDraft($invoice, $request->validated());
 
         return redirect("/invoices/{$invoice->number}")->with('success', 'Draft updated.');
     }
 
     public function destroy(Invoice $invoice): RedirectResponse
     {
+        if (! $invoice->isDeletable()) {
+            return back()->with('error', "Invoice {$invoice->number} has been issued and cannot be deleted. Void it instead.");
+        }
+
         $number = $invoice->number;
 
         if ($invoice->pdf_path && Storage::disk('local')->exists($invoice->pdf_path)) {
@@ -416,9 +392,17 @@ class InvoiceController extends Controller
 
         foreach ($invoices as $invoice) {
             // Prefer the PDF frozen at send-time; render fresh only when it's missing.
-            $bytes = $invoice->pdf_path && Storage::disk('local')->exists($invoice->pdf_path)
-                ? Storage::disk('local')->get($invoice->pdf_path)
-                : $renderer->pdfBytes($invoice);
+            try {
+                $bytes = $invoice->pdf_path && Storage::disk('local')->exists($invoice->pdf_path)
+                    ? Storage::disk('local')->get($invoice->pdf_path)
+                    : $renderer->pdfBytes($invoice);
+            } catch (\DomainException $e) {
+                // E.g. no IBAN configured: a live render cannot build the QR bill.
+                $zip->close();
+                @unlink($zipPath);
+
+                return back()->with('error', "Could not export Q{$quarter} {$year}: invoice {$invoice->number} has no stored PDF and could not be rendered. {$e->getMessage()}");
+            }
             $zip->addFromString($invoice->pdfFilename(), $bytes);
         }
 
@@ -431,14 +415,21 @@ class InvoiceController extends Controller
 
     public function pdf(Invoice $invoice, InvoicePdfRenderer $renderer): \Symfony\Component\HttpFoundation\Response
     {
-        // Always render fresh so downloads reflect the current template. The
-        // cached pdf_path (frozen at send-time) is reserved for reminder emails.
-        return response()->streamDownload(
-            function () use ($invoice, $renderer) {
-                echo $renderer->pdfBytes($invoice);
-            },
-            $invoice->pdfFilename(),
-            ['Content-Type' => 'application/pdf'],
-        );
+        $headers = ['Content-Type' => 'application/pdf'];
+
+        // An issued invoice is the document the client received: serve the PDF
+        // frozen at send time, not a re-render from today's profile and template.
+        // Drafts (and invoices marked sent by hand, which have no stored file) render live.
+        if ($invoice->status !== 'draft' && $invoice->pdf_path && Storage::disk('local')->exists($invoice->pdf_path)) {
+            return Storage::disk('local')->download($invoice->pdf_path, $invoice->pdfFilename(), $headers);
+        }
+
+        try {
+            $bytes = $renderer->pdfBytes($invoice);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return response()->streamDownload(fn () => print ($bytes), $invoice->pdfFilename(), $headers);
     }
 }

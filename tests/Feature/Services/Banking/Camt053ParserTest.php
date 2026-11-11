@@ -18,7 +18,7 @@ test('reads the statement header and balances', function () {
     expect($statement['from_date'])->toBe('2026-07-03');
     expect($statement['to_date'])->toBe('2026-07-03');
     expect($statement['opening_balance_rappen'])->toBe(1000050);
-    expect($statement['closing_balance_rappen'])->toBe(1161435);
+    expect($statement['closing_balance_rappen'])->toBe(1162310);
 });
 
 test('reads each kind of entry and skips pending ones', function () {

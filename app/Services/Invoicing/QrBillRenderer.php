@@ -34,9 +34,8 @@ class QrBillRenderer
         // QR-IBAN ⇒ QRR reference; plain IBAN ⇒ no reference (NON).
         // The reference type must match the IBAN type. If a plain IBAN was entered
         // in the QR-IBAN field, render in NON mode instead of failing the invoice.
-        $qrIban = SwissIban::normalize($profile->qr_iban);
-        $plainIban = SwissIban::normalize($profile->iban);
-        $useQrIban = SwissIban::isQrIban($qrIban);
+        $iban = self::creditorIban($profile);
+        $useQrIban = SwissIban::isQrIban($iban);
 
         // A QR-IBAN requires a QRR reference. Self-heal invoices that lack one
         // (e.g. factory/seeded/imported) so the library does not reject them.
@@ -47,9 +46,6 @@ class QrBillRenderer
             $ref = $invoice->qr_reference;
         }
 
-        $iban = $useQrIban
-            ? ($qrIban ?: 'CH4431999123000889012')
-            : ($plainIban ?: $qrIban ?: 'CH9300762011623852957');
         $qrBill->setCreditorInformation(
             QrBill\DataGroup\Element\CreditorInformation::create($iban)
         );
@@ -108,6 +104,29 @@ class QrBillRenderer
         $displayOptions = (new DisplayOptions)->setPrintable(false);
 
         return (string) $output->setDisplayOptions($displayOptions)->getPaymentPart();
+    }
+
+    /**
+     * The account the payment slip pays into: the QR-IBAN when one is set (and
+     * really is one), else the plain IBAN, else whatever sits in the QR-IBAN field.
+     *
+     * There is deliberately no fallback: a slip with a made-up account would send
+     * the client's payment somewhere else.
+     *
+     * @throws \DomainException when the business profile has no IBAN at all
+     */
+    public static function creditorIban(BusinessProfile $profile): string
+    {
+        $qrIban = SwissIban::normalize($profile->qr_iban);
+        $plainIban = SwissIban::normalize($profile->iban);
+
+        $iban = SwissIban::isQrIban($qrIban) ? $qrIban : ($plainIban ?: $qrIban);
+
+        if (! $iban) {
+            throw new \DomainException('No IBAN is configured, so the QR bill cannot be created. Add your IBAN or QR-IBAN under Settings → Business profile first.');
+        }
+
+        return $iban;
     }
 
     /**

@@ -21,7 +21,6 @@ class UpdateRecurringInvoiceRequest extends FormRequest
             'notes' => 'sometimes|nullable|string|max:20000',
             'cadence' => 'required|in:monthly,quarterly,half-yearly,yearly',
             'next_run_on' => 'required|date',
-            'vat_rate' => 'sometimes|numeric|min:0|max:100',
             'auto_send' => 'sometimes|boolean',
             'lines' => 'required|array|min:1',
             'lines.*.description' => 'required|string|max:1000',

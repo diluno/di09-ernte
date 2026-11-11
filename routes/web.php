@@ -15,6 +15,7 @@ use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TimerController;
+use Illuminate\Routing\RedirectController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth')->group(function () {
@@ -146,9 +147,12 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/api/search', SearchController::class)->name('api.search');
 
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    // The Breeze profile page is gone; account settings live on the Settings page.
+    // GET only (Route::redirect would answer every verb, DELETE included).
+    Route::get('/profile', RedirectController::class)
+        ->defaults('destination', '/settings')->defaults('status', 302)
+        ->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
 require __DIR__.'/auth.php';

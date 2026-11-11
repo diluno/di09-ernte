@@ -1,8 +1,12 @@
 <script setup>
 import { computed } from 'vue';
+import { fmtHours } from '@/formatters/duration.js';
+import { fmtDateShort } from '@/formatters/date.js';
+
+const DAYS = 60;
 
 const props = defineProps({
-  cells: { type: Array, default: () => Array(60).fill(0) }, // 60 numbers, oldest → newest
+  cells: { type: Array, default: () => Array(DAYS).fill(0) }, // 60 numbers, oldest → newest (today last)
 });
 
 function level(v) {
@@ -13,25 +17,32 @@ function level(v) {
   return '';
 }
 
-const filled = computed(() => {
-  const out = Array(60).fill(0);
-  for (let i = 0; i < Math.min(props.cells.length, 60); i++) out[i] = props.cells[i];
-  return out;
+const days = computed(() => {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  return Array.from({ length: DAYS }, (_, i) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (DAYS - 1 - i));
+    const hours = Number(props.cells[i] ?? 0);
+    return { hours, title: `${fmtDateShort(date)} · ${fmtHours(hours)}` };
+  });
+});
+
+const summary = computed(() => {
+  const active = days.value.filter((d) => d.hours > 0);
+  const total = active.reduce((a, d) => a + d.hours, 0);
+  return active.length
+    ? `${fmtHours(total)} on ${active.length} ${active.length === 1 ? 'day' : 'days'} in the last ${DAYS} days`
+    : `No time tracked in the last ${DAYS} days`;
 });
 </script>
 
 <template>
-  <div>
-    <div class="heat">
-      <div
-        v-for="(v, i) in filled" :key="i"
-        class="sq"
-        :class="level(v)"
-        :title="`${v.toFixed(1)}h`"
-      />
+  <figure class="heatmap">
+    <div class="heat" role="img" :aria-label="summary">
+      <div v-for="(d, i) in days" :key="i" class="sq" :class="level(d.hours)" :title="d.title" />
     </div>
-    <div style="font-size: var(--fs-xs); color: var(--ink-4); margin-top: 8px; display: flex; justify-content: space-between">
-      <span>12 weeks ago</span><span>today</span>
-    </div>
-  </div>
+    <figcaption class="heatmap__axis"><span>{{ DAYS }} days ago</span><span>today</span></figcaption>
+    <p class="heatmap__sum">{{ summary }}</p>
+  </figure>
 </template>

@@ -11,7 +11,7 @@ a { color: inherit; text-decoration: none; }
 /* Mono face reserved for data/codes/identifiers; text/UI uses the sans default. */
 .mono, .kbd, .mono-tag, .crumb, .running-timer, .btn,
 .timer-display, .stat .val, .budget-cell .label, .task-num,
-.invoice-h, .invoice-line .num, .invoice-totals,
+.invoice-totals,
 .entry-row .dur, .entry-row .billable, .proj-glyph,
 .table tbody td.num, .table tbody td.money, .table tbody td.code,
 .nav-item .count, .week-total, .side-row .sub, .search, .pagination {
@@ -22,8 +22,9 @@ a { color: inherit; text-decoration: none; }
 .app {
   display: grid;
   grid-template-columns: 240px 1fr;
-  grid-template-rows: 52px 1fr;
+  grid-template-rows: var(--topbar-h) 1fr;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
 }
@@ -84,6 +85,7 @@ a { color: inherit; text-decoration: none; }
 .running-timer:hover { background: var(--ink); color: var(--paper); }
 .running-timer.idle { color: var(--ink-3); border-color: var(--border-strong); }
 .running-timer.idle:hover { background: transparent; color: var(--ink-3); }
+.running-timer__link { display: flex; align-items: center; gap: 10px; color: inherit; }
 .running-timer .pulse {
   width: 8px; height: 8px; border-radius: 50%;
   background: var(--red);
@@ -93,6 +95,7 @@ a { color: inherit; text-decoration: none; }
   background: currentColor;
   margin-left: 4px;
 }
+.timer-stop:disabled { opacity: .4; cursor: default; }
 
 .user-chip { color: var(--ink); font-size: 13px; }
 .user-chip:hover, .user-chip:focus-visible { color: var(--ink-3); }
@@ -185,24 +188,28 @@ a { color: inherit; text-decoration: none; }
 }
 .page-head {
   display: flex; align-items: flex-end; justify-content: space-between;
-  padding: 36px 40px 24px;
-  gap: 24px;
+  flex-wrap: wrap;
+  padding: 36px var(--gutter) 24px;
+  gap: 16px 24px;
   border-bottom: 1px solid var(--rule);
   background: var(--paper);
 }
-.page-head > div:first-child { min-width: 0; }
-.page-actions { display: flex; gap: 8px; align-items: stretch; position: relative; flex: 0 0 auto; }
+/* The title block takes the free space; once it would get narrower than
+   320px the actions wrap onto their own line under it (never one letter per line). */
+.page-head > div:first-child { flex: 1 1 320px; min-width: 0; }
+.page-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; position: relative; flex: 0 0 auto; max-width: 100%; }
 .crumb {
   font-size: 12px;
   color: var(--ink-3);
   letter-spacing: var(--track-label);
   text-transform: uppercase;
-  display: flex; gap: 10px; align-items: baseline;
+  display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline;
 }
 .crumb a { border-bottom: 1px solid var(--border-strong); }
 .crumb a:hover { color: var(--ink); }
 .page-title {
-  font-size: var(--fs-xl);
+  /* 64px from ~1280px up, scaling down to 34px on a phone. */
+  font-size: clamp(34px, calc(3.2vw + 24px), var(--fs-xl));
   letter-spacing: -0.04em;
   font-weight: 600;
   line-height: .95;
@@ -264,8 +271,7 @@ a { color: inherit; text-decoration: none; }
   appearance: none;
 }
 .btn:hover { background: var(--paper-2); }
-.btn:disabled { opacity: .4; cursor: default; }
-.btn:disabled:hover { background: transparent; }
+.btn:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
 .btn.primary {
   background: var(--ink);
   color: var(--paper);
@@ -277,10 +283,23 @@ a { color: inherit; text-decoration: none; }
 .btn.danger { color: var(--red); }
 .btn.icon { width: 40px; padding: 0; justify-content: center; }
 .btn.icon[aria-expanded="true"] { background: var(--paper-2); }
+/* Compact size for table rows, ledger heads and tight toolbars (any variant). */
 .btn.sm { padding: 5px 9px; }
+.btn.icon.sm { width: 28px; height: 28px; padding: 0; }
 .btn .ico { font-size: 13px; }
+/* Disabled: outline only, never a washed-out fill, so an enabled primary is
+   always solid ink and a disabled one cannot be mistaken for it (or vice versa). */
+.btn:disabled, .btn:disabled:hover {
+  background: transparent;
+  border-color: var(--border-strong);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+.btn.ghost:disabled { border-color: transparent; }
 
-/* Absolute menu below a .page-actions trigger. */
+/* Dropdown menu. In .page-actions it sits absolutely below the trigger; the
+   ActionMenu component (Components/ActionMenu.vue) positions it fixed instead so
+   it also works inside scrolling tables. */
 .menu {
   position: absolute;
   top: calc(100% + 6px);
@@ -302,14 +321,21 @@ a { color: inherit; text-decoration: none; }
   transition: background .12s;
 }
 .menu-item:last-child { border-bottom: 0; }
-.menu-item:hover { background: var(--paper-2); }
+.menu-item:hover, .menu-item:focus-visible { background: var(--paper-2); outline: 0; }
 .menu-item.is-danger { color: var(--red); }
-.menu-item.is-danger:hover { background: var(--red-bg); }
+.menu-item.is-danger:hover, .menu-item.is-danger:focus-visible { background: var(--red-bg); }
+.menu-item:disabled { color: var(--ink-3); cursor: not-allowed; }
+.menu-item:disabled:hover { background: transparent; }
+/* Optional ink rule between groups (e.g. before a destructive item). */
+.menu-sep { height: 0; border-top: 1px solid var(--rule); margin-top: -1px; }
+.menu--fixed { position: fixed; top: auto; right: auto; z-index: 45; }
+/* ActionMenu wrapper: lets the trigger stretch to the height of a .page-actions row. */
+.action-menu { position: relative; display: inline-flex; vertical-align: middle; }
 
 /* ─────────────────────── Filter row / tabs / search ─────────────────────── */
 .filter-row {
   display: flex; align-items: center; gap: 24px;
-  padding: 16px 40px;
+  padding: 16px var(--gutter);
   border-bottom: 1px solid var(--rule);
   font-size: 13px;
   background: var(--paper);
@@ -352,6 +378,55 @@ a { color: inherit; text-decoration: none; }
 }
 .search input::placeholder { color: var(--ink-3); }
 
+/* ─────────────────────── Forms ─────────────────────── */
+/* Form page: .page-head, then <form class="form-page"> = .form-body (sections of
+   .form-grid fields) + .form-foot (the one primary action). See design/ledger/components.md. */
+.form-page { display: flex; flex-direction: column; flex: 1 0 auto; }
+.form-body,
+.settings-page {
+  padding: 28px var(--gutter) 32px;
+  display: grid;
+  gap: 32px;
+  max-width: 980px;
+}
+.form-section,
+.settings-section {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 24px;
+  min-width: 0;
+}
+.form-section:last-child { border-bottom: 0; padding-bottom: 0; }
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+.form-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  min-width: 0;
+}
+.field > span:first-child {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+.field > span:first-child a { color: var(--ink); border-bottom: 1px solid var(--border-strong); text-transform: none; letter-spacing: 0; }
+/* Checkbox/radio with its label on one line. */
+.field.is-check {
+  flex-direction: row; align-items: center; gap: 8px;
+  color: var(--ink); font-size: var(--fs-sm);
+}
+.field.is-check > span:first-child { font-size: inherit; color: inherit; letter-spacing: 0; text-transform: none; }
+.field.is-check input { accent-color: var(--ink); margin: 0; }
+.span-2 { grid-column: span 2; }
+.span-all { grid-column: 1 / -1; }
+
 .input,
 .select,
 .textarea {
@@ -367,49 +442,51 @@ a { color: inherit; text-decoration: none; }
 .select:focus,
 .textarea:focus {
   border-color: var(--ink);
-  background: var(--paper);
+  background-color: var(--paper);
 }
 .input[readonly] {
   color: var(--ink-3);
   background: var(--paper-3);
 }
-.settings-page {
-  padding: 24px 40px;
-  display: grid;
-  gap: 24px;
-  max-width: 980px;
+.input[aria-invalid="true"], .select[aria-invalid="true"], .textarea[aria-invalid="true"] { border-color: var(--red); }
+.select {
+  appearance: none;
+  border-radius: 0;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0h10L5 6z' fill='%23141210'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
 }
-.settings-section {
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 20px;
-}
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px 16px;
-}
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: var(--fs-sm);
-  color: var(--ink-2);
-}
-.field > span {
-  font-size: var(--fs-xs);
+.textarea { min-height: 88px; resize: vertical; line-height: 1.5; border-radius: 0; }
+.input.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* Help and error text under a field (or under a section). */
+.hint {
   color: var(--ink-3);
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
 }
-.span-2 { grid-column: span 2; }
 .error {
   color: var(--red);
   font-size: var(--fs-xs);
 }
 
+/* Sticky footer of a form page: exactly one .btn.primary, then secondary
+   actions (.btn.ghost Cancel); status text goes in .form-foot__aside. */
+.form-foot {
+  position: sticky; bottom: 0; z-index: 2;
+  margin-top: auto;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 14px var(--gutter);
+  border-top: 1px solid var(--rule);
+  background: var(--paper);
+}
+.form-foot__aside { margin-left: auto; font-size: 12px; color: var(--ink-3); }
+.form-foot__aside.is-red { color: var(--red); }
+
 @media (max-width: 760px) {
-  .settings-page { padding: 16px; }
-  .form-grid { grid-template-columns: 1fr; }
+  .form-grid, .form-grid.cols-3 { grid-template-columns: minmax(0, 1fr); }
   .span-2 { grid-column: span 1; }
 }
 
@@ -493,6 +570,7 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink-3);
   font-size: var(--fs-sm);
 }
+.palette-empty:empty { display: none; }
 
 /* ─────────────────────── Section title / side rows ─────────────────────── */
 .section-title {
@@ -506,8 +584,7 @@ a { color: inherit; text-decoration: none; }
   border-bottom: 1px solid var(--rule);
 }
 /* Aside sections: the rows carry their own 10px padding, so they sit flush under the rule. */
-.invoice-side .section-title,
-.section-title.flush { margin-bottom: 0; }
+.invoice-side .section-title { margin-bottom: 0; }
 .side-row {
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
@@ -533,7 +610,8 @@ a { color: inherit; text-decoration: none; }
   color: var(--paper);
   font-size: 10px; font-weight: 700;
 }
-.proj-glyph.alt-1 { background: var(--red); }
+/* No red glyphs: red is reserved for overdue / over budget. */
+.proj-glyph.alt-1 { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 .proj-glyph.alt-2 { background: var(--ink-2); }
 .proj-glyph.alt-3 { background: var(--ink-3); }
 .proj-glyph.alt-4 { background: var(--border-strong); color: var(--ink); }
@@ -546,6 +624,12 @@ a { color: inherit; text-decoration: none; }
 }
 .icon-btn:hover { background: var(--paper-2); color: var(--ink); }
 .icon-btn--danger:hover { background: var(--red-bg); color: var(--red); }
+.icon-btn:disabled { opacity: .35; cursor: default; }
+.icon-btn:disabled:hover { background: transparent; color: var(--ink-3); }
+.line-actions { display: flex; align-items: center; gap: 2px; }
+
+/* Visually hidden, still announced. */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ─────────────────────── Badge ─────────────────────── */
 .badge {
@@ -563,11 +647,15 @@ a { color: inherit; text-decoration: none; }
 .badge.sent.dot::before { content: "◐"; }
 .badge.paid { color: var(--ink-3); }
 .badge.paid.dot::before { content: "✓"; font-size: 12px; }
-.badge.overdue, .badge.over, .badge.expired, .badge.declined { color: var(--red); }
+.badge.overdue, .badge.over, .badge.expired { color: var(--red); }
+/* Declined needs no attention: quiet, not red. */
+.badge.declined { color: var(--ink-3); }
 .badge.active { color: var(--ink); }
 .badge.archived, .badge.void { color: var(--ink-3); }
 .badge.warn { color: var(--ink-2); }
 .badge.accepted { color: var(--ink); }
+.badge.paused { color: var(--ink-3); }
+.badge.paused.dot::before { content: "‖"; }
 
 /* ─────────────────────── Budget bar ─────────────────────── */
 .budget-cell { width: 240px; }
@@ -612,8 +700,12 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ─────────────────────── Tables ─────────────────────── */
+/* Every data table sits in a .table-wrap: it scrolls sideways on its own when
+   the columns do not fit, instead of squeezing them or widening the page. */
 .table-wrap {
   padding: 0 0 32px;
+  overflow-x: auto;
+  flex-shrink: 0; /* overflow would otherwise let it shrink inside the .content flex column */
 }
 .table {
   width: 100%;
@@ -641,7 +733,11 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink);
   transition: background .12s;
 }
-.table tbody tr { cursor: pointer; }
+/* The real link inside a clickable row's primary cell. */
+.row-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.row-link:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
+/* Only rows that navigate on click get the pointer (see useRowLink). */
+.table tbody tr.is-clickable { cursor: pointer; }
 .table tbody tr:hover td { background: var(--paper-2); }
 
 /* Overdue/expired documents flagged red; everything else stays ink on paper. */
@@ -663,13 +759,45 @@ a { color: inherit; text-decoration: none; }
 .table tbody tr.is-paid td.money { font-weight: 400; color: var(--ink-3); }
 .table thead th.num { text-align: right; }
 .table .check { width: 28px; }
-.table .pad-l { padding-left: 40px; }
-.table .pad-r { padding-right: 40px; }
+.table .pad-l { padding-left: var(--gutter); }
+.table .pad-r { padding-right: var(--gutter); }
+/* "Nothing here" row spanning the table: <td :colspan="n" class="is-empty">. */
+.table tbody td.is-empty { height: auto; padding: 24px var(--gutter); color: var(--ink-3); cursor: default; }
+.table tbody tr:hover td.is-empty { background: transparent; }
+/* Trailing cell holding row actions (an ActionMenu or .btn.sm buttons). */
+.table td.row-actions, .table th.row-actions { width: 64px; text-align: right; white-space: nowrap; padding-right: var(--gutter); }
+.table td.row-actions > * + * { margin-left: 6px; }
 
 /* Editable document line tables: roomier than data tables. */
 .table--lines tbody td { height: auto; padding-top: 9px; padding-bottom: 9px; }
-.table--lines tbody tr { cursor: default; }
 .table--lines tbody tr:hover td { background: transparent; color: inherit; }
+
+/* Editable line-item cells (line editors, document title/notes): visible at rest, clear focus ring. */
+.cell-input {
+  width: 100%;
+  border: 1px solid transparent;
+  background: var(--paper-2);
+  padding: 8px 10px;
+  font-family: inherit;
+  color: var(--ink);
+  border-radius: 0;
+}
+.cell-input:hover { border-color: var(--border-strong); }
+.cell-input:focus {
+  outline: none;
+  border-color: var(--ink);
+  background: var(--paper);
+}
+.cell-input[aria-invalid="true"] { border-color: var(--red); }
+.cell-input.num {
+  text-align: right; font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums;
+  padding-left: 6px; padding-right: 6px;
+  appearance: textfield; -moz-appearance: textfield;
+}
+.cell-input.num::-webkit-outer-spin-button,
+.cell-input.num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+/* Standalone framed fields (title / notes). */
+.cell-input.framed { background: var(--paper); border-color: var(--border-strong); }
 
 /* Read-only picker table (billable entries): visibly secondary to the lines it feeds. */
 .table--picker { font-size: var(--fs-sm); }
@@ -690,7 +818,14 @@ a { color: inherit; text-decoration: none; }
 }
 .lines-card .add-line:hover { background: var(--paper-2); color: var(--ink); }
 
-.doc-grid { align-items: start; }
+/* Document editor: main column + 340px summary aside (Invoice/Estimate create/edit). */
+.doc-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 32px;
+  padding: 28px var(--gutter) 32px;
+  align-items: start;
+}
 .summary-card {
   border: 1px solid var(--ink); overflow: hidden;
   position: sticky; top: 24px;
@@ -703,7 +838,7 @@ a { color: inherit; text-decoration: none; }
 .summary-card .summary-body { padding: 16px 18px; }
 
 @media (max-width: 1140px) {
-  .doc-grid { grid-template-columns: 1fr !important; }
+  .doc-grid { grid-template-columns: minmax(0, 1fr) !important; }
   .summary-card { position: static; max-width: 440px; }
 }
 
@@ -720,7 +855,7 @@ a { color: inherit; text-decoration: none; }
   background: var(--paper);
 }
 .stat {
-  padding: 20px 40px 22px;
+  padding: 20px var(--gutter) 22px;
   border-right: 1px solid var(--border);
   display: flex; flex-direction: column; gap: 0;
   min-width: 0;
@@ -774,7 +909,7 @@ a { color: inherit; text-decoration: none; }
   gap: 0;
   border-bottom: 1px solid var(--border);
 }
-.detail-main { padding: 28px 40px; min-width: 0; }
+.detail-main { padding: 28px var(--gutter); min-width: 0; }
 .detail-side {
   border-left: 1px solid var(--rule);
   padding: 28px 32px;
@@ -789,14 +924,6 @@ a { color: inherit; text-decoration: none; }
 }
 .kv dt { color: var(--ink-3); letter-spacing: var(--track-label); text-transform: uppercase; font-size: var(--fs-xs); align-self: center; }
 .kv dd { margin: 0; color: var(--ink); }
-
-.burndown {
-  height: 140px;
-  width: 100%;
-  border: 1px solid var(--border);
-  background: var(--paper);
-  position: relative;
-}
 
 /* Tasks list */
 .task-list { display: flex; flex-direction: column; }
@@ -832,7 +959,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ─────────────────────── Timer page ─────────────────────── */
 .timer-stage {
-  padding: 32px 40px;
+  padding: 32px var(--gutter);
   display: grid;
   grid-template-columns: 1fr 360px;
   gap: 28px;
@@ -892,7 +1019,7 @@ a { color: inherit; text-decoration: none; }
   min-height: 0;
 }
 .invoice-doc-wrap {
-  padding: 32px 40px;
+  padding: 32px var(--gutter);
   background: var(--paper-2);
   display: flex;
   justify-content: center;
@@ -914,22 +1041,6 @@ a { color: inherit; text-decoration: none; }
   overflow-y: auto;
   display: flex; flex-direction: column; gap: 32px;
 }
-.invoice-h {
-  font-size: 28px;
-  letter-spacing: -0.03em;
-  font-weight: 600;
-  margin: 0;
-}
-.invoice-line {
-  display: grid;
-  grid-template-columns: 1fr 80px 80px 100px;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
-  font-size: var(--fs-sm);
-  align-items: baseline;
-}
-.invoice-line .num { text-align: right; font-variant-numeric: tabular-nums; }
 .invoice-totals {
   display: grid; grid-template-columns: 1fr 120px;
   gap: 4px 12px;
@@ -943,21 +1054,18 @@ a { color: inherit; text-decoration: none; }
 .invoice-totals .grand-l { text-align: right; padding-top: 8px; border-top: 1px solid var(--ink); font-weight: 600; color: var(--ink); }
 
 /* ─────────────────────── Clients ─────────────────────── */
-.client-card {
-  border: 1px solid var(--border);
-  padding: 18px;
-  background: var(--paper);
-}
-.client-card:hover { background: var(--paper-2); }
 
-/* heatmap squares */
+/* heatmap squares: at most 12px each, shrinking to fit a narrow panel. */
 .heat {
   display: grid;
-  grid-template-columns: repeat(20, 12px);
+  grid-template-columns: repeat(20, minmax(0, 12px));
   gap: 3px;
+  max-width: 100%;
 }
 .heat .sq {
-  width: 12px; height: 12px;
+  width: 100%;
+  align-self: start;
+  aspect-ratio: 1;
   background: var(--paper-3);
 }
 .heat .sq.l1 { background: var(--border); }
@@ -969,19 +1077,18 @@ a { color: inherit; text-decoration: none; }
 /* Quarter switch: the first thing under the page head on the bookkeeping pages. */
 .quarter-bar {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px;
-  padding: 14px 40px;
+  padding: 14px var(--gutter);
   border-bottom: 1px solid var(--rule);
   font-size: 13px;
   background: var(--paper);
 }
 .quarter-bar__aside { margin-left: auto; display: flex; align-items: center; gap: 14px; min-width: 0; }
 .quarter-bar__why { max-width: 62ch; text-align: right; font-size: 12px; }
-@media (max-width: 900px) { .quarter-bar { padding-left: 16px; padding-right: 16px; } }
 
 /* A slim line under the page head that accepts dropped files and reports on them. */
 .drop-strip {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 20px;
-  padding: 13px 40px;
+  padding: 13px var(--gutter);
   border-bottom: 1px solid var(--border);
   font-size: var(--fs-sm);
   color: var(--ink-3);
@@ -993,16 +1100,20 @@ a { color: inherit; text-decoration: none; }
 .drop-strip__file { display: flex; justify-content: space-between; gap: 24px; flex-basis: 100%; color: var(--ink); }
 .drop-strip__file.is-red { color: var(--red); }
 
-.ledger-warn { padding: 12px 40px; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); color: var(--red); }
-.ledger-progress { padding: 12px 40px; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); color: var(--ink); }
+.ledger-warn { padding: 12px var(--gutter); border-bottom: 1px solid var(--border); font-size: var(--fs-sm); color: var(--red); }
+.ledger-progress { padding: 12px var(--gutter); border-bottom: 1px solid var(--border); font-size: var(--fs-sm); color: var(--ink); }
 .ledger-progress.is-red { color: var(--red); }
-.ledger-empty { padding: 56px 40px; font-size: var(--fs-lg); color: var(--ink-2); max-width: 60ch; }
+/* Empty state for a whole page or section (no rows yet / nothing to do). */
+.empty-state, .ledger-empty { padding: 56px var(--gutter); font-size: var(--fs-lg); color: var(--ink-2); max-width: 60ch; }
+.empty-state__title { margin: 0 0 8px; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); }
+.empty-state p { margin: 0; line-height: 1.5; }
+.empty-state__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
 
 /* One month (or one list) of the ledger: a ruled head, then its rows. */
 .ledger { padding-bottom: 8px; }
 .ledger-head {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 24px;
-  padding: 44px 40px 14px;
+  padding: 44px var(--gutter) 14px;
   border-bottom: 1px solid var(--rule);
 }
 .ledger-title { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
@@ -1014,7 +1125,7 @@ a { color: inherit; text-decoration: none; }
 .ledger-head__actions { margin-left: auto; display: flex; gap: 8px; align-self: center; }
 .ledger-sub {
   display: flex; align-items: baseline; gap: 16px;
-  padding: 26px 40px 10px;
+  padding: 26px var(--gutter) 10px;
   border-bottom: 1px solid var(--border-strong);
 }
 .ledger-sub__title { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
@@ -1093,7 +1204,7 @@ a { color: inherit; text-decoration: none; }
 
 /* Receipt detail: the document on a sheet, its fields beside it. */
 .receipt-page { display: grid; grid-template-columns: minmax(0, 1fr) 400px; flex: 1; min-height: calc(100vh - 190px); }
-.receipt-doc { padding: 32px 40px; background: var(--paper-2); display: flex; }
+.receipt-doc { padding: 32px var(--gutter); background: var(--paper-2); display: flex; }
 .receipt-sheet {
   flex: 1; width: 100%; min-height: 70vh; display: block;
   border: 1px solid var(--ink); background: var(--sheet);
@@ -1112,16 +1223,6 @@ a { color: inherit; text-decoration: none; }
 .receipt-amounts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
 .receipt-alert { margin: 0; padding: 10px 12px; font-size: var(--fs-sm); color: var(--red); background: var(--red-bg); box-shadow: inset 3px 0 0 var(--red); }
 
-@media (max-width: 900px) {
-  .receipt-page { grid-template-columns: 1fr; }
-  .receipt-side { border-left: 0; border-top: 1px solid var(--rule); padding: 24px 16px 32px; }
-  .receipt-doc { padding: 16px; }
-  .drop-strip, .ledger-warn { padding-left: 16px; padding-right: 16px; }
-  .ledger-head, .ledger-sub { padding-left: 16px; padding-right: 16px; }
-  .table--ledger .pad-l { padding-left: 16px; }
-  .table--ledger .pad-r { padding-right: 16px; }
-}
-
 
 /* Project notes */
 .notes { display: flex; flex-direction: column; }
@@ -1132,7 +1233,7 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid var(--border-strong); background: var(--paper);
   padding: 6px 8px; font-family: inherit; font-size: var(--fs-sm); color: var(--ink);
 }
-.note-input:focus { outline: none; border-color: var(--accent); }
+.note-input:focus { outline: none; border-color: var(--ink); }
 .note-err { color: var(--red); font-size: var(--fs-sm); margin-top: 6px; }
 .note { padding: 14px 0; border-bottom: 1px solid var(--border); scroll-margin-top: 16px; }
 .note.is-target { animation: note-flash 1.6s ease-out; }
@@ -1153,3 +1254,119 @@ a { color: inherit; text-decoration: none; }
 .note-body pre { background: var(--paper-2); padding: 8px 10px; overflow-x: auto; }
 .note-body pre code { background: none; padding: 0; }
 .note-body th, .note-body td { border-bottom: 1px solid var(--border); padding: 4px 10px 4px 0; text-align: left; }
+
+/* ═══════════════════════ Narrow windows ═══════════════════════
+   ≥1280px is the reference design and nothing below changes it.
+   1279  month chart scrolls sideways (InvoiceBarChart.vue)
+   1199  stats strip 2×2
+   1099  detail pages (invoice, estimate, receipt, project, client, timer) stack
+    899  sidebar becomes an off-canvas drawer; gutter 40 → 20px; tables scroll
+    599  stats strip one column; topbar drops "Jump to…" and truncates names */
+
+/* Row tools that only appear on hover: also on keyboard focus, and always on touch. */
+.ledger-sub:focus-within .ledger-sub__action,
+.table--ledger tbody tr:focus-within .ledger-pick,
+.table--ledger tbody tr:focus-within .ledger-note.is-empty { opacity: 1; }
+@media (hover: none) {
+  .doc-tools, .ledger-actions, .ledger-pick, .ledger-note.is-empty,
+  .ledger-sub__action, .note-actions { opacity: 1; }
+}
+
+/* Drawer pieces, hidden on desktop. */
+.nav-toggle {
+  display: none;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 34px; height: 34px;
+  margin-left: -6px;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  font-size: 16px;
+}
+.nav-toggle:hover, .nav-toggle[aria-expanded="true"] { background: var(--paper-2); }
+.nav-toggle:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
+.nav-backdrop { display: none; }
+.cmdk__icon { display: none; font-size: 16px; }
+
+@media (max-width: 1199px) {
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat { border-right: 0; border-bottom: 1px solid var(--border); }
+  .stat:nth-child(odd) { border-right: 1px solid var(--border); }
+  /* An odd last stat spans the row so no half-row hole is left. */
+  .stat:last-child:nth-child(odd) { grid-column: 1 / -1; border-right: 0; }
+  /* The strip's own ink rule closes the last row. */
+  .stat:last-child, .stat:nth-last-child(2):nth-child(odd) { border-bottom: 0; }
+}
+
+@media (max-width: 1099px) {
+  .invoice-page, .receipt-page, .detail-grid, .timer-stage { grid-template-columns: minmax(0, 1fr); }
+  /* Stacked, the page scrolls as a whole instead of its panes. */
+  .invoice-page, .receipt-page { flex: none; min-height: 0; }
+  .invoice-sheet { height: 78vh; min-height: 480px; }
+  .invoice-side, .receipt-side, .detail-side {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    padding: 28px var(--gutter) 40px;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 899px) {
+  :root { --gutter: 20px; }
+
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .topbar { padding: 0 var(--gutter); gap: 16px; }
+  .wordmark { flex: 0 0 auto; }
+  .wordmark .biz { display: none; }
+  .nav-toggle { display: inline-grid; }
+
+  /* Off-canvas sidebar under the topbar; visibility keeps its links out of the
+     tab order while closed. */
+  .sidebar {
+    position: fixed;
+    top: var(--topbar-h); bottom: 0; left: 0;
+    z-index: 40;
+    width: min(280px, 86vw);
+    box-shadow: 0 10px 24px rgba(20,18,16,.10);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform .18s ease, visibility 0s linear .18s;
+  }
+  .sidebar.is-open { transform: none; visibility: visible; transition: transform .18s ease; }
+  .nav-backdrop {
+    display: block;
+    position: fixed;
+    top: var(--topbar-h); right: 0; bottom: 0; left: 0;
+    z-index: 39;
+    background: rgba(20,18,16,.22);
+  }
+
+  .page-head { padding-top: 28px; padding-bottom: 20px; }
+  .filter-row { flex-wrap: wrap; gap: 12px 20px; }
+  .search { min-width: 0; flex: 1 1 180px; }
+  /* Tables keep a readable minimum and scroll inside their wrapper. */
+  .table-wrap > .table { min-width: 680px; }
+  .ledger { overflow-x: auto; flex-shrink: 0; }
+  .ledger > .table { min-width: 680px; }
+  .doc-grid { padding-top: 20px; gap: 24px; }
+}
+
+@media (max-width: 599px) {
+  .stats { grid-template-columns: minmax(0, 1fr); }
+  .stat, .stat:nth-child(odd) { border-right: 0; }
+  .stat:nth-last-child(2):nth-child(odd) { border-bottom: 1px solid var(--border); }
+
+  .topbar { gap: 10px; }
+  .cmdk__label, .cmdk .kbd { display: none; }
+  .cmdk__icon { display: inline-block; }
+  .running-timer__name { max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .user-chip { flex: 0 1 auto; min-width: 0; max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .page-head { padding-top: 22px; }
+  .page-title { gap: 8px 14px; }
+}
+
+/* Scroll boxes are the containing block for absolutely positioned children (.sr-only labels in
+   header cells), otherwise those escape the box and make the whole page scroll sideways. */
+.content, .table-wrap, .ledger, .lines-card { position: relative; }
+.sr-only { max-width: 1px; }

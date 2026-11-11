@@ -15,6 +15,35 @@ use Illuminate\Support\Collection;
  */
 class StatementPositions
 {
+    private bool $memoise = false;
+
+    /** @var list<array{after: string, before: string}>|null */
+    private ?array $gaps = null;
+
+    /** @var array<string, bool> */
+    private array $complete = [];
+
+    /**
+     * Keep the answers about gaps and complete months for the life of this instance. Only
+     * for one page render: an import in between would make them stale.
+     */
+    public function memoised(): static
+    {
+        $this->memoise = true;
+
+        return $this;
+    }
+
+    /** @return list<array{after: string, before: string}> */
+    public function gaps(): array
+    {
+        if (! $this->memoise) {
+            return StatementImporter::gaps();
+        }
+
+        return $this->gaps ??= StatementImporter::gaps();
+    }
+
     /**
      * Bank entries of a month, in order, keyed by line id => number.
      *
@@ -25,7 +54,7 @@ class StatementPositions
         $lines = StatementLine::query()
             ->join('statements', 'statements.id', '=', 'statement_lines.statement_id')
             ->where('statement_lines.source', StatementImporter::SOURCE)
-            ->whereYear('statement_lines.booked_on', $year)->whereMonth('statement_lines.booked_on', $month)
+            ->whereBetween('statement_lines.booked_on', self::monthRange($year, $month))
             ->orderBy('statement_lines.booked_on')->orderBy('statements.sequence_number')->orderBy('statement_lines.entry_index')
             ->select('statement_lines.*')->get();
 
@@ -52,6 +81,28 @@ class StatementPositions
      */
     public function bankMonthComplete(int $year, int $month): bool
     {
+        if (! $this->memoise) {
+            return $this->monthComplete($year, $month);
+        }
+
+        return $this->complete["{$year}-{$month}"] ??= $this->monthComplete($year, $month);
+    }
+
+    /**
+     * First and last day of a month as date strings, for a range the index on booked_on can serve.
+     *
+     * @return array{0: string, 1: string}
+     */
+    public static function monthRange(int $year, int $month, ?int $throughMonth = null): array
+    {
+        return [
+            Carbon::create($year, $month, 1)->toDateString(),
+            Carbon::create($year, $throughMonth ?? $month, 1)->endOfMonth()->toDateString(),
+        ];
+    }
+
+    private function monthComplete(int $year, int $month): bool
+    {
         $start = Carbon::create($year, $month, 1)->startOfDay();
         $end = $start->copy()->endOfMonth();
 
@@ -60,7 +111,7 @@ class StatementPositions
             return false;
         }
 
-        foreach (StatementImporter::gaps() as $gap) {
+        foreach ($this->gaps() as $gap) {
             // Statements are missing strictly between these two dates.
             if (Carbon::parse($gap['after'])->lt($end) && Carbon::parse($gap['before'])->gt($start)) {
                 return false;

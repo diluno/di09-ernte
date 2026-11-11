@@ -12,6 +12,17 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    /**
+     * Token scopes. A token gets only the abilities of the scope it was minted
+     * for, so the phone's token (the default) cannot drive the MCP server, whose
+     * tools can email clients. Tokens minted before scopes existed carry `*` and
+     * keep working everywhere.
+     */
+    public const ABILITIES = [
+        'companion' => ['companion'],
+        'mcp' => ['mcp'],
+    ];
+
     public function store(TokenRequest $request): JsonResponse
     {
         $data = $request->validated();
@@ -24,7 +35,7 @@ class AuthController extends Controller
             ]);
         }
 
-        $token = $user->createToken($data['device_name'])->plainTextToken;
+        $token = $user->createToken($data['device_name'], self::ABILITIES[$data['scope'] ?? 'companion'])->plainTextToken;
 
         return response()->json([
             'token' => $token,

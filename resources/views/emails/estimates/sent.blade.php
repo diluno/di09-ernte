@@ -2,7 +2,7 @@
 
 @php
     $fmt = fn (int $rappen) => 'CHF ' . number_format($rappen / 100, 2, '.', "'");
-    $contactName = $estimate->client->defaultRecipients()[0]['name'] ?? null;
+    $contactName = $estimate->primaryRecipientName();
 @endphp
 
 @section('title', __('mail.estimate_subject', ['number' => $estimate->number]))

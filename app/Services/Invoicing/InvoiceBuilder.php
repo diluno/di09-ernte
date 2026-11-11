@@ -6,11 +6,11 @@ use App\Models\BusinessProfile;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\InvoiceEvent;
-use App\Models\InvoiceLine;
 use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Models\VatRate;
 use App\Support\LineTotals;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -34,6 +34,55 @@ class InvoiceBuilder
     public static function computeTotals(array $lineAmounts, float $vatRate, array $exemptFlags = []): array
     {
         return LineTotals::compute($lineAmounts, $vatRate, $exemptFlags);
+    }
+
+    /**
+     * The client's finished, billable, not-yet-invoiced time in a period —
+     * what the "New invoice" editor and the MCP tool offer for billing.
+     *
+     * @return Collection<int, TimeEntry>
+     */
+    public function unbilledEntries(Client $client, ?Project $project, Carbon $start, Carbon $end): Collection
+    {
+        return $this->billableEntries($client)
+            ->with(['project:id,name,code,rate_rappen'])
+            ->whereBetween('started_at', [$start, $end])
+            ->when($project, fn ($q) => $q->where('project_id', $project->id))
+            ->orderBy('started_at')
+            ->get();
+    }
+
+    /**
+     * The same billable, unbilled time as unbilledEntries(), but outside the period —
+     * so the editor can point at it when the chosen period comes up empty. Dates are
+     * the entries' (Zurich wall-clock) start days.
+     *
+     * @return array{count: int, first_on: ?string, last_on: ?string}
+     */
+    public function unbilledOutsidePeriod(Client $client, ?Project $project, Carbon $start, Carbon $end): array
+    {
+        $row = $this->billableEntries($client)
+            ->when($project, fn ($q) => $q->where('project_id', $project->id))
+            ->where(fn ($q) => $q->where('started_at', '<', $start)->orWhere('started_at', '>', $end))
+            ->selectRaw('COUNT(*) AS n, MIN(started_at) AS first_at, MAX(started_at) AS last_at')
+            ->toBase()
+            ->first();
+
+        return [
+            'count' => (int) ($row->n ?? 0),
+            'first_on' => $row?->first_at ? Carbon::parse($row->first_at)->toDateString() : null,
+            'last_on' => $row?->last_at ? Carbon::parse($row->last_at)->toDateString() : null,
+        ];
+    }
+
+    /** Entries that may be linked to a new invoice for $client. */
+    private function billableEntries(Client $client): Builder
+    {
+        return TimeEntry::query()
+            ->whereIn('project_id', $client->projects()->select('id'))
+            ->where('billable', true)
+            ->whereNull('invoice_id')
+            ->finished();
     }
 
     /**
@@ -128,42 +177,14 @@ class InvoiceBuilder
 
             $invoice->qr_reference = $this->qr->generate($invoice->id);
 
-            $lineAmounts = [];
-            $exemptFlags = [];
-            $sort = 0;
-            foreach ($lines as $line) {
-                $hours = round((float) $line['hours'], 2);
-                $rate = (int) $line['rate_rappen'];
-                $amount = (int) round($hours * $rate);           // recompute — ignore any submitted amount
-                $exempt = (bool) ($line['vat_exempt'] ?? false);
-
-                InvoiceLine::create([
-                    'invoice_id' => $invoice->id,
-                    'description' => (string) $line['description'],
-                    'hours' => $hours,
-                    'rate_rappen' => $rate,
-                    'amount_rappen' => $amount,
-                    'vat_exempt' => $exempt,
-                    'sort_order' => $sort++,
-                ]);
-
-                $lineAmounts[] = $amount;
-                $exemptFlags[] = $exempt;
-            }
-
-            $totals = self::computeTotals($lineAmounts, (float) $invoice->vat_rate, $exemptFlags);
-            $invoice->subtotal_rappen = $totals['subtotal_rappen'];
-            $invoice->vat_rappen = $totals['vat_rappen'];
-            $invoice->rounding_rappen = $totals['rounding_rappen'];
-            $invoice->total_rappen = $totals['total_rappen'];
+            $this->writeLines($invoice, $lines);
             $invoice->save();
 
-            if (! empty($entryIds)) {
-                TimeEntry::whereIn('id', $entryIds)
-                    ->whereNull('invoice_id')
-                    ->where('billable', true)
-                    ->update(['invoice_id' => $invoice->id]);
-            }
+            // Callers validate the ids, but the builder is the last line of defence:
+            // only this client's finished, billable, unbilled time is ever linked.
+            $linked = empty($entryIds) ? 0 : $this->billableEntries($client)
+                ->whereIn('id', $entryIds)
+                ->update(['invoice_id' => $invoice->id]);
 
             InvoiceEvent::create([
                 'invoice_id' => $invoice->id,
@@ -171,12 +192,76 @@ class InvoiceBuilder
                 'occurred_at' => now(),
                 'payload' => [
                     'period' => ['start' => $periodStart, 'end' => $periodEnd],
-                    'entries_count' => count($entryIds),
+                    'entries_count' => $linked,
                 ],
             ]);
 
             return $invoice->fresh(['lines', 'events']);
         });
+    }
+
+    /**
+     * Apply a partial update to a draft invoice. Only the keys present in $data
+     * are touched; passing `lines` replaces the whole line set and recomputes totals.
+     *
+     * @param  array{title?:?string, notes?:?string, period_start?:?string, period_end?:?string, locale?:string, recipients?:?array, lines?:array}  $data
+     */
+    public function updateDraft(Invoice $invoice, array $data): Invoice
+    {
+        return DB::transaction(function () use ($invoice, $data) {
+            foreach (['title', 'notes', 'period_start', 'period_end', 'locale', 'recipients'] as $field) {
+                if (array_key_exists($field, $data)) {
+                    $invoice->{$field} = $data[$field];
+                }
+            }
+
+            if (! empty($data['lines'])) {
+                $this->writeLines($invoice, $data['lines']);
+            }
+
+            $invoice->save();
+
+            return $invoice->fresh(['lines', 'events']);
+        });
+    }
+
+    /**
+     * Replace every line on the invoice and restamp its totals (the caller saves).
+     * Amounts are always recomputed server-side — a submitted amount is ignored.
+     *
+     * @param  array<int, array{description:string, hours:float|string, rate_rappen:int, vat_exempt?:bool}>  $lines
+     */
+    private function writeLines(Invoice $invoice, array $lines): void
+    {
+        $invoice->lines()->delete();
+
+        $lineAmounts = [];
+        $exemptFlags = [];
+        $sort = 0;
+        foreach ($lines as $line) {
+            $hours = round((float) $line['hours'], 2);
+            $rate = (int) $line['rate_rappen'];
+            $amount = (int) round($hours * $rate);
+            $exempt = (bool) ($line['vat_exempt'] ?? false);
+
+            $invoice->lines()->create([
+                'description' => (string) $line['description'],
+                'hours' => $hours,
+                'rate_rappen' => $rate,
+                'amount_rappen' => $amount,
+                'vat_exempt' => $exempt,
+                'sort_order' => $sort++,
+            ]);
+
+            $lineAmounts[] = $amount;
+            $exemptFlags[] = $exempt;
+        }
+
+        $totals = self::computeTotals($lineAmounts, (float) $invoice->vat_rate, $exemptFlags);
+        $invoice->subtotal_rappen = $totals['subtotal_rappen'];
+        $invoice->vat_rappen = $totals['vat_rappen'];
+        $invoice->rounding_rappen = $totals['rounding_rappen'];
+        $invoice->total_rappen = $totals['total_rappen'];
     }
 
     /**

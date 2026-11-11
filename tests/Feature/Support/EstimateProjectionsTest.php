@@ -75,3 +75,77 @@ test('index orders by document date (issued_on; drafts by created_at) newest fir
 
     expect($rows->pluck('number')->all())->toBe(['OF-2026-900', 'OF-2026-001', 'OF-2025-001']);
 });
+
+test('stats adds counts, expired and draft totals for the list strip', function () {
+    Estimate::factory()->sent()->create(['client_id' => $this->client->id, 'total_rappen' => 50000]);
+    Estimate::factory()->sent()->create(['client_id' => $this->client->id, 'total_rappen' => 12345,
+        'valid_until' => now()->subDays(2)->toDateString()]);
+    Estimate::factory()->accepted()->create(['client_id' => $this->client->id, 'total_rappen' => 80000, 'decided_at' => now()]);
+    Estimate::factory()->accepted()->create(['client_id' => $this->client->id, 'total_rappen' => 1000, 'decided_at' => now()->subYear()]);
+    Estimate::factory()->declined()->create(['client_id' => $this->client->id, 'total_rappen' => 20000, 'decided_at' => now()]);
+    Estimate::factory()->create(['client_id' => $this->client->id, 'status' => 'draft', 'total_rappen' => 30050]);
+
+    $stats = EstimateProjections::stats();
+
+    expect($stats['open'])->toBe(623.45);
+    expect($stats['open_count'])->toBe(2);
+    expect($stats['expired'])->toBe(123.45);
+    expect($stats['expired_count'])->toBe(1);
+    expect($stats['accepted_ytd'])->toBe(800.0);
+    expect($stats['accepted_ytd_count'])->toBe(1);
+    expect($stats['accepted_count'])->toBe(2);
+    expect($stats['decided_count'])->toBe(3);
+    expect($stats['acceptance_rate'])->toBe(67);
+    expect($stats['drafts'])->toBe(300.5);
+    expect($stats['drafts_count'])->toBe(1);
+});
+
+test('stats are zero and null-rate on an empty table', function () {
+    $stats = EstimateProjections::stats();
+
+    expect($stats['expired'])->toBe(0.0);
+    expect($stats['expired_count'])->toBe(0);
+    expect($stats['drafts'])->toBe(0.0);
+    expect($stats['acceptance_rate'])->toBeNull();
+});
+
+test('detail exposes validity days, send channel and the weighted rate', function () {
+    $estimate = Estimate::factory()->sent()->create([
+        'client_id' => $this->client->id, 'valid_until' => now()->addDays(5)->toDateString(),
+    ]);
+    EstimateLine::factory()->create(['estimate_id' => $estimate->id, 'hours' => 1, 'rate_rappen' => 10000]);
+    EstimateLine::factory()->create(['estimate_id' => $estimate->id, 'hours' => 3, 'rate_rappen' => 20000]);
+    $estimate->events()->create(['kind' => 'sent', 'occurred_at' => now(), 'payload' => ['manual' => true]]);
+
+    $detail = EstimateProjections::detail($estimate->fresh());
+
+    expect($detail['days_left'])->toBe(5);
+    expect($detail['days_expired'])->toBeNull();
+    expect($detail['issued_channel'])->toBe('manual');
+    expect($detail['avg_rate'])->toBe(175.0);
+});
+
+test('detail counts the days since an estimate expired', function () {
+    $estimate = Estimate::factory()->sent()->create([
+        'client_id' => $this->client->id, 'valid_until' => now()->subDays(4)->toDateString(),
+    ]);
+    $estimate->events()->create(['kind' => 'sent', 'occurred_at' => now()->subDays(34), 'payload' => ['email_to' => ['a@b.test']]]);
+
+    $detail = EstimateProjections::detail($estimate->fresh());
+
+    expect($detail['expired'])->toBeTrue();
+    expect($detail['days_left'])->toBeNull();
+    expect($detail['days_expired'])->toBe(4);
+    expect($detail['issued_channel'])->toBe('email');
+});
+
+test('detail leaves validity days and channel empty for a draft', function () {
+    $estimate = Estimate::factory()->create(['client_id' => $this->client->id, 'status' => 'draft']);
+
+    $detail = EstimateProjections::detail($estimate);
+
+    expect($detail['days_left'])->toBeNull();
+    expect($detail['days_expired'])->toBeNull();
+    expect($detail['issued_channel'])->toBeNull();
+    expect($detail['avg_rate'])->toBeNull();
+});

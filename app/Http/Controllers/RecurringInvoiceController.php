@@ -12,6 +12,7 @@ use App\Models\RecurringInvoiceLine;
 use App\Models\VatRate;
 use App\Services\Invoicing\RecurringInvoiceGenerator;
 use App\Services\Invoicing\RecurringInvoiceSchedules;
+use App\Support\RecurringInvoiceProjections;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -22,23 +23,16 @@ class RecurringInvoiceController extends Controller
     public function index(): Response
     {
         $schedules = RecurringInvoice::query()
-            ->with('client:id,name')
+            ->with(['client:id,name,locale', 'lines'])
             ->withCount('invoices')
             ->orderByRaw('paused_at IS NOT NULL')   // active first
             ->orderBy('next_run_on')
-            ->get()
-            ->map(fn (RecurringInvoice $s) => [
-                'id' => $s->id,
-                'client' => $s->client->only('id', 'name'),
-                'title' => $s->title,
-                'cadence' => $s->cadence,
-                'next_run_on' => $s->next_run_on?->toDateString(),
-                'auto_send' => $s->auto_send,
-                'paused' => $s->isPaused(),
-                'invoices_count' => $s->invoices_count,
-            ]);
+            ->get();
 
-        return Inertia::render('RecurringInvoices/Index', ['schedules' => $schedules]);
+        return Inertia::render('RecurringInvoices/Index', [
+            'schedules' => $schedules->map(fn (RecurringInvoice $s) => RecurringInvoiceProjections::indexRow($s))->values(),
+            'stats' => RecurringInvoiceProjections::indexStats($schedules),
+        ]);
     }
 
     public function create(): Response
@@ -68,8 +62,15 @@ class RecurringInvoiceController extends Controller
                 'notes' => $recurringInvoice->notes,
                 'cadence' => $recurringInvoice->cadence,
                 'next_run_on' => $recurringInvoice->next_run_on?->toDateString(),
-                'vat_rate' => (float) $recurringInvoice->vat_rate,
+                // Rate the next invoice will carry: the one in force at the end of the period it bills.
+                'vat_rate' => $recurringInvoice->nextVatRate(),
+                'next_period_end' => $recurringInvoice->nextPeriod()['end']->toDateString(),
+                // Title of the next generated invoice ("{period}" resolved), for the form hint.
+                'next_title' => RecurringInvoiceProjections::nextTitle($recurringInvoice),
+                // Lets the form re-derive the period end when only the cadence changes.
+                'anchor_day' => $recurringInvoice->anchor_day,
                 'auto_send' => $recurringInvoice->auto_send,
+                'paused' => $recurringInvoice->isPaused(),
                 'recipients' => $recurringInvoice->recipients ?? [],
                 'lines' => $recurringInvoice->lines->map(fn (RecurringInvoiceLine $l) => [
                     'description' => $l->description,
@@ -108,7 +109,11 @@ class RecurringInvoiceController extends Controller
             return back()->with('error', 'Cannot generate from a paused schedule. Resume it first.');
         }
 
-        $invoice = $generator->generate($recurringInvoice, Carbon::parse($recurringInvoice->next_run_on));
+        try {
+            $invoice = $generator->generate($recurringInvoice, Carbon::parse($recurringInvoice->next_run_on));
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return redirect("/invoices/{$invoice->number}")
             ->with('success', "Generated invoice {$invoice->number} from the recurring schedule.");

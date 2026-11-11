@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
-import { formatChf } from '@/formatters/money.js';
+import { fmtMoney } from '@/formatters/money.js';
+import { fmtHours } from '@/formatters/duration.js';
 
 const props = defineProps({
   spent:  { type: Number, required: true },
@@ -13,29 +14,19 @@ const band = computed(() => pct.value > 100 ? 'over' : pct.value >= 85 ? 'warn' 
 const width = computed(() => Math.min(100, pct.value));
 
 function fmt(v) {
-  return props.unit === 'h'
-    ? `${v.toFixed(1)}h`
-    : formatChf(v);
+  // Compact budget aggregate: whole francs.
+  return props.unit === 'h' ? fmtHours(v) : fmtMoney(v, { whole: true, currency: true });
 }
 </script>
 
 <template>
-  <div class="budget-cell">
+  <div class="budget-cell" :class="`is-${band}`">
     <div class="label">
-      <span>
-        {{ fmt(spent) }}
-        <span class="ascii-dot">/</span>
-        <span class="muted">{{ fmt(budget) }}</span>
-      </span>
+      <span>{{ fmt(spent) }}<span class="of"> / {{ fmt(budget) }}</span></span>
       <span class="pct" :class="band">{{ pct }}%</span>
     </div>
-    <div class="budget-bar">
+    <div class="budget-bar" role="meter" :aria-valuenow="pct" aria-valuemin="0" :aria-valuemax="Math.max(100, pct)" :aria-label="`${fmt(spent)} of ${fmt(budget)} used`">
       <div class="budget-fill" :class="band" :style="{ width: `${width}%` }" />
-      <div
-        v-if="band === 'over'"
-        class="budget-fill over"
-        :style="{ width: `${Math.min(100, pct - 100)}%`, left: 0, opacity: 0.4 }"
-      />
     </div>
   </div>
 </template>

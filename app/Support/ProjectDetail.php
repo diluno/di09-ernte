@@ -16,7 +16,7 @@ class ProjectDetail
 
         $secs = (int) TimeEntry::query()
             ->where('project_id', $project->id)
-            ->selectRaw('COALESCE(SUM(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, UTC_TIMESTAMP()))), 0) AS s')
+            ->selectRaw('COALESCE(SUM('.EntryDuration::secondsSql().'), 0) AS s')
             ->value('s');
         $hours = round($secs / 3600, 2);
         $amount = (int) round($hours * (int) $project->rate_rappen);
@@ -71,7 +71,7 @@ class ProjectDetail
             ->whereNotNull('task_id')
             ->selectRaw('
                 task_id,
-                COALESCE(SUM(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, UTC_TIMESTAMP()))), 0) AS s
+                COALESCE(SUM('.EntryDuration::secondsSql().'), 0) AS s
             ')
             ->groupBy('task_id')
             ->pluck('s', 'task_id');
@@ -131,7 +131,7 @@ class ProjectDetail
             ->where('started_at', '>=', $start)
             ->selectRaw('
                 DATE(started_at) AS day,
-                SUM(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, UTC_TIMESTAMP()))) AS s
+                SUM('.EntryDuration::secondsSql().') AS s
             ')
             ->groupBy('day')
             ->pluck('s', 'day');

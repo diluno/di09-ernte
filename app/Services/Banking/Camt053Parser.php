@@ -60,6 +60,24 @@ class Camt053Parser
         return $statements;
     }
 
+    /**
+     * How far a parsed statement is from adding up: opening balance plus its entries minus
+     * the closing balance, in rappen. 0 when it reconciles; null when the file states no
+     * opening or closing balance to check against.
+     */
+    public static function imbalance(array $statement): ?int
+    {
+        if (($statement['opening_balance_rappen'] ?? null) === null || ($statement['closing_balance_rappen'] ?? null) === null) {
+            return null;
+        }
+        $sum = 0;
+        foreach ($statement['entries'] as $entry) {
+            $sum += $entry['is_credit'] ? $entry['amount_rappen'] : -$entry['amount_rappen'];
+        }
+
+        return $statement['opening_balance_rappen'] + $sum - $statement['closing_balance_rappen'];
+    }
+
     /** "3891.6" -> 389160. String arithmetic only; floats would lose rappen. */
     public static function toRappen(string $amount): int
     {

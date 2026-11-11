@@ -5,7 +5,6 @@ namespace App\Services\Invoicing;
 use App\Models\BusinessProfile;
 use App\Models\Client;
 use App\Models\RecurringInvoice;
-use App\Models\VatRate;
 use App\Support\BillingPeriod;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -15,12 +14,16 @@ use Illuminate\Support\Facades\DB;
  * web forms and the MCP tools so both apply the same date rules: the next run
  * never lands in the past (no backfill), and the anchor day only changes when
  * the operator moves the next run date.
+ *
+ * A schedule carries no VAT rate of its own: each generated invoice takes the
+ * rate in force at the end of the period it bills (see RecurringInvoiceGenerator).
+ * The legacy `recurring_invoices.vat_rate` column is no longer written.
  */
 class RecurringInvoiceSchedules
 {
     /**
      * @param  array{client_id:int, project_id?:?int, title?:?string, notes?:?string, cadence:string,
-     *               next_run_on:string, vat_rate?:float|string|null, auto_send?:bool, recipients?:?array,
+     *               next_run_on:string, auto_send?:bool, recipients?:?array,
      *               lines:array<int, array{description:string, hours:float|string, rate_rappen:int}>}  $data
      */
     public function create(array $data): RecurringInvoice
@@ -36,7 +39,6 @@ class RecurringInvoiceSchedules
                 'title' => $data['title'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'currency' => BusinessProfile::current()->default_currency ?? 'CHF',
-                'vat_rate' => $data['vat_rate'] ?? VatRate::rateForDate($nextRun),
                 'cadence' => $data['cadence'],
                 'anchor_day' => $first->day,
                 'next_run_on' => $nextRun->toDateString(),
@@ -62,7 +64,6 @@ class RecurringInvoiceSchedules
                 'project_id' => $data['project_id'] ?? null,
                 'title' => $data['title'] ?? null,
                 'notes' => $data['notes'] ?? null,
-                'vat_rate' => $data['vat_rate'] ?? VatRate::rateForDate($nextRun),
                 'cadence' => $data['cadence'],
                 'anchor_day' => $anchorDay,
                 'next_run_on' => $nextRun->toDateString(),

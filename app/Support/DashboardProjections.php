@@ -11,8 +11,6 @@ use Illuminate\Support\Collection;
 
 class DashboardProjections
 {
-    private const DURATION_SECONDS_SQL = 'GREATEST(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, ?)), 0)';
-
     /**
      * Project list as shown on /projects, with computed `spent_*`, `band`, `last_activity_at`,
      * `sparkline` (14 numbers, hours per day for the past 14 days).
@@ -40,16 +38,15 @@ class DashboardProjections
 
         $projects = $q->orderByDesc('updated_at')->get();
         $ids = $projects->pluck('id');
-        $now = Carbon::now()->toDateTimeString();
 
         // One aggregate query for all projects: total seconds + last_activity_at.
         $totals = TimeEntry::query()
             ->whereIn('project_id', $ids)
             ->selectRaw('
                 project_id,
-                COALESCE(SUM('.self::DURATION_SECONDS_SQL.'), 0) AS secs,
+                COALESCE(SUM('.EntryDuration::secondsSql().'), 0) AS secs,
                 MAX(started_at) AS last_started_at
-            ', [$now])
+            ')
             ->groupBy('project_id')
             ->get()
             ->keyBy('project_id');
@@ -62,8 +59,8 @@ class DashboardProjections
             ->selectRaw('
                 project_id,
                 DATE(started_at) AS day,
-                SUM('.self::DURATION_SECONDS_SQL.') AS secs
-            ', [$now])
+                SUM('.EntryDuration::secondsSql().') AS secs
+            ')
             ->groupBy('project_id', 'day')
             ->get()
             ->groupBy('project_id');
@@ -157,12 +154,11 @@ class DashboardProjections
     private static function dailyHoursSparkline(User $user, int $days): array
     {
         $start = Carbon::today()->subDays($days - 1);
-        $now = Carbon::now()->toDateTimeString();
 
         $byDay = TimeEntry::query()
             ->where('user_id', $user->id)
             ->where('started_at', '>=', $start)
-            ->selectRaw('DATE(started_at) AS day, SUM('.self::DURATION_SECONDS_SQL.') AS secs', [$now])
+            ->selectRaw('DATE(started_at) AS day, SUM('.EntryDuration::secondsSql().') AS secs')
             ->groupBy('day')
             ->get()
             ->keyBy('day');
@@ -180,12 +176,11 @@ class DashboardProjections
     public static function stats(User $user): array
     {
         $weekStart = Carbon::now()->startOfWeek(Carbon::MONDAY);
-        $now = Carbon::now()->toDateTimeString();
 
         $weekSecs = (int) TimeEntry::query()
             ->where('user_id', $user->id)
             ->where('started_at', '>=', $weekStart)
-            ->selectRaw('COALESCE(SUM('.self::DURATION_SECONDS_SQL.'), 0) AS s', [$now])
+            ->selectRaw('COALESCE(SUM('.EntryDuration::secondsSql().'), 0) AS s')
             ->value('s');
 
         // Unbilled = billable entries with NULL invoice_id, summed across all projects.
@@ -195,9 +190,9 @@ class DashboardProjections
             ->where('time_entries.billable', true)
             ->join('projects', 'projects.id', '=', 'time_entries.project_id')
             ->selectRaw('
-                COALESCE(SUM('.self::DURATION_SECONDS_SQL.' * projects.rate_rappen) / 3600, 0) AS rappen,
-                COALESCE(SUM('.self::DURATION_SECONDS_SQL.'), 0) AS secs
-            ', [$now, $now])
+                COALESCE(SUM('.EntryDuration::secondsSql().' * projects.rate_rappen) / 3600, 0) AS rappen,
+                COALESCE(SUM('.EntryDuration::secondsSql().'), 0) AS secs
+            ')
             ->first();
 
         $invoice = InvoiceProjections::stats();

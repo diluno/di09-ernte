@@ -177,3 +177,112 @@ test('mail failures keep the invoice as draft and write no sent event', function
     expect($invoice->fresh()->sent_at)->toBeNull();
     expect($invoice->events()->where('kind', 'sent')->count())->toBe(0);
 })->group('browsershot');
+
+/** A lifecycle whose PDF "render" just drops a file, so these tests need no Chromium. */
+function lifecycleWithFakePdf(): InvoiceLifecycle
+{
+    \Illuminate\Support\Facades\Storage::fake('local');
+
+    $pdf = Mockery::mock(\App\Services\Invoicing\InvoicePdfRenderer::class);
+    $pdf->shouldReceive('pdf')->andReturnUsing(function (Invoice $invoice) {
+        $path = "invoices/{$invoice->number}.pdf";
+        \Illuminate\Support\Facades\Storage::disk('local')->put($path, '%PDF-fake');
+        $invoice->update(['pdf_path' => $path]);
+
+        return $path;
+    });
+
+    return new InvoiceLifecycle($pdf);
+}
+
+test('issue re-checks the status under a lock, so a second submit with a stale copy sends nothing', function () {
+    [$invoice] = draftWithEntry();
+    $stale = Invoice::find($invoice->id);
+    $lifecycle = lifecycleWithFakePdf();
+    Mail::fake();
+
+    $lifecycle->issue($invoice);
+
+    expect($stale->status)->toBe('draft'); // what a concurrent request would still hold
+    expect(fn () => $lifecycle->issue($stale))->toThrow(\DomainException::class, 'Only a draft can be sent');
+
+    Mail::assertSent(\App\Mail\InvoiceMail::class, 1);
+    expect($invoice->events()->where('kind', 'sent')->count())->toBe(1);
+});
+
+test('issue sends the mail only after its transaction has committed', function () {
+    [$invoice] = draftWithEntry();
+    $lifecycle = lifecycleWithFakePdf();
+    $outer = \Illuminate\Support\Facades\DB::transactionLevel();
+    $levelWhileMailing = null;
+    $statusWhileMailing = null;
+
+    \Illuminate\Support\Facades\Event::listen(\Illuminate\Mail\Events\MessageSending::class, function () use (&$levelWhileMailing, &$statusWhileMailing, $invoice) {
+        $levelWhileMailing = \Illuminate\Support\Facades\DB::transactionLevel();
+        $statusWhileMailing = $invoice->fresh()->status;
+    });
+
+    $lifecycle->issue($invoice);
+
+    expect($levelWhileMailing)->toBe($outer);
+    expect($statusWhileMailing)->toBe('sent');
+});
+
+test('issue has committed its sent event before the mail goes out, so a crash there leaves no sent invoice without one', function () {
+    [$invoice] = draftWithEntry();
+    $lifecycle = lifecycleWithFakePdf();
+    $kindsWhileMailing = null;
+
+    \Illuminate\Support\Facades\Event::listen(\Illuminate\Mail\Events\MessageSending::class, function () use (&$kindsWhileMailing, $invoice) {
+        $kindsWhileMailing = $invoice->events()->whereIn('kind', ['pdf_generated', 'sent'])->pluck('kind')->sort()->values()->all();
+    });
+
+    $lifecycle->issue($invoice);
+
+    expect($kindsWhileMailing)->toBe(['pdf_generated', 'sent']);
+    expect($invoice->events()->where('kind', 'sent')->count())->toBe(1);
+    expect($invoice->events()->where('kind', 'sent')->first()->payload['email_to'])->toBe([test()->contact->email]);
+});
+
+test('a mail failure after the commit puts the invoice back to a clean draft', function () {
+    [$invoice] = draftWithEntry();
+    $lifecycle = lifecycleWithFakePdf();
+
+    Mail::shouldReceive('to')->once()->andThrow(new RuntimeException('SMTP down'));
+
+    expect(fn () => $lifecycle->issue($invoice))->toThrow(RuntimeException::class, 'SMTP down');
+
+    $fresh = $invoice->fresh();
+    expect($fresh->status)->toBe('draft');
+    expect($fresh->issued_on)->toBeNull();
+    expect($fresh->due_on)->toBeNull();
+    expect($fresh->sent_at)->toBeNull();
+    expect($fresh->pdf_path)->toBeNull();
+    expect($invoice->status)->toBe('draft');
+    expect($fresh->events()->whereIn('kind', ['sent', 'pdf_generated'])->count())->toBe(0);
+});
+
+test('issue fails cleanly, leaving a draft, when no IBAN is configured', function () {
+    [$invoice] = draftWithEntry();
+    Mail::fake();
+
+    expect(fn () => test()->lifecycle->issue($invoice))->toThrow(\DomainException::class, 'No IBAN is configured');
+
+    expect($invoice->fresh()->status)->toBe('draft');
+    expect($invoice->status)->toBe('draft');
+    expect($invoice->fresh()->issued_on)->toBeNull();
+    Mail::assertNothingSent();
+});
+
+test('markPaid and void re-check the status from the database, not the stale copy', function () {
+    [$invoice] = draftWithEntry();
+    $invoice->update(['status' => 'sent']);
+    $staleA = Invoice::find($invoice->id);
+    $staleB = Invoice::find($invoice->id);
+
+    test()->lifecycle->markPaid($invoice);
+
+    expect(fn () => test()->lifecycle->markPaid($staleA))->toThrow(\DomainException::class, 'Only a sent invoice');
+    expect(fn () => test()->lifecycle->void($staleB))->toThrow(\DomainException::class, 'Cannot void a paid');
+    expect($invoice->events()->where('kind', 'paid')->count())->toBe(1);
+});

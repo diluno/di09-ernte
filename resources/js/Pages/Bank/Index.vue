@@ -1,10 +1,12 @@
 <script setup>
+import axios from 'axios';
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import VendorMark from '@/Components/VendorMark.vue';
-import { fmtDate, fmtDayMonth } from '@/formatters/date.js';
+import { fmtDate, fmtDateShort, fmtDateTime } from '@/formatters/date.js';
+import { fmtMoney } from '@/formatters/money.js';
 
 defineOptions({ layout: AppLayout });
 
@@ -22,7 +24,11 @@ const props = defineProps({
 });
 
 const METHOD_LABEL = { qr_reference: 'QR reference', number_in_text: 'invoice no. in text', amount: 'amount', manual: 'by hand' };
-const NOTE_LABEL = { several_candidates: 'several invoices fit', amount_mismatch: 'amount differs' };
+// Every note InvoicePaymentMatcher can put on a proposal.
+const NOTE_LABEL = {
+  several_candidates: 'several invoices fit', amount_mismatch: 'amount differs',
+  reference_conflict: 'reference points elsewhere', payer_mismatch: 'payer is not the client',
+};
 const RECEIPT_METHOD = {
   existing_prefix: 'already numbered', reference: 'payment reference', total_and_name: 'total + name', total: 'total',
   amount_and_name: 'amount + name', name_and_date: 'name + date', manual: 'by hand',
@@ -32,7 +38,7 @@ const RECEIPT_NOTE = {
   number_only: 'number fits, amount does not', number_differs: 'file carries another number',
 };
 
-function fmtChf(v) { return Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+const fmtChf = (v) => fmtMoney(v);
 function plural(n, one, many) { return `${n} ${n === 1 ? one : many}`; }
 function invoiceLabel(i) { return `${i.number} · ${i.client ?? '—'} · ${fmtChf(i.total)}${i.status === 'paid' ? ' · paid' : ''}`; }
 
@@ -59,7 +65,7 @@ async function upload(fileList) {
       progress.value = `Reading ${Math.min(i + BATCH, files.length)} of ${files.length} files…`;
       const form = new FormData();
       files.slice(i, i + BATCH).forEach((f) => form.append('files[]', f));
-      const { data } = await window.axios.post('/bank/statements', form);
+      const { data } = await axios.post('/bank/statements', form);
       for (const f of data.files) {
         if (!f.ok) { s.rejected.push(f); continue; }
         s.added += f.lines_added;
@@ -67,7 +73,7 @@ async function upload(fileList) {
       }
     }
     progress.value = 'Matching payments…';
-    const { data } = await window.axios.post('/bank/match');
+    const { data } = await axios.post('/bank/match');
     Object.assign(s, data);
   } catch (e) {
     s.error = e.response?.data?.message ?? e.message ?? 'Upload failed.';
@@ -85,7 +91,7 @@ async function runMatching() {
   busy.value = true;
   progress.value = 'Matching payments…';
   try {
-    const { data } = await window.axios.post('/bank/match');
+    const { data } = await axios.post('/bank/match');
     summary.value = { files: 0, added: 0, known: 0, rejected: [], error: null, ...data };
   } catch (e) {
     summary.value = { files: 0, added: 0, known: 0, rejected: [], error: e.response?.data?.message ?? e.message };
@@ -131,7 +137,7 @@ function numberMonth(month) {
 }
 function writeCamt() { router.post(`/bank/quarters/${props.quarter.key}/camt`, {}, { preserveScroll: true }); }
 function writeList(month) { router.post(`/bank/months/${month.key}/list`, {}, { preserveScroll: true }); }
-function fmtWritten(iso) { const d = new Date(iso); return `${fmtDayMonth(iso)} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`; }
+const fmtWritten = (iso) => fmtDateTime(iso, { short: true });
 function numberLine(line) { router.post(`/bank/lines/${line.id}/number`, {}, { preserveScroll: true }); }
 function numberReceipt(receipt) { router.post(`/bank/receipts/${receipt.id}/number`, {}, { preserveScroll: true }); }
 function unnumberReceipt(receipt) {
@@ -339,7 +345,7 @@ function saveNote(line) {
         <tbody>
           <tr v-for="line in section.lines" :key="line.id" :class="{ 'is-open': !documented(line), 'is-flagged': line.match_state === 'unmatched' || line.match_state === 'proposed' }">
             <td class="pad-l folio">{{ line.position ? String(line.position).padStart(2, '0') : '—' }}</td>
-            <td class="folio-date">{{ fmtDayMonth(line.booked_on) }}</td>
+            <td class="folio-date">{{ fmtDateShort(line.booked_on) }}</td>
             <td>
               <div class="cell-trunc" :title="line.description">{{ line.counterparty ?? line.description ?? '—' }}</div>
               <div v-if="line.remittance_text" class="sub cell-trunc" :title="line.remittance_text">{{ line.remittance_text }}</div>

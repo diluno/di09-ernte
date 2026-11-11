@@ -12,12 +12,25 @@ use Imagick;
  * vendor's own site is asked first; an icon service only when that yields nothing.
  *
  * The domain comes from a document, i.e. from outside: every host is checked to be a
- * public internet address before any request, redirects are followed by hand with the
- * same check, and whatever comes back is re-encoded as a small PNG before it is stored.
+ * public internet address before any request and the request is then made to exactly the
+ * address that was checked (a second DNS answer cannot redirect it inward), redirects are
+ * followed by hand under the same rule, the download is cut off at a size limit, only
+ * known raster formats are decoded, and the result is re-encoded as a small PNG.
  */
 class VendorLogos
 {
     private const MAX_BYTES = 400_000;
+
+    private const MAX_HTML_BYTES = 2_000_000;
+
+    /** Leading bytes => the decoder Imagick is told to use; it never guesses from content. */
+    private const FORMATS = [
+        "\x89PNG\r\n\x1a\n" => 'png',
+        "\x00\x00\x01\x00" => 'ico',
+        "\xFF\xD8\xFF" => 'jpeg',
+        'GIF87a' => 'gif',
+        'GIF89a' => 'gif',
+    ];
 
     private const MAX_REDIRECTS = 3;
 
@@ -140,13 +153,18 @@ class VendorLogos
     {
         for ($hop = 0; $hop <= self::MAX_REDIRECTS; $hop++) {
             $parts = parse_url($url);
-            if (($parts['scheme'] ?? '') !== 'https' || empty($parts['host']) || isset($parts['user']) || isset($parts['port'])
-                || ! $this->isPublicHost($parts['host'])) {
+            if (($parts['scheme'] ?? '') !== 'https' || empty($parts['host']) || isset($parts['user']) || isset($parts['port'])) {
                 return null;
             }
+            $host = strtolower($parts['host']);
+            $addresses = $this->publicAddresses($host);
+            if ($addresses === []) {
+                return null;
+            }
+            $limit = $html ? self::MAX_HTML_BYTES : self::MAX_BYTES;
 
             try {
-                $response = Http::withOptions(['allow_redirects' => false])
+                $response = Http::withOptions(['allow_redirects' => false, 'curl' => $this->curlOptions($host, $addresses, $limit)])
                     ->withHeaders(['User-Agent' => 'ernte/1.0 (vendor icon fetch)', 'Accept' => $html ? 'text/html' : 'image/*'])
                     ->timeout(6)->connectTimeout(4)->get($url);
             } catch (\Throwable) {
@@ -160,7 +178,7 @@ class VendorLogos
                 continue;
             }
             $body = $response->body();
-            if (! $response->successful() || $body === '' || strlen($body) > ($html ? 2_000_000 : self::MAX_BYTES)) {
+            if (! $response->successful() || $body === '' || strlen($body) > $limit) {
                 return null;
             }
 
@@ -170,24 +188,62 @@ class VendorLogos
         return null;
     }
 
+    /**
+     * curl is told which address the host has (the one just checked) instead of resolving
+     * it again, speaks https only, and stops a download that outgrows the limit.
+     *
+     * @param  list<string>  $addresses
+     */
+    private function curlOptions(string $host, array $addresses, int $limit): array
+    {
+        $pinned = implode(',', array_map(fn (string $ip) => str_contains($ip, ':') ? "[{$ip}]" : $ip, $addresses));
+
+        return [
+            CURLOPT_RESOLVE => ["{$host}:443:{$pinned}"],
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+            CURLOPT_MAXFILESIZE => $limit,
+            // MAXFILESIZE only works when the server announces a length; this counts what actually arrives.
+            CURLOPT_NOPROGRESS => false,
+            CURLOPT_PROGRESSFUNCTION => fn ($handle, $expected, $received) => $received > $limit ? 1 : 0,
+        ];
+    }
+
     /** True only if the name resolves, and every address it resolves to is on the public internet. */
     public function isPublicHost(string $host): bool
     {
-        $host = strtolower($host);
+        return $this->publicAddresses(strtolower($host)) !== [];
+    }
+
+    /**
+     * The host's addresses, or none at all if any one of them is not on the public internet.
+     *
+     * @return list<string>
+     */
+    private function publicAddresses(string $host): array
+    {
         if (filter_var($host, FILTER_VALIDATE_IP) || self::normalise($host) === null) {
-            return false;
+            return [];
         }
         $addresses = $this->resolve($host);
-        if ($addresses === []) {
-            return false;
-        }
         foreach ($addresses as $ip) {
             if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-                return false;
+                return [];
             }
         }
 
-        return true;
+        return $addresses;
+    }
+
+    /** The decoder for these bytes, or null when they are not one of the raster formats ernte accepts. */
+    public static function imageFormat(string $bytes): ?string
+    {
+        foreach (self::FORMATS as $signature => $format) {
+            if (str_starts_with($bytes, $signature)) {
+                return $format;
+            }
+        }
+
+        return str_starts_with($bytes, 'RIFF') && substr($bytes, 8, 4) === 'WEBP' ? 'webp' : null;
     }
 
     /** @return list<string> */
@@ -201,12 +257,16 @@ class VendorLogos
     /** Re-encode whatever image arrived as a square-ish PNG; null if it is not an image. */
     private function toPng(string $bytes): ?string
     {
+        // Imagick would otherwise pick a decoder from the content, including ones (SVG, MVG,
+        // PostScript) that do far more than decode pixels.
+        $format = self::imageFormat($bytes);
+        if ($format === null) {
+            return null;
+        }
+
         try {
             $image = new Imagick;
-            // ICO files hold several sizes; the hint makes Imagick decode them as icons.
-            if (str_starts_with($bytes, "\x00\x00\x01\x00")) {
-                $image->setFormat('ico');
-            }
+            $image->setFormat($format);
             $image->readImageBlob($bytes);
 
             // Take the largest frame.

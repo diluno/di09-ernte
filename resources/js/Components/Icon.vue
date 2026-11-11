@@ -8,6 +8,7 @@ import IconPlay from '~icons/pixelarticons/play';
 import IconStar from '~icons/pixelarticons/star';
 import IconCheck from '~icons/pixelarticons/check';
 import IconChevronUp from '~icons/pixelarticons/chevron-up';
+import IconChevronDown from '~icons/pixelarticons/chevron-down';
 import IconBriefcase from '~icons/pixelarticons/briefcase';
 import IconClock from '~icons/pixelarticons/clock';
 import IconUsers from '~icons/pixelarticons/users';
@@ -25,6 +26,7 @@ import IconWallet from '~icons/pixelarticons/wallet';
 import IconUpload from '~icons/pixelarticons/upload';
 import IconNote from '~icons/pixelarticons/note';
 import IconCreditCard from '~icons/pixelarticons/credit-card';
+import IconMenu from '~icons/pixelarticons/menu';
 
 const MAP = {
   search: IconSearch,
@@ -33,6 +35,7 @@ const MAP = {
   star: IconStar,
   check: IconCheck,
   'chevron-up': IconChevronUp,
+  'chevron-down': IconChevronDown,
   briefcase: IconBriefcase,
   clock: IconClock,
   users: IconUsers,
@@ -50,6 +53,7 @@ const MAP = {
   upload: IconUpload,
   note: IconNote,
   'credit-card': IconCreditCard,
+  menu: IconMenu,
 };
 
 defineProps({ name: { type: String, required: true } });

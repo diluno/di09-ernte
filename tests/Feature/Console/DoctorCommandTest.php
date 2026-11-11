@@ -73,3 +73,26 @@ test('doctor advisory mode reports failures without failing deployment', functio
         ->expectsOutputToContain('[FAIL] APP_URL')
         ->assertExitCode(0);
 });
+
+test('doctor reports the IBAN used on QR bills', function () {
+    BusinessProfile::query()->update(['iban' => 'CH93 0076 2011 6238 5295 7']);
+    config(['app.key' => 'base64:test', 'app.env' => 'testing', 'app.url' => 'http://localhost']);
+
+    $this->artisan('ernte:doctor')
+        ->expectsOutputToContain('[OK] payment IBAN - CH9300762011623852957')
+        ->assertExitCode(0);
+});
+
+test('doctor warns locally and fails in production when no IBAN is configured', function () {
+    config(['app.key' => 'base64:test', 'app.env' => 'testing', 'app.url' => 'http://localhost']);
+
+    $this->artisan('ernte:doctor')
+        ->expectsOutputToContain('[WARN] payment IBAN - no IBAN or QR-IBAN')
+        ->assertExitCode(0);
+
+    config(['app.env' => 'production', 'app.url' => 'https://ernte.example.com']);
+
+    $this->artisan('ernte:doctor')
+        ->expectsOutputToContain('[FAIL] payment IBAN - no IBAN or QR-IBAN')
+        ->assertExitCode(1);
+});

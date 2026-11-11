@@ -106,3 +106,54 @@ test('settings still renders when Dropbox is unreachable or not connected', func
     $this->get('/settings')->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('dropbox.connected', true)->where('dropbox.root_ok', null)->has('dropbox.problem'));
 });
+
+// ── A token this installation cannot decrypt (database restored or copied from elsewhere) ──
+
+function storeUnreadableToken(): void
+{
+    Illuminate\Support\Facades\DB::table('business_profile')->update([
+        'dropbox_refresh_token' => 'eyJpdiI6Im5vdCBhIHJlYWwgcGF5bG9hZCJ9', 'dropbox_account_label' => 'sam@example.com', 'dropbox_connected_at' => now(),
+    ]);
+}
+
+test('an undecryptable token counts as not connected, and is logged once', function () {
+    storeUnreadableToken();
+    Illuminate\Support\Facades\Log::spy();
+    $dropbox = app(App\Services\Dropbox\DropboxClient::class);
+
+    expect($dropbox->isConnected())->toBeFalse();
+    expect($dropbox->isConnected())->toBeFalse();
+    expect(BusinessProfile::current()->dropboxTokenUnreadable())->toBeTrue();
+    Illuminate\Support\Facades\Log::shouldHaveReceived('warning')->once();
+});
+
+test('settings and receipts still load with an undecryptable token and show Dropbox as disconnected', function () {
+    storeUnreadableToken();
+    Http::fake();
+
+    $this->get('/settings')->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('dropbox.configured', true)
+        ->where('dropbox.connected', false)
+        ->where('dropbox.problem', fn (string $problem) => str_contains($problem, 'Connect Dropbox again')));
+    $this->get('/receipts')->assertOk()->assertInertia(fn (Assert $page) => $page->where('dropbox_connected', false));
+    Http::assertNothingSent();
+});
+
+test('connecting again overwrites an undecryptable token, and disconnecting clears it', function () {
+    storeUnreadableToken();
+    Http::fake([
+        'api.dropboxapi.com/oauth2/token' => Http::response(['access_token' => 'access-2', 'expires_in' => 14400, 'refresh_token' => 'refresh-2']),
+        'api.dropboxapi.com/2/users/get_current_account' => Http::response(['email' => 'sam@example.com']),
+        'api.dropboxapi.com/2/auth/token/revoke' => Http::response(null),
+    ]);
+
+    $this->withSession(['dropbox_oauth_state' => 'abc'])
+        ->get('/settings/dropbox/callback?state=abc&code=the-code')
+        ->assertRedirect('/settings')->assertSessionHas('success');
+    expect(BusinessProfile::current()->dropbox_refresh_token)->toBe('refresh-2');
+    expect(BusinessProfile::current()->dropboxTokenUnreadable())->toBeFalse();
+
+    storeUnreadableToken();
+    $this->post('/settings/dropbox/disconnect')->assertRedirect('/settings');
+    expect(Illuminate\Support\Facades\DB::table('business_profile')->value('dropbox_refresh_token'))->toBeNull();
+});

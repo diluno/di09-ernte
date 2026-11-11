@@ -17,7 +17,7 @@ class ReceiptExtractor
     {
         $apiKey = config('services.anthropic.api_key');
         if (! $apiKey) {
-            throw new RuntimeException('ANTHROPIC_API_KEY is not configured.');
+            throw new PermanentReceiptFailure('ANTHROPIC_API_KEY is not configured.');
         }
 
         $message = (new Client(apiKey: $apiKey))->messages->create(
@@ -35,7 +35,7 @@ class ReceiptExtractor
         );
 
         if ($message->stopReason === 'refusal') {
-            throw new RuntimeException('Claude declined to read this document.');
+            throw new PermanentReceiptFailure('Claude declined to read this document.');
         }
 
         foreach ($message->content as $block) {

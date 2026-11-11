@@ -80,7 +80,7 @@ class SidebarProps
             ->where('started_at', '<',  $monday->copy()->addDays(7))
             ->selectRaw('
                 WEEKDAY(started_at) AS dow,
-                SUM(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, UTC_TIMESTAMP()))) AS secs
+                SUM('.EntryDuration::secondsSql().') AS secs
             ')
             ->groupBy('dow')
             ->pluck('secs', 'dow');
@@ -98,7 +98,7 @@ class SidebarProps
         return (int) TimeEntry::query()
             ->where('user_id', $user->id)
             ->whereDate('started_at', Carbon::today())
-            ->selectRaw('COALESCE(SUM(TIMESTAMPDIFF(SECOND, started_at, COALESCE(ended_at, UTC_TIMESTAMP()))), 0) AS s')
+            ->selectRaw('COALESCE(SUM('.EntryDuration::secondsSql().'), 0) AS s')
             ->value('s');
     }
 }

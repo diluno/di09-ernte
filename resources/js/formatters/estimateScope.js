@@ -2,6 +2,7 @@
 // its own lines. A plain estimate is edited as one section with no label or
 // title; the PDF prints such a section without a heading or subtotal.
 import { lineAmountRappen } from '@/formatters/vat.js';
+import { toRappen } from '@/formatters/money.js';
 
 let nextKey = 0;
 const key = () => nextKey++;
@@ -51,7 +52,7 @@ export function sectionsPayload(sections) {
         title: (l.title ?? '').trim() || null,
         description: (l.description ?? '').trim() || null,
         hours: Number(l.hours),
-        rate_rappen: Math.round(Number(l.rate) * 100),
+        rate_rappen: toRappen(l.rate),
       })),
     }));
 }

@@ -12,6 +12,9 @@
 /.vscode
 /.zed
 /auth.json
+# Real bank statement exports dropped into the repo root for a manual import.
+/*_camt053/
+/.claude/worktrees/
 /node_modules
 /public/build
 /public/hot

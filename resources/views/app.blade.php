@@ -11,13 +11,6 @@
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-        <link href="https://cdn.jsdelivr.net/npm/@fontsource/iosevka-aile@5/400.css" rel="stylesheet">
-        <link href="https://cdn.jsdelivr.net/npm/@fontsource/iosevka-aile@5/500.css" rel="stylesheet">
-        <link href="https://cdn.jsdelivr.net/npm/@fontsource/iosevka-aile@5/600.css" rel="stylesheet">
-        <link href="https://cdn.jsdelivr.net/npm/@fontsource/iosevka-aile@5/700.css" rel="stylesheet">
-
         <!-- Scripts -->
         @routes
         @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])

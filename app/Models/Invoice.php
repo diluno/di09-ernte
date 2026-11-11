@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasRecipients;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Invoice extends Model
 {
     use HasFactory;
+    use HasRecipients;
 
     /** New documents default to the client's language; set explicitly to override. */
     protected static function booted(): void
@@ -84,6 +86,18 @@ class Invoice extends Model
         return $this->status === 'sent'
             && $this->due_on !== null
             && $this->due_on->isPast();
+    }
+
+    /**
+     * Only invoices that were never issued may be deleted: drafts, and drafts
+     * that were voided before being sent. Anything a client has received stays
+     * on file (void it instead) — deleting would drop the frozen PDF and hand
+     * its billed time back for re-billing.
+     */
+    public function isDeletable(): bool
+    {
+        return $this->status === 'draft'
+            || ($this->status === 'void' && $this->sent_at === null);
     }
 
     public function scopeOutstanding($q)

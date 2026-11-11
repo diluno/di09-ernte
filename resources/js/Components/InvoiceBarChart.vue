@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import Icon from '@/Components/Icon.vue';
+import { fmtMoney } from '@/formatters/money.js';
 
 const props = defineProps({
   year:    { type: Number, required: true },
@@ -27,7 +28,8 @@ function niceScale(value, targetLines = 5) {
 const maxTotal = computed(() => Math.max(0, ...props.months.map((m) => m.open + m.paid)));
 const scale = computed(() => niceScale(maxTotal.value));
 
-const fmt = (v) => v ? Math.round(v).toLocaleString('de-CH') : '—';
+// Monthly aggregates on a chart: whole francs.
+const fmt = (v) => v ? fmtMoney(v, { whole: true }) : '—';
 
 const now = new Date();
 const currentIdx = computed(() => props.year === now.getFullYear() ? now.getMonth() : -1);
@@ -77,7 +79,7 @@ function next() { if (canNext.value) emit('update:year', props.year + 1); }
 .ibc {
   display: grid;
   grid-template-columns: repeat(12, 1fr) 120px;
-  padding: 20px 40px 18px;
+  padding: 20px var(--gutter) 18px;
   border-bottom: 1px solid var(--border);
   background: var(--paper);
 }
@@ -120,4 +122,10 @@ function next() { if (canNext.value) emit('update:year', props.year + 1); }
 .ibc__sw--paid { background: var(--ink); }
 .ibc__sw--open { background: var(--red); }
 .ibc__sum { font-family: var(--font-mono); font-size: 12px; color: var(--ink); letter-spacing: 0; text-transform: none; margin-top: 4px; }
+
+/* Below the desktop reference width the months keep a legible minimum and the
+   strip scrolls sideways instead of overlapping its totals. */
+@media (max-width: 1279px) {
+  .ibc { grid-template-columns: repeat(12, minmax(56px, 1fr)) 120px; overflow-x: auto; flex-shrink: 0; }
+}
 </style>

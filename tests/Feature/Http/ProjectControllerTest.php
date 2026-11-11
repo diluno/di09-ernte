@@ -395,3 +395,36 @@ test('note html escapes raw html in the body', function () {
             ->where('notes.0.body_html', fn ($html) => ! str_contains($html, '<script>') && str_contains($html, '&lt;script&gt;'))
         );
 });
+
+test('GET /projects stats strip: month hours, unbilled rappen and over-budget count', function () {
+    $this->travelTo(now()->startOfMonth()->addDays(10)->setTime(12, 0)); // not in the first hours of a month
+    $user = User::factory()->create();
+    $over = Project::factory()->create(['status' => 'active', 'budget_hours' => 1, 'rate_rappen' => 10000]);
+    Project::factory()->create(['status' => 'active', 'budget_hours' => 0, 'rate_rappen' => 10000]);
+    TimeEntry::create([
+        'user_id' => $user->id, 'project_id' => $over->id,
+        'description' => 'work', 'started_at' => now()->startOfMonth()->addHour(),
+        'ended_at' => now()->startOfMonth()->addHours(3),
+        'billable' => true,
+    ]);
+
+    $this->actingAs($user)->get('/projects')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('stats.month_hours', fn ($v) => (float) $v === 2.0)
+            ->where('stats.unbilled_rappen', 20000)
+            ->where('stats.over_budget_count', 1)
+        );
+});
+
+test('GET /projects/create?client= preselects an active client only', function () {
+    $user = User::factory()->create();
+    $active = Client::factory()->create();
+    $archived = Client::factory()->create(['archived_at' => now()]);
+
+    $this->actingAs($user)->get("/projects/create?client={$active->id}")
+        ->assertInertia(fn (Assert $page) => $page->where('client_id', $active->id));
+
+    $this->actingAs($user)->get("/projects/create?client={$archived->id}")
+        ->assertInertia(fn (Assert $page) => $page->where('client_id', null));
+});

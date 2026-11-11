@@ -2,14 +2,10 @@
 
 use App\Models\User;
 
-test('profile page is displayed', function () {
-    $user = User::factory()->create();
-
-    $response = $this
-        ->actingAs($user)
-        ->get('/profile');
-
-    $response->assertOk();
+test('the old profile page redirects to settings', function () {
+    $this->actingAs(User::factory()->create())
+        ->get('/profile')
+        ->assertRedirect('/settings');
 });
 
 test('profile information can be updated', function () {
@@ -17,6 +13,7 @@ test('profile information can be updated', function () {
 
     $response = $this
         ->actingAs($user)
+        ->from('/settings')
         ->patch('/profile', [
             'name' => 'Test User',
             'email' => 'test@example.com',
@@ -24,62 +21,28 @@ test('profile information can be updated', function () {
 
     $response
         ->assertSessionHasNoErrors()
-        ->assertRedirect('/profile');
+        ->assertRedirect('/settings');
 
     $user->refresh();
 
     $this->assertSame('Test User', $user->name);
     $this->assertSame('test@example.com', $user->email);
-    $this->assertNull($user->email_verified_at);
 });
 
-test('email verification status is unchanged when the email address is unchanged', function () {
+test('the account cannot be deleted', function () {
+    // Deleting the only user would cascade to every time entry.
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
-        ->patch('/profile', [
-            'name' => 'Test User',
-            'email' => $user->email,
-        ]);
-
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect('/profile');
-
-    $this->assertNotNull($user->refresh()->email_verified_at);
-});
-
-test('user can delete their account', function () {
-    $user = User::factory()->create();
-
-    $response = $this
-        ->actingAs($user)
-        ->delete('/profile', [
-            'password' => 'password',
-        ]);
-
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect('/');
-
-    $this->assertGuest();
-    $this->assertNull($user->fresh());
-});
-
-test('correct password must be provided to delete account', function () {
-    $user = User::factory()->create();
-
-    $response = $this
-        ->actingAs($user)
-        ->from('/profile')
-        ->delete('/profile', [
-            'password' => 'wrong-password',
-        ]);
-
-    $response
-        ->assertSessionHasErrors('password')
-        ->assertRedirect('/profile');
+    $this->actingAs($user)
+        ->delete('/profile', ['password' => 'password'])
+        ->assertStatus(405);
 
     $this->assertNotNull($user->fresh());
+});
+
+test('breeze email verification routes are gone', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get('/verify-email')->assertNotFound();
+    $this->actingAs($user)->post('/email/verification-notification')->assertNotFound();
 });

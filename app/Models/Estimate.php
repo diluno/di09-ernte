@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasRecipients;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Estimate extends Model
 {
     use HasFactory;
+    use HasRecipients;
 
     /** New documents default to the client's language; set explicitly to override. */
     protected static function booted(): void
@@ -50,7 +52,8 @@ class Estimate extends Model
     {
         return $this->status === 'sent'
             && $this->valid_until !== null
-            && $this->valid_until->isPast();
+            // Valid through the whole of its last day (same rule as the Expired filter).
+            && $this->valid_until->lt(now()->startOfDay());
     }
 
     public function getHoursAttribute(): float

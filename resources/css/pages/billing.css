@@ -1,0 +1,165 @@
+/* Page-specific Ledger styles: billing. Shared building blocks live in base.css (see design/ledger/components.md). */
+
+/* ─────────────── Recurring invoices list ─────────────── */
+/* Fixed layout gives the slack to "Next invoice"; keep it readable before the wrap scrolls. */
+.table-wrap > .table--recurring { min-width: 1000px; }
+/* Client name in ink (it is the row link), single line. */
+.table tbody td.trunc-ink { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.table tbody tr.is-paused td { color: var(--ink-3); }
+.table tbody tr.is-paused td.money { font-weight: 400; }
+/* A long client name in a stat foot ellipsises instead of widening the cell. */
+.stat-foot-trunc { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* ─────────────── Document editors (invoice create/edit, recurring form) ─────────────── */
+/* Main column of .doc-grid: form sections with the same rhythm as .form-body.
+   min-width: 0 lets it shrink below its tables once .doc-grid stacks (its 1fr is not minmax(0, 1fr)). */
+.doc-main { display: grid; gap: 32px; min-width: 0; align-content: start; }
+.section-title__aside { margin-left: 8px; letter-spacing: 0; text-transform: none; font-family: var(--font-mono); }
+.hint.section-intro { margin: -6px 0 14px; max-width: 70ch; }
+.form-section > .error, .form-section > .textarea + .hint { display: block; margin-top: 6px; }
+.field-optional { margin-left: 6px; text-transform: none; letter-spacing: 0; color: var(--ink-3); }
+.hint code { font-family: var(--font-mono); font-size: 12px; color: var(--ink); }
+.hint .ink { color: var(--ink); }
+.form-grid > .hint.span-all { margin-top: -4px; }
+
+/* Summary aside contents. */
+.invoice-totals.totals-card { margin-top: 0; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; }
+.summary-card .summary-note { margin-top: 16px; }
+.summary-card .summary-kv { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+.summary-card .summary-kv dd { overflow-wrap: anywhere; }
+
+/* Footer errors may run long: let them wrap under the buttons instead of overflowing. */
+.doc-grid + .form-foot .form-foot__aside { min-width: 0; overflow-wrap: anywhere; }
+
+/* Billable-entries checklist under the lines. */
+.picker-wrap { border: 1px solid var(--border); }
+.picker-wrap .table--picker { margin: 0; }
+.picker-wrap .table--picker tbody tr:last-child td { border-bottom: 0; }
+.picker-wrap .table--picker td { height: auto; padding-top: 9px; padding-bottom: 9px; overflow-wrap: anywhere; }
+.picker-wrap .table--picker .check { padding-right: 0; }
+.picker-wrap .table--picker td.is-empty { padding: 16px 12px; line-height: 1.5; }
+
+/* Recipient checklist (also used by the estimate editors). */
+.recipient-picker { display: flex; flex-direction: column; }
+.recipient-picker > .hint { margin: 0; }
+.recipient-row {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.recipient-row:last-child { border-bottom: 0; }
+.recipient-row input { accent-color: var(--ink); margin: 0; align-self: center; }
+.recipient-name { color: var(--ink); }
+.recipient-email { color: var(--ink-3); font-family: var(--font-mono); font-size: 12px; min-width: 0; overflow-wrap: anywhere; }
+.recipient-row .mono-tag { align-self: center; }
+
+/* ─────────────── Line items editor (Components/LineItemsEditor.vue) ─────────────── */
+/* A table from 560px editor width; narrower, every line becomes a small card. */
+.line-editor { container: line-editor / inline-size; }
+.line-editor .table--lines { table-layout: fixed; }
+.line-editor .table--lines th,
+.line-editor .table--lines td { padding-left: 6px; padding-right: 6px; vertical-align: top; }
+.line-editor .table--lines .le-desc { padding-left: 12px; }
+.line-editor .table--lines .le-actions { padding-left: 4px; padding-right: 4px; }
+/* Widths (border-box, incl. 6px cell padding) fit "1234.25" h, a "12500.00" rate and
+   "123’456.00" CHF in Iosevka at 13px (~6.5px a glyph), with the number spinners
+   hidden: they used to eat ~20px of each input ("0.25" showed as "0.2", "100" was cut). */
+.line-editor .le-hours  { width: 80px; }
+.line-editor .le-rate   { width: 96px; }
+.line-editor .le-amount { width: 104px; }
+.line-editor .le-vat    { width: 44px; text-align: center; }
+.line-editor .le-actions { width: 84px; }
+.line-editor tbody td.le-amount { color: var(--ink); font-weight: 600; line-height: 36px; white-space: nowrap; }
+.line-editor .le-actions .line-actions { height: 36px; justify-content: flex-end; }
+.line-editor .le-vat__label { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; cursor: pointer; }
+.line-editor .le-vat__label input { accent-color: var(--ink); margin: 0; }
+.line-editor .le-vat__text { display: none; }
+.line-editor tbody td.is-empty { padding: 16px 12px; }
+
+/* Ledger inputs inside the editor (base .cell-input still carries the old rounded/accent look). */
+.line-editor .cell-input {
+  border-radius: 0;
+  background: var(--paper-2);
+  border: 1px solid transparent;
+  line-height: 1.4;
+}
+.line-editor .cell-input:hover { border-color: var(--border-strong); }
+.line-editor .cell-input:focus { border-color: var(--ink); background: var(--paper); box-shadow: none; outline: none; }
+.line-editor .cell-input.num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 8px 6px;
+  min-width: 0;
+}
+.line-editor input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+.line-editor input[type="number"]::-webkit-outer-spin-button,
+.line-editor input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
+
+@container line-editor (max-width: 559px) {
+  .line-editor .table--lines,
+  .line-editor .table--lines tbody { display: block; width: 100%; }
+  .line-editor .table--lines thead { display: none; }
+  .line-editor .table--lines tbody tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-areas: "desc desc desc" "hours rate amount" ". actions actions";
+    gap: 10px 10px;
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .line-editor.has-vat .table--lines tbody tr { grid-template-areas: "desc desc desc" "hours rate amount" "vat actions actions"; }
+  .line-editor .table--lines tbody tr:last-child { border-bottom: 0; }
+  .line-editor .table--lines tbody td { display: block; width: auto; height: auto; padding: 0; border: 0; }
+  .line-editor .table--lines td.le-desc { grid-area: desc; }
+  .line-editor .table--lines td.le-hours { grid-area: hours; text-align: left; }
+  .line-editor .table--lines td.le-rate { grid-area: rate; text-align: left; }
+  .line-editor .table--lines td.le-amount { grid-area: amount; }
+  .line-editor .table--lines td.le-vat { grid-area: vat; text-align: left; }
+  .line-editor .table--lines td.le-actions { grid-area: actions; }
+  .line-editor .table--lines td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 4px;
+    font-family: var(--font-sans);
+    font-size: var(--fs-xs);
+    font-weight: 400;
+    line-height: 1.3;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .line-editor .le-vat__label { justify-content: flex-start; }
+  .line-editor .le-vat__text { display: inline; font-size: var(--fs-sm); color: var(--ink-2); }
+  .line-editor .le-actions .line-actions { gap: 6px; }
+  .line-editor .le-actions .icon-btn { width: 32px; height: 32px; }
+  .line-editor .table--lines tr.le-empty { display: block; padding: 0; }
+}
+
+/* ─────────────── Searchable picker (Components/ClientPicker.vue) ─────────────── */
+.combo { position: relative; min-width: 0; }
+.combo__input { cursor: text; text-overflow: ellipsis; }
+.combo__input:disabled { cursor: not-allowed; color: var(--ink-3); }
+.combo.is-open .combo__input { border-color: var(--ink); background-color: var(--paper); }
+.combo__list {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 20;
+  margin: -1px 0 0; padding: 0; list-style: none;
+  max-height: min(320px, 50vh); overflow-y: auto;
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  box-shadow: 0 10px 24px rgba(20,18,16,.10);
+}
+.combo__option {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px;
+  font-size: 14px;
+  color: var(--ink);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.combo__option:last-child { border-bottom: 0; }
+.combo__option.is-active { background: var(--paper-2); }
+.combo__option[aria-selected="true"] { font-weight: 600; }
+.combo__option[aria-selected="true"]::after { content: "✓"; margin-left: auto; font-family: var(--font-mono); font-size: 12px; }
+.combo__empty { padding: 9px 12px; font-size: var(--fs-sm); color: var(--ink-3); }

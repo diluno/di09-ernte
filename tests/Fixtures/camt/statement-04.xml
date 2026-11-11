@@ -25,11 +25,11 @@
       </Bal>
       <Bal>
         <Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp>
-        <Amt Ccy="CHF">11614.35</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2026-07-03</Dt></Dt>
+        <Amt Ccy="CHF">11623.1</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2026-07-03</Dt></Dt>
       </Bal>
       <Bal>
         <Tp><CdOrPrtry><Cd>CLAV</Cd></CdOrPrtry></Tp>
-        <Amt Ccy="CHF">11614.35</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2026-07-03</Dt></Dt>
+        <Amt Ccy="CHF">11623.1</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2026-07-03</Dt></Dt>
       </Bal>
       <Ntry>
         <Amt Ccy="CHF">244.35</Amt>

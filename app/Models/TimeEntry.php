@@ -36,6 +36,17 @@ class TimeEntry extends Model
         return max(0, $endTs - $this->started_at->getTimestamp());
     }
 
+    /**
+     * Billed on an invoice that has left draft: the entry backs an issued
+     * document and must not change. (Voiding an invoice releases its entries.)
+     */
+    public function isLockedByInvoice(): bool
+    {
+        return $this->invoice_id !== null
+            && $this->invoice !== null
+            && $this->invoice->status !== 'draft';
+    }
+
     public function getRunningAttribute(): bool
     {
         return $this->ended_at === null;

@@ -1,4 +1,6 @@
 <script setup>
+import { fmtHours } from '@/formatters/duration.js';
+
 defineProps({
   hours:  { type: Array,  required: true },  // 7 numbers, Mon..Sun
   target: { type: Number, default: 40 },
@@ -20,6 +22,6 @@ function bar(h, i) {
 
 <template>
   <div class="week-bars">
-    <div v-for="(h, i) in hours" :key="i" :title="`${DAYS[i]}: ${h}h`" :style="bar(h, i)" />
+    <div v-for="(h, i) in hours" :key="i" :title="`${DAYS[i]}: ${fmtHours(h)}`" :style="bar(h, i)" />
   </div>
 </template>

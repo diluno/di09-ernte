@@ -119,13 +119,17 @@ Common `ernte:doctor` fixes:
 `php artisan ernte:backup` stores backups under `storage/app/private/backups/{timestamp}`. Each backup contains:
 
 - `database.sql.gz`
-- `invoices.tar.gz`, when generated PDFs exist
-- `estimates.tar.gz`, when generated PDFs exist
-- `manifest.json`
+- `invoices.tar.gz`, when generated PDFs exist (the invoice PDFs as they were sent)
+- `estimates.tar.gz`, when generated PDFs exist (the estimate PDFs as they were sent)
+- `statements.tar.gz`, when imported bank statements exist (the original camt.053 / card-bill files)
+- `receipts.tar.gz`, when receipts are still held locally (uploads not yet read or filed to Dropbox); usually absent because filed receipts live in Dropbox
+- `manifest.json` (lists every artifact and how many files each archive holds)
 
 Every new backup is structurally verified before it is recorded, and backups older than `BACKUP_RETENTION_DAYS` (30 by default) are removed. Set `BACKUP_MIRROR_DISK=s3` to copy every verified artifact to an S3-compatible bucket; a failed mirror makes the command fail and leaves the local artifacts available for investigation. `php artisan ernte:backup:verify [path]` rechecks the latest or named local backup without creating a new one.
 
-To restore, put the app in maintenance mode, import the SQL dump into the Forge database, extract `invoices.tar.gz` and `estimates.tar.gz` back under `storage/app/private`, run `php artisan optimize:clear`, then bring the app back up. Periodically perform this process against an isolated database and temporary storage directory; structural verification cannot prove that application-level restoration succeeds.
+To restore, put the app in maintenance mode, import the SQL dump into the Forge database, extract every `*.tar.gz` archive present in the backup (`invoices`, `estimates`, `statements`, `receipts`) back under `storage/app/private` (each archive already contains its top-level directory), run `php artisan optimize:clear`, then bring the app back up. Periodically perform this process against an isolated database and temporary storage directory; structural verification cannot prove that application-level restoration succeeds.
+
+The backups do not contain `APP_KEY`, and the Dropbox refresh token in the database is encrypted with it. Keep a copy of `APP_KEY` off-server and restore it into the environment along with the dump. Restored with a different key, the token cannot be decrypted, so the app treats Dropbox as disconnected (receipt filing stops) until you reconnect Dropbox under Settings.
 
 ## MCP Server
 
@@ -135,12 +139,14 @@ Tools: `list_clients`, `list_estimates`, `get_estimate`, `draft_estimate_lines`,
 `create_estimate`, `update_estimate`, `send_estimate`, `accept_estimate`,
 `decline_estimate`, `convert_estimate_to_invoice`.
 
-Mint a token with the existing auth endpoint:
+Mint a token with the auth endpoint. `"scope":"mcp"` is required: without it the
+endpoint issues a companion-app token, which `/api/mcp` rejects with 403. (Tokens
+created before scopes existed keep working.)
 
 ```sh
 curl -s -X POST https://ernte.dil.uno/api/auth/token \
   -H 'Content-Type: application/json' \
-  -d '{"email":"you@example.com","password":"…","device_name":"claude-mcp"}'
+  -d '{"email":"you@example.com","password":"…","device_name":"claude-mcp","scope":"mcp"}'
 ```
 
 Then register it with Claude Code:

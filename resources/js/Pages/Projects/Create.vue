@@ -1,19 +1,23 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { toRappen } from '@/formatters/money.js';
+import { useUnsavedGuard } from '@/composables/useUnsavedGuard.js';
 
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
   clients: { type: Array, required: true },
+  client_id: { type: Number, default: null }, // preselected via ?client= (e.g. from a client page)
 });
 
 const form = useForm({
-  client_id: props.clients[0]?.id ?? null,
+  client_id: props.client_id ?? props.clients[0]?.id ?? null,
   name: '', code: '', description: '',
-  billable: true, budget_hours: null, budget_amount: null, rate: null,
+  billable: true, budget_hours: null, budget_amount: null, rate: null, // money in CHF
   started_on: '', deadline_on: '',
 });
+useUnsavedGuard(form);
 
 function submit() {
   form.transform((d) => ({
@@ -23,8 +27,8 @@ function submit() {
     description: d.description,
     billable: d.billable,
     budget_hours: d.budget_hours ? Number(d.budget_hours) : 0,
-    budget_amount_rappen: Math.round((Number(d.budget_amount) || 0) * 100),
-    rate_rappen: Math.round((Number(d.rate) || 0) * 100),
+    budget_amount_rappen: toRappen(d.budget_amount),
+    rate_rappen: toRappen(d.rate),
     started_on: d.started_on || null,
     deadline_on: d.deadline_on || null,
   })).post('/projects');
@@ -36,78 +40,92 @@ function submit() {
 
   <div class="page-head">
     <div>
-      <div class="crumb">
-        <Link href="/projects">~ / projects</Link>
-        <span class="ascii-dot">/</span><span>new</span>
-      </div>
+      <div class="crumb"><Link href="/projects">Projects</Link><span>/</span><span>New</span></div>
       <h1 class="page-title">New project</h1>
     </div>
   </div>
 
-  <form @submit.prevent="submit" style="max-width: 720px; padding: 20px 28px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px">
-    <label class="field" style="grid-column: span 2">
-      <span>Client</span>
-      <select v-model="form.client_id" required>
-        <option v-for="c in clients" :key="c.id" :value="c.id">{{ c.name }}</option>
-      </select>
-      <small v-if="form.errors.client_id" class="err">{{ form.errors.client_id }}</small>
-    </label>
-    <label class="field">
-      <span>Name</span>
-      <input v-model="form.name" required />
-      <small v-if="form.errors.name" class="err">{{ form.errors.name }}</small>
-    </label>
-    <label class="field">
-      <span>Code (≤32 chars)</span>
-      <input v-model="form.code" required maxlength="32" style="text-transform: uppercase" />
-      <small v-if="form.errors.code" class="err">{{ form.errors.code }}</small>
-    </label>
-    <label class="field" style="flex-direction: row; align-items: center; gap: 8px">
-      <input type="checkbox" v-model="form.billable" />
-      <span>Billable</span>
-    </label>
-    <label class="field" style="grid-column: span 2">
-      <span>Description</span>
-      <textarea v-model="form.description" rows="2" />
-    </label>
-    <label class="field">
-      <span>Budget hours <span class="opt">(optional)</span></span>
-      <input type="number" v-model="form.budget_hours" min="0" />
-      <small v-if="form.errors.budget_hours" class="err">{{ form.errors.budget_hours }}</small>
-    </label>
-    <label class="field">
-      <span>Budget amount (CHF) <span class="opt">(optional)</span></span>
-      <input type="number" v-model="form.budget_amount" min="0" step="0.01" />
-      <small v-if="form.errors.budget_amount_rappen" class="err">{{ form.errors.budget_amount_rappen }}</small>
-    </label>
-    <label class="field">
-      <span>Rate (CHF/h) <span class="opt">(optional)</span></span>
-      <input type="number" v-model="form.rate" min="0" step="0.01" />
-      <small v-if="form.errors.rate_rappen" class="err">{{ form.errors.rate_rappen }}</small>
-    </label>
-    <label class="field">
-      <span>Started on</span>
-      <input type="date" v-model="form.started_on" />
-    </label>
-    <label class="field">
-      <span>Deadline on</span>
-      <input type="date" v-model="form.deadline_on" />
-      <small v-if="form.errors.deadline_on" class="err">{{ form.errors.deadline_on }}</small>
-    </label>
-    <div style="grid-column: span 2; display: flex; gap: 8px; margin-top: 12px">
-      <button type="submit" class="btn primary" :disabled="form.processing">Create</button>
+  <form class="form-page" @submit.prevent="submit">
+    <div class="form-body">
+      <section class="form-section">
+        <h2 class="section-title">Project</h2>
+        <div class="form-grid">
+          <label class="field span-2">
+            <span>Client</span>
+            <select v-model="form.client_id" class="select" required :aria-invalid="!!form.errors.client_id">
+              <option v-for="c in clients" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
+            <small v-if="!clients.length" class="hint">No active clients. <Link href="/clients/create" class="link-ink">Create a client</Link> first.</small>
+            <small v-if="form.errors.client_id" class="error">{{ form.errors.client_id }}</small>
+          </label>
+          <label class="field">
+            <span>Name</span>
+            <input v-model="form.name" class="input" required :aria-invalid="!!form.errors.name" />
+            <small v-if="form.errors.name" class="error">{{ form.errors.name }}</small>
+          </label>
+          <label class="field">
+            <span>Code</span>
+            <input v-model="form.code" class="input mono uppercase" required maxlength="32" :aria-invalid="!!form.errors.code" />
+            <small class="hint">Up to 32 characters. Used in the project's address and in the timer.</small>
+            <small v-if="form.errors.code" class="error">{{ form.errors.code }}</small>
+          </label>
+          <label class="field span-2">
+            <span>Description</span>
+            <textarea v-model="form.description" class="textarea" rows="3" :aria-invalid="!!form.errors.description" />
+            <small v-if="form.errors.description" class="error">{{ form.errors.description }}</small>
+          </label>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <h2 class="section-title">Billing and budget</h2>
+        <div class="form-grid cols-3">
+          <label class="field is-check span-all">
+            <input v-model="form.billable" type="checkbox" />
+            <span>Billable — time on this project can be invoiced</span>
+          </label>
+          <small v-if="form.errors.billable" class="error span-all">{{ form.errors.billable }}</small>
+          <label class="field">
+            <span>Rate (CHF/h)</span>
+            <input v-model="form.rate" type="number" class="input num" min="0" step="0.01" placeholder="0.00" :aria-invalid="!!form.errors.rate_rappen" />
+            <small v-if="form.errors.rate_rappen" class="error">{{ form.errors.rate_rappen }}</small>
+          </label>
+          <label class="field">
+            <span>Hours budget</span>
+            <input v-model="form.budget_hours" type="number" class="input num" min="0" step="1" placeholder="none" :aria-invalid="!!form.errors.budget_hours" />
+            <small class="hint">Optional. Leave empty for no budget.</small>
+            <small v-if="form.errors.budget_hours" class="error">{{ form.errors.budget_hours }}</small>
+          </label>
+          <label class="field">
+            <span>Fee budget (CHF)</span>
+            <input v-model="form.budget_amount" type="number" class="input num" min="0" step="0.01" placeholder="none" :aria-invalid="!!form.errors.budget_amount_rappen" />
+            <small class="hint">Optional.</small>
+            <small v-if="form.errors.budget_amount_rappen" class="error">{{ form.errors.budget_amount_rappen }}</small>
+          </label>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <h2 class="section-title">Schedule</h2>
+        <div class="form-grid">
+          <label class="field">
+            <span>Started on</span>
+            <input v-model="form.started_on" type="date" class="input" :aria-invalid="!!form.errors.started_on" />
+            <small v-if="form.errors.started_on" class="error">{{ form.errors.started_on }}</small>
+          </label>
+          <label class="field">
+            <span>Deadline</span>
+            <input v-model="form.deadline_on" type="date" class="input" :aria-invalid="!!form.errors.deadline_on" />
+            <small v-if="form.errors.deadline_on" class="error">{{ form.errors.deadline_on }}</small>
+          </label>
+        </div>
+      </section>
+    </div>
+
+    <div class="form-foot">
+      <button type="submit" class="btn primary" :disabled="form.processing">Create project</button>
       <Link href="/projects" class="btn ghost">Cancel</Link>
+      <span v-if="form.isDirty" class="form-foot__aside">Unsaved changes</span>
     </div>
   </form>
 </template>
-
-<style scoped>
-.field { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); color: var(--ink-2); }
-.field input, .field select, .field textarea {
-  border: 1px solid var(--border-strong); background: var(--paper);
-  padding: 6px 8px; font-family: inherit; color: var(--ink);
-}
-.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
-.err { color: var(--red); font-size: var(--fs-xs); }
-.opt { color: var(--ink-4); font-weight: 400; }
-</style>

@@ -347,3 +347,37 @@ test('a likely duplicate uploaded through ernte is not filed; saying it is not o
     expect($second->likelyDuplicateOf())->toBeNull();
     Bus::assertDispatched(FileReceipt::class, fn ($job) => $job->receiptId === $second->id);
 });
+
+test('a scan that finds another one running does nothing', function () {
+    Http::fake();
+    $lock = Illuminate\Support\Facades\Cache::lock(DropboxIntake::SCAN_LOCK, 60);
+    expect($lock->get())->toBeTrue();
+
+    expect(app(DropboxIntake::class)->scanInbox())->toBe(['new' => 0, 'duplicates' => 0, 'skipped' => 0, 'resorted' => 0, 'busy' => true]);
+    Http::assertNothingSent();
+    $this->artisan('ernte:receipts:check-inbox')->expectsOutputToContain('Another inbox check is still running')->assertExitCode(0);
+
+    $lock->release();
+});
+
+test('the lock is given back after a scan, also one that failed', function () {
+    Http::fake(['api.dropboxapi.com/2/files/list_folder' => Http::response('down', 503)]);
+
+    expect(fn () => app(DropboxIntake::class)->scanInbox())->toThrow(App\Services\Dropbox\DropboxException::class);
+
+    $lock = Illuminate\Support\Facades\Cache::lock(DropboxIntake::SCAN_LOCK, 60);
+    expect($lock->get())->toBeTrue();
+    $lock->release();
+});
+
+test('one Dropbox file cannot be registered as two receipts', function () {
+    $row = ['source' => 'inbox', 'original_name' => 'a.pdf', 'original_mime' => 'application/pdf', 'size_bytes' => 1, 'dropbox_file_id' => 'id:same', 'filing_status' => 'inbox'];
+    Receipt::create($row + ['content_hash' => hash('sha256', 'one')]);
+
+    expect(fn () => Receipt::create($row + ['content_hash' => hash('sha256', 'two')]))
+        ->toThrow(Illuminate\Database\UniqueConstraintViolationException::class);
+    // Receipts without a Dropbox file (uploads waiting to be filed) are unaffected.
+    Receipt::create(['original_name' => 'b.pdf', 'original_mime' => 'application/pdf', 'size_bytes' => 1, 'content_hash' => hash('sha256', 'three')]);
+    Receipt::create(['original_name' => 'c.pdf', 'original_mime' => 'application/pdf', 'size_bytes' => 1, 'content_hash' => hash('sha256', 'four')]);
+    expect(Receipt::whereNull('dropbox_file_id')->count())->toBe(2);
+});

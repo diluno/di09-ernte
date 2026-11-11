@@ -1,9 +1,5 @@
 <script setup>
 import GuestLayout from '@/Layouts/GuestLayout.vue';
-import InputError from '@/Components/InputError.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import TextInput from '@/Components/TextInput.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -25,7 +21,7 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.post(route('password.store'), {
+    form.post('/reset-password', {
         onFinish: () => form.reset('password', 'password_confirmation'),
     });
 };
@@ -33,69 +29,58 @@ const submit = () => {
 
 <template>
     <GuestLayout>
-        <Head title="Reset Password" />
+        <Head title="Reset password" />
 
-        <form @submit.prevent="submit">
-            <div>
-                <InputLabel for="email" value="Email" />
+        <form class="auth-card" @submit.prevent="submit">
+            <div class="auth-brand">ernte</div>
 
-                <TextInput
+            <label class="field">
+                <span>Email</span>
+                <input
                     id="email"
                     type="email"
-                    class="mt-1 block w-full"
+                    class="input"
                     v-model="form.email"
+                    :aria-invalid="!!form.errors.email"
                     required
                     autofocus
                     autocomplete="username"
                 />
+                <small v-if="form.errors.email" class="error">{{ form.errors.email }}</small>
+            </label>
 
-                <InputError class="mt-2" :message="form.errors.email" />
-            </div>
-
-            <div class="mt-4">
-                <InputLabel for="password" value="Password" />
-
-                <TextInput
+            <label class="field">
+                <span>New password</span>
+                <input
                     id="password"
                     type="password"
-                    class="mt-1 block w-full"
+                    class="input"
                     v-model="form.password"
+                    :aria-invalid="!!form.errors.password"
                     required
                     autocomplete="new-password"
                 />
+                <small v-if="form.errors.password" class="error">{{ form.errors.password }}</small>
+            </label>
 
-                <InputError class="mt-2" :message="form.errors.password" />
-            </div>
-
-            <div class="mt-4">
-                <InputLabel
-                    for="password_confirmation"
-                    value="Confirm Password"
-                />
-
-                <TextInput
+            <label class="field">
+                <span>Confirm new password</span>
+                <input
                     id="password_confirmation"
                     type="password"
-                    class="mt-1 block w-full"
+                    class="input"
                     v-model="form.password_confirmation"
+                    :aria-invalid="!!form.errors.password_confirmation"
                     required
                     autocomplete="new-password"
                 />
+                <small v-if="form.errors.password_confirmation" class="error">{{ form.errors.password_confirmation }}</small>
+            </label>
 
-                <InputError
-                    class="mt-2"
-                    :message="form.errors.password_confirmation"
-                />
-            </div>
-
-            <div class="mt-4 flex items-center justify-end">
-                <PrimaryButton
-                    :class="{ 'opacity-25': form.processing }"
-                    :disabled="form.processing"
-                >
-                    Reset Password
-                </PrimaryButton>
-            </div>
+            <button type="submit" class="btn primary auth-submit" :disabled="form.processing">
+                <span>Reset password</span>
+                <span aria-hidden="true">&rarr;</span>
+            </button>
         </form>
     </GuestLayout>
 </template>

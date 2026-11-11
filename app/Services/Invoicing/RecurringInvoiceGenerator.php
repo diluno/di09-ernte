@@ -40,6 +40,13 @@ class RecurringInvoiceGenerator
                 ->first();
 
             if ($existing) {
+                // The occurrence exists but the schedule still points at it (e.g. the
+                // advance was lost, or the date was moved back onto it). Step past it,
+                // or every run would find this invoice again and never move on.
+                if ($lockedSchedule->next_run_on->lte($runDate)) {
+                    $this->advance($lockedSchedule, $runDate);
+                }
+
                 return $existing;
             }
 
@@ -89,13 +96,7 @@ class RecurringInvoiceGenerator
             $invoice->recipients = $lockedSchedule->recipients;
             $invoice->save();
 
-            $lockedSchedule->last_generated_on = $runDate->toDateString();
-            $lockedSchedule->next_run_on = BillingPeriod::advance(
-                $lockedSchedule->cadence,
-                $runDate,
-                $lockedSchedule->anchor_day,
-            )->toDateString();
-            $lockedSchedule->save();
+            $this->advance($lockedSchedule, $runDate);
 
             return $invoice;
         });
@@ -108,43 +109,58 @@ class RecurringInvoiceGenerator
         return $invoice->fresh(['lines', 'events']);
     }
 
-    /** Retry delivery for an existing draft created by an auto-send schedule. */
+    private function advance(RecurringInvoice $schedule, Carbon $runDate): void
+    {
+        $schedule->last_generated_on = $runDate->toDateString();
+        $schedule->next_run_on = BillingPeriod::advance(
+            $schedule->cadence,
+            $runDate,
+            $schedule->anchor_day,
+        )->toDateString();
+        $schedule->save();
+    }
+
+    /**
+     * Retry delivery for an existing draft created by an auto-send schedule.
+     * Not wrapped in a transaction: issue() takes its own row lock and must
+     * commit before it mails.
+     */
     public function retryAutoSend(Invoice $invoice): bool
     {
-        return DB::transaction(function () use ($invoice) {
-            $lockedInvoice = Invoice::query()
-                ->with(['client', 'recurringInvoice'])
-                ->lockForUpdate()
-                ->findOrFail($invoice->id);
+        $invoice = Invoice::query()->with(['client', 'recurringInvoice'])->findOrFail($invoice->id);
 
-            if ($lockedInvoice->status !== 'draft' || ! $lockedInvoice->recurringInvoice?->auto_send) {
-                return $lockedInvoice->status === 'sent';
-            }
+        if ($invoice->status !== 'draft' || ! $invoice->recurringInvoice?->auto_send) {
+            return $invoice->status === 'sent';
+        }
 
-            try {
-                $this->lifecycle->issue($lockedInvoice);
+        try {
+            $this->lifecycle->issue($invoice);
 
+            return true;
+        } catch (Throwable $exception) {
+            // Lost a race against another sender: the invoice went out, nothing failed.
+            if ($invoice->fresh()?->status === 'sent') {
                 return true;
-            } catch (Throwable $exception) {
-                InvoiceEvent::create([
-                    'invoice_id' => $lockedInvoice->id,
-                    'kind' => 'recurring_autosend_failed',
-                    'occurred_at' => now(),
-                    'payload' => [
-                        'reason' => $exception->getMessage(),
-                        'exception' => $exception::class,
-                        'retryable' => true,
-                    ],
-                ]);
-
-                Log::error('Recurring invoice auto-send failed.', [
-                    'invoice_id' => $lockedInvoice->id,
-                    'recurring_invoice_id' => $lockedInvoice->recurring_invoice_id,
-                    'exception' => $exception,
-                ]);
-
-                return false;
             }
-        });
+
+            InvoiceEvent::create([
+                'invoice_id' => $invoice->id,
+                'kind' => 'recurring_autosend_failed',
+                'occurred_at' => now(),
+                'payload' => [
+                    'reason' => $exception->getMessage(),
+                    'exception' => $exception::class,
+                    'retryable' => true,
+                ],
+            ]);
+
+            Log::error('Recurring invoice auto-send failed.', [
+                'invoice_id' => $invoice->id,
+                'recurring_invoice_id' => $invoice->recurring_invoice_id,
+                'exception' => $exception,
+            ]);
+
+            return false;
+        }
     }
 }

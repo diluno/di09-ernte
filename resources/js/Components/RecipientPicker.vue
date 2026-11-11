@@ -1,6 +1,8 @@
 <script setup>
 const props = defineProps({
   contacts: { type: Array, required: true }, // [{id,name,email,role,is_default}]
+  // False while the surrounding form has no client chosen yet.
+  clientSelected: { type: Boolean, default: true },
 });
 const model = defineModel({ type: Array, required: true }); // [{name,email}]
 
@@ -18,17 +20,13 @@ function toggle(contact) {
 
 <template>
   <div class="recipient-picker">
-    <p v-if="!contacts.length" class="muted">This client has no contacts. Add contacts on the client page first.</p>
+    <p v-if="!clientSelected" class="hint">Select a client first.</p>
+    <p v-else-if="!contacts.length" class="hint">This client has no contacts. Add contacts on the client page first.</p>
     <label v-for="c in contacts" :key="c.id" class="recipient-row">
       <input type="checkbox" :checked="isChecked(c)" @change="toggle(c)" />
       <span class="recipient-name">{{ c.name }}</span>
-      <span class="muted">{{ c.email }}</span>
-      <span v-if="c.is_default" class="badge dot sent">default</span>
+      <span class="recipient-email">{{ c.email }}</span>
+      <span v-if="c.is_default" class="mono-tag">default</span>
     </label>
   </div>
 </template>
-
-<style scoped>
-.recipient-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: var(--fs-sm); }
-.recipient-name { color: var(--ink); }
-</style>

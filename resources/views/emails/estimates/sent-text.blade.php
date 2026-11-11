@@ -1,6 +1,6 @@
 @php
     $fmt = fn (int $rappen) => 'CHF ' . number_format($rappen / 100, 2, '.', "'");
-    $contactName = $estimate->client->defaultRecipients()[0]['name'] ?? null;
+    $contactName = $estimate->primaryRecipientName();
 @endphp
 
 {{ $contactName ? __('mail.greeting_named', ['name' => $contactName]) : __('mail.greeting') }}

@@ -216,3 +216,47 @@ test('a website set on one receipt applies to the vendor\'s other receipts, old 
 
     expect($new->fresh()->vendor_domain)->toBeIn(['digitalocean.com', 'do.co']);
 });
+
+test('each request goes to the address that was checked, over https only, with a size limit', function () {
+    $logos = logosResolving(['hetzner.com' => ['88.198.0.1', '2a01:4f8::1']]);
+    $seen = [];
+    Http::fake(function (Request $request, array $options) use (&$seen) {
+        $seen[$request->url()] = $options['curl'] ?? [];
+
+        return str_ends_with($request->url(), 'favicon.ico') ? Http::response(pngBytes(32)) : Http::response('', 404);
+    });
+
+    expect($logos->fetch('hetzner.com'))->toBeTrue();
+
+    $curl = $seen['https://hetzner.com/favicon.ico'];
+    expect($curl[CURLOPT_RESOLVE])->toBe(['hetzner.com:443:88.198.0.1,[2a01:4f8::1]']);
+    expect($curl[CURLOPT_PROTOCOLS])->toBe(CURLPROTO_HTTPS);
+    expect($curl[CURLOPT_MAXFILESIZE])->toBe(400_000);
+    expect($curl[CURLOPT_PROGRESSFUNCTION](null, 0, 400_001))->toBe(1);
+    expect($curl[CURLOPT_PROGRESSFUNCTION](null, 0, 1_000))->toBe(0);
+    expect($seen['https://hetzner.com/'][CURLOPT_MAXFILESIZE])->toBe(2_000_000);
+    // curl itself accepts the set as given.
+    expect(curl_setopt_array(curl_init(), $curl))->toBeTrue();
+});
+
+test('only raster images are recognised, by their first bytes', function (string $bytes, ?string $format) {
+    expect(VendorLogos::imageFormat($bytes))->toBe($format);
+})->with([
+    'png' => ["\x89PNG\r\n\x1a\n....", 'png'],
+    'ico' => ["\x00\x00\x01\x00\x01\x00", 'ico'],
+    'jpeg' => ["\xFF\xD8\xFF\xE0\x00\x10JFIF", 'jpeg'],
+    'gif' => ['GIF89a....', 'gif'],
+    'webp' => ["RIFF\x24\x00\x00\x00WEBPVP8 ", 'webp'],
+    'svg' => ['<svg xmlns="http://www.w3.org/2000/svg"></svg>', null],
+    'mvg' => ["push graphic-context\nviewbox 0 0 640 480\n", null],
+    'postscript' => ["%!PS-Adobe-3.0\n", null],
+    'wav in a riff' => ["RIFF\x24\x00\x00\x00WAVEfmt ", null],
+]);
+
+test('bytes that are not a known raster format never reach the image decoder', function () {
+    $logos = logosResolving(['shop.ch' => ['93.184.216.34'], 'icons.duckduckgo.com' => ['52.142.124.215']]);
+    Http::fake(['*' => Http::response('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64"/></svg>', 200, ['Content-Type' => 'image/png'])]);
+
+    expect($logos->fetch('shop.ch'))->toBeFalse();
+    Storage::disk('local')->assertMissing('vendor-logos/shop.ch.png');
+});

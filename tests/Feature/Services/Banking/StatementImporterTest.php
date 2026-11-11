@@ -37,11 +37,29 @@ test('importing the same file twice adds nothing', function () {
 
 test('an entry already known from another statement is skipped', function () {
     $this->importer->import(CamtXml::statement('2026-07-01', 1, '0', '100', [['ref' => 'A1', 'amount' => '100']]), 'a.xml');
-    $result = $this->importer->import(CamtXml::statement('2026-07-02', 2, '100', '150', [
+    $result = $this->importer->import(CamtXml::statement('2026-07-02', 2, '100', '250', [
         ['ref' => 'A1', 'amount' => '100'], ['ref' => 'A2', 'amount' => '50'],
     ]), 'b.xml');
 
-    expect($result)->toMatchArray(['lines_added' => 1, 'lines_known' => 1]);
+    expect($result)->toMatchArray(['lines_added' => 1, 'lines_known' => 1, 'lines_skipped' => 1]);
+});
+
+test('a statement whose entries do not lead from the opening to the closing balance is refused', function () {
+    $xml = CamtXml::statement('2026-07-01', 1, '100', '180', [
+        ['ref' => 'A1', 'amount' => '100'], ['ref' => 'A2', 'amount' => '30', 'credit' => false],
+    ]);
+
+    expect(fn () => $this->importer->import($xml, 'a.xml'))
+        ->toThrow(CamtException::class, 'does not add up: opening balance plus its 2 entries is CHF 10.00 less than the closing balance');
+    expect(Statement::count())->toBe(0);
+    expect(StatementLine::count())->toBe(0);
+});
+
+test('a re-uploaded statement is not counted as skipped entries', function () {
+    $xml = CamtXml::statement('2026-07-01', 1, '0', '100', [['ref' => 'A1', 'amount' => '100']]);
+    $this->importer->import($xml, 'a.xml');
+
+    expect($this->importer->import($xml, 'a.xml'))->toMatchArray(['lines_known' => 1, 'lines_skipped' => 0]);
 });
 
 test('a statement of another account is rejected and nothing is stored', function () {

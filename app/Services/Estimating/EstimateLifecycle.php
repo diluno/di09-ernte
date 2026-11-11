@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Services\Invoicing\InvoiceBuilder;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class EstimateLifecycle
@@ -18,37 +19,86 @@ class EstimateLifecycle
         private InvoiceBuilder $invoiceBuilder,
     ) {}
 
-    /** draft -> sent: stamp issued/valid dates, render + cache the PDF, email the client, write events. */
+    /**
+     * draft -> sent: stamp issued/valid dates, render + freeze the PDF, email the client, write events.
+     *
+     * Same shape as InvoiceLifecycle::issue(): the status flips under a row lock
+     * (no double send), the mail goes out after the commit, and a failed mail puts
+     * the estimate back to draft so it can be retried. The pdf_generated and sent
+     * events are written in that same transaction (and removed again with a failed
+     * mail), so no crash can leave a sent estimate without its `sent` event.
+     */
     public function send(Estimate $estimate): void
     {
-        $estimate->loadMissing('client');
+        $before = $estimate->getAttributes();
 
-        if ($estimate->status !== 'draft') {
-            throw new \DomainException("Only a draft can be sent (status: {$estimate->status}).");
+        try {
+            [$recipients, $path, $eventIds] = DB::transaction(function () use ($estimate) {
+                $this->lock($estimate);
+                $estimate->loadMissing('client');
+
+                if ($estimate->status !== 'draft') {
+                    throw new \DomainException("Only a draft can be sent (status: {$estimate->status}).");
+                }
+
+                $recipients = $estimate->effectiveRecipients();
+                if (empty($recipients)) {
+                    throw new \DomainException('Cannot send estimate because the client has no contacts.');
+                }
+
+                $estimate->update([
+                    'status' => 'sent',
+                    'issued_on' => now()->toDateString(),
+                    'valid_until' => now()->addDays(30)->toDateString(),
+                    'sent_at' => now(),
+                ]);
+
+                $path = $this->pdf->pdf($estimate);
+
+                return [$recipients, $path, [
+                    $this->event($estimate, 'pdf_generated', ['path' => $path])->id,
+                    $this->event($estimate, 'sent', ['email_to' => array_column($recipients, 'email'), 'pdf_path' => $path])->id,
+                ]];
+            });
+        } catch (\Throwable $e) {
+            // Rolled back: don't leave the caller's instance looking sent.
+            $estimate->setRawAttributes($before, true);
+
+            throw $e;
         }
 
-        $recipients = $estimate->recipients ?: ($estimate->client?->defaultRecipients() ?? []);
-        if (empty($recipients)) {
-            throw new \DomainException('Cannot send estimate because the client has no contacts.');
-        }
-
-        DB::transaction(function () use ($estimate, $recipients) {
-            $estimate->update([
-                'status' => 'sent',
-                'issued_on' => now()->toDateString(),
-                'valid_until' => now()->addDays(30)->toDateString(),
-                'sent_at' => now(),
-            ]);
-            $estimate->refresh();
-
-            $path = $this->pdf->pdf($estimate);
-
+        try {
             $to = array_map(fn ($r) => new Address($r['email'], $r['name']), $recipients);
             Mail::to($to[0])->cc(array_slice($to, 1))->send(new EstimateMail($estimate, $path));
+        } catch (\Throwable $e) {
+            $this->revertToDraft($estimate, $before['pdf_path'] ?? null, $eventIds, $e);
 
-            $this->event($estimate, 'pdf_generated', ['path' => $path]);
-            $this->event($estimate, 'sent', ['email_to' => array_column($recipients, 'email'), 'pdf_path' => $path]);
-        });
+            throw $e;
+        }
+    }
+
+    /** Undo the status flip of send() after the mail could not be delivered. */
+    private function revertToDraft(Estimate $estimate, ?string $previousPdfPath, array $eventIds, \Throwable $cause): void
+    {
+        try {
+            DB::transaction(function () use ($estimate, $previousPdfPath, $eventIds) {
+                EstimateEvent::whereKey($eventIds)->delete();
+                $estimate->update([
+                    'status' => 'draft',
+                    'issued_on' => null,
+                    'valid_until' => null,
+                    'sent_at' => null,
+                    'pdf_path' => $previousPdfPath,
+                ]);
+            });
+        } catch (\Throwable $e) {
+            // Marked sent without a mail having gone out — nothing else will flag this.
+            Log::critical("Estimate {$estimate->number} is marked sent but its email failed, and it could not be reset to draft.", [
+                'estimate_id' => $estimate->id,
+                'mail_error' => $cause->getMessage(),
+                'exception' => $e,
+            ]);
+        }
     }
 
     /**
@@ -58,11 +108,13 @@ class EstimateLifecycle
      */
     public function markSent(Estimate $estimate): void
     {
-        if ($estimate->status !== 'draft') {
-            throw new \DomainException("Only a draft can be marked as sent (status: {$estimate->status}).");
-        }
-
         DB::transaction(function () use ($estimate) {
+            $this->lock($estimate);
+
+            if ($estimate->status !== 'draft') {
+                throw new \DomainException("Only a draft can be marked as sent (status: {$estimate->status}).");
+            }
+
             $estimate->update([
                 'status' => 'sent',
                 'issued_on' => now()->toDateString(),
@@ -76,11 +128,13 @@ class EstimateLifecycle
     /** sent -> accepted. */
     public function accept(Estimate $estimate): void
     {
-        if ($estimate->status !== 'sent') {
-            throw new \DomainException("Only a sent estimate can be accepted (status: {$estimate->status}).");
-        }
-
         DB::transaction(function () use ($estimate) {
+            $this->lock($estimate);
+
+            if ($estimate->status !== 'sent') {
+                throw new \DomainException("Only a sent estimate can be accepted (status: {$estimate->status}).");
+            }
+
             $estimate->update(['status' => 'accepted', 'decided_at' => now()]);
             $this->event($estimate, 'accepted');
         });
@@ -89,11 +143,13 @@ class EstimateLifecycle
     /** sent -> declined. */
     public function decline(Estimate $estimate): void
     {
-        if ($estimate->status !== 'sent') {
-            throw new \DomainException("Only a sent estimate can be declined (status: {$estimate->status}).");
-        }
-
         DB::transaction(function () use ($estimate) {
+            $this->lock($estimate);
+
+            if ($estimate->status !== 'sent') {
+                throw new \DomainException("Only a sent estimate can be declined (status: {$estimate->status}).");
+            }
+
             $estimate->update(['status' => 'declined', 'decided_at' => now()]);
             $this->event($estimate, 'declined');
         });
@@ -106,16 +162,19 @@ class EstimateLifecycle
      */
     public function convertToInvoice(Estimate $estimate): Invoice
     {
-        if ($estimate->status !== 'accepted') {
-            throw new \DomainException("Only an accepted estimate can be converted (status: {$estimate->status}).");
-        }
-        if ($estimate->converted_invoice_id !== null) {
-            throw new \DomainException("Estimate {$estimate->number} has already been converted.");
-        }
-
-        $estimate->loadMissing(['client', 'project', 'lines' => fn ($q) => $q->orderBy('sort_order')]);
-
         return DB::transaction(function () use ($estimate) {
+            // Checked under the lock: a double submit must not create two invoices.
+            $this->lock($estimate);
+
+            if ($estimate->status !== 'accepted') {
+                throw new \DomainException("Only an accepted estimate can be converted (status: {$estimate->status}).");
+            }
+            if ($estimate->converted_invoice_id !== null) {
+                throw new \DomainException("Estimate {$estimate->number} has already been converted.");
+            }
+
+            $estimate->loadMissing(['client', 'project', 'lines' => fn ($q) => $q->orderBy('sort_order')]);
+
             // Invoice lines have a single text field; titled lines fold their
             // title in as a bold first line.
             $lines = $estimate->lines->map(fn ($l) => [
@@ -147,9 +206,21 @@ class EstimateLifecycle
         });
     }
 
-    private function event(Estimate $estimate, string $kind, ?array $payload = null): void
+    /**
+     * Take a row lock and reload the caller's instance from it, so every status
+     * check sees the committed state rather than what the request loaded earlier.
+     * Must be called inside a transaction.
+     */
+    private function lock(Estimate $estimate): void
     {
-        EstimateEvent::create([
+        $locked = Estimate::query()->whereKey($estimate->getKey())->lockForUpdate()->firstOrFail();
+
+        $estimate->setRawAttributes($locked->getAttributes(), true);
+    }
+
+    private function event(Estimate $estimate, string $kind, ?array $payload = null): EstimateEvent
+    {
+        return EstimateEvent::create([
             'estimate_id' => $estimate->id,
             'kind' => $kind,
             'occurred_at' => now(),

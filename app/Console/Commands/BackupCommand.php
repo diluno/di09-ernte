@@ -17,6 +17,13 @@ class BackupCommand extends Command
 
     protected $description = 'Create, verify, mirror, and retain database and generated-document backups.';
 
+    /**
+     * Directories of the local disk that cannot be rebuilt from the database: the PDFs as
+     * they were sent, the bank's original statement files (StatementImporter) and receipts
+     * that are not in Dropbox yet (uploads waiting to be read or filed).
+     */
+    public const DIRECTORIES = ['invoices', 'estimates', 'statements', 'receipts'];
+
     public function handle(BackupVerifier $verifier): int
     {
         $disk = Storage::disk('local');
@@ -40,10 +47,12 @@ class BackupCommand extends Command
             ['path' => $dbPath, 'size' => $disk->size($dbPath)],
         ];
 
-        foreach (['invoices', 'estimates'] as $documentDirectory) {
+        $archives = [];
+        foreach (self::DIRECTORIES as $documentDirectory) {
             $archive = $this->archiveDirectory($documentDirectory, $dir);
             if ($archive) {
-                $files[] = ['path' => $archive, 'size' => $disk->size($archive)];
+                $files[] = ['path' => $archive['path'], 'size' => $disk->size($archive['path'])];
+                $archives[] = ['directory' => $documentDirectory] + $archive;
             }
         }
 
@@ -56,6 +65,8 @@ class BackupCommand extends Command
                 'database' => config('database.connections.'.config('database.default').'.database'),
             ],
             'files' => $files,
+            // What each archive holds, so a verification can tell an empty archive from a full one.
+            'archives' => $archives,
         ];
         $disk->put($manifestPath, json_encode($manifest, JSON_PRETTY_PRINT));
         $files[] = ['path' => $manifestPath, 'size' => $disk->size($manifestPath)];
@@ -109,7 +120,8 @@ class BackupCommand extends Command
         return $command;
     }
 
-    private function archiveDirectory(string $documentDirectory, string $dir): ?string
+    /** @return array{path: string, files: int}|null null when there is nothing to archive */
+    private function archiveDirectory(string $documentDirectory, string $dir): ?array
     {
         $disk = Storage::disk('local');
         $source = $disk->path($documentDirectory);
@@ -135,17 +147,25 @@ class BackupCommand extends Command
             RecursiveIteratorIterator::SELF_FIRST,
         );
 
+        $count = 0;
         foreach ($files as $file) {
             if ($file->isFile()) {
                 $tar->addFile($file->getPathname(), $documentDirectory.'/'.ltrim(str_replace($source, '', $file->getPathname()), DIRECTORY_SEPARATOR));
+                $count++;
             }
+        }
+        // The receipts directory is often empty (everything filed); an empty tar cannot be written.
+        if ($count === 0) {
+            unset($tar);
+
+            return null;
         }
 
         $tar->compress(\Phar::GZ);
         unset($tar);
         unlink($tarAbsolute);
 
-        return $archiveRelative;
+        return ['path' => $archiveRelative, 'files' => $count];
     }
 
     /** @param array<int, array{path:string, size:int}> $files */

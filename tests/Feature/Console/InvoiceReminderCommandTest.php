@@ -186,3 +186,74 @@ test('a forced reminder job sends even when paused and not yet past the cadence'
     Mail::assertSent(InvoiceReminderMail::class);
     expect(InvoiceEvent::where('invoice_id', $invoice->id)->where('kind', 'reminded')->exists())->toBeTrue();
 });
+
+function overdueInvoiceRemindedAt(string $remindedAt): Invoice
+{
+    $client = Client::factory()->create();
+    Contact::factory()->for($client)->create(['email' => 'client@example.test', 'is_default' => true]);
+    $invoice = Invoice::factory()->create([
+        'client_id' => $client->id,
+        'status' => 'sent',
+        'due_on' => '2026-05-01',
+    ]);
+    InvoiceEvent::create(['invoice_id' => $invoice->id, 'kind' => 'reminded', 'occurred_at' => $remindedAt]);
+
+    return $invoice;
+}
+
+test('the run exactly N days after a reminder sends the next one, whatever the time of day', function () {
+    // Previous reminder went out a few seconds AFTER 09:00; today's run starts at 09:00 sharp.
+    \Illuminate\Support\Carbon::setTestNow('2026-06-08 09:00:00');
+    Queue::fake();
+    $invoice = overdueInvoiceRemindedAt('2026-06-01 09:00:07');
+
+    $this->artisan('ernte:invoices:remind')
+        ->expectsOutput('Queued 1 reminder(s); skipped 0 missing email; skipped 0 recently reminded.')
+        ->assertExitCode(0);
+
+    Queue::assertPushed(SendInvoiceReminderMail::class, fn ($job) => $job->invoiceId === $invoice->id);
+});
+
+test('the run one day short of the cadence still skips, even late in the day', function () {
+    \Illuminate\Support\Carbon::setTestNow('2026-06-07 23:30:00');
+    Queue::fake();
+    overdueInvoiceRemindedAt('2026-06-01 00:10:00');
+
+    $this->artisan('ernte:invoices:remind')
+        ->expectsOutput('Queued 0 reminder(s); skipped 0 missing email; skipped 1 recently reminded.')
+        ->assertExitCode(0);
+
+    Queue::assertNothingPushed();
+});
+
+test('the reminder job applies the same by-date cadence and the page shows that date', function () {
+    \Illuminate\Support\Carbon::setTestNow('2026-06-08 09:00:00');
+    Mail::fake();
+    $invoice = overdueInvoiceRemindedAt('2026-06-01 09:00:07');
+
+    // The detail page promises the next reminder for today…
+    $this->actingAs(\App\Models\User::factory()->create())
+        ->get("/invoices/{$invoice->number}")
+        ->assertInertia(fn ($page) => $page->where('next_reminder_on', '2026-06-08'));
+
+    // …and the job sends it.
+    (new SendInvoiceReminderMail($invoice->id))->handle();
+
+    Mail::assertSent(InvoiceReminderMail::class, 1);
+    expect($invoice->events()->where('kind', 'reminded')->count())->toBe(2);
+});
+
+test('a second forced reminder job right after the first sends nothing', function () {
+    Mail::fake();
+    $client = Client::factory()->create();
+    Contact::factory()->for($client)->create(['email' => 'client@example.test', 'is_default' => true]);
+    $invoice = Invoice::factory()->create(['client_id' => $client->id, 'status' => 'sent', 'due_on' => now()->subDays(3)->toDateString()]);
+
+    (new SendInvoiceReminderMail($invoice->id, force: true))->handle();
+    (new SendInvoiceReminderMail($invoice->id, force: true))->handle();
+
+    Mail::assertSent(InvoiceReminderMail::class, 1);
+    expect($invoice->events()->where('kind', 'reminded')->count())->toBe(1);
+});
+
+afterEach(fn () => \Illuminate\Support\Carbon::setTestNow());

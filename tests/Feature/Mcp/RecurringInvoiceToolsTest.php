@@ -18,6 +18,7 @@ use App\Models\RecurringInvoiceLine;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
+use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
     BusinessProfile::create([
@@ -46,7 +47,7 @@ function mcpSchedule(array $overrides = []): RecurringInvoice
 }
 
 test('the recurring tools are registered', function () {
-    $this->actingAs($this->user, 'sanctum');
+    Sanctum::actingAs($this->user, ['mcp']);
     $names = collect($this->postJson('/api/mcp', ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list'], ['Accept' => 'application/json, text/event-stream'])
         ->json('result.tools'))->pluck('name');
 

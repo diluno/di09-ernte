@@ -17,7 +17,7 @@ class TimerToday
         $entries = TimeEntry::query()
             ->where('user_id', $user->id)
             ->whereBetween('started_at', [$start, $end])
-            ->with(['project:id,name,code,rate_rappen', 'task:id,name'])
+            ->with(['project:id,name,code,rate_rappen', 'task:id,name', 'invoice:id,number,status'])
             ->orderBy('started_at')
             ->get();
 
@@ -42,6 +42,9 @@ class TimerToday
                 'duration_seconds' => $dur,
                 'billable' => (bool) $e->billable,
                 'running' => $e->ended_at === null,
+                // Billed on an issued invoice: EntryController refuses edits and deletes.
+                'is_locked' => $e->isLockedByInvoice(),
+                'invoice_number' => $e->invoice?->number,
                 'project' => [
                     'id' => $e->project->id,
                     'name' => $e->project->name,

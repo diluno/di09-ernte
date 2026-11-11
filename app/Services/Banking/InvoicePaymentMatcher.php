@@ -8,6 +8,7 @@ use App\Services\Invoicing\InvoiceLifecycle;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Matches bank credits to invoices. Confident matches are applied (the invoice is marked
@@ -21,6 +22,9 @@ class InvoicePaymentMatcher
      * recurring amount would compete for each new payment of that amount.
      */
     public const PAID_WINDOW_DAYS = 14;
+
+    /** Words that say nothing about who a payer is. Anything under three letters is dropped anyway. */
+    private const NAME_NOISE = ['gmbh', 'sarl', 'sagl', 'ltd', 'inc', 'llc', 'und', 'and', 'the', 'der', 'die', 'das', 'von', 'fur', 'les', 'des'];
 
     public function __construct(private InvoiceLifecycle $lifecycle) {}
 
@@ -47,6 +51,7 @@ class InvoicePaymentMatcher
             /** @var Collection<int, Invoice> $invoices */
             $invoices = Invoice::whereIn('status', ['sent', 'paid'])
                 ->whereDoesntHave('bankEntries', fn ($q) => $q->where('match_state', 'matched'))
+                ->with('client:id,name')
                 ->orderBy('issued_on')->orderBy('id')
                 ->get()->keyBy('id');
 
@@ -89,7 +94,9 @@ class InvoicePaymentMatcher
                 }
             }
 
-            // Pass 3 — amount fits exactly one invoice, and no other credit wants that invoice.
+            // Pass 3 — amount fits exactly one invoice, no other credit wants that invoice,
+            // nothing on the credit points elsewhere, and the payer is the invoice's client.
+            // An equal amount alone is a coincidence often enough to mark the wrong invoice paid.
             // Repeats because each match can leave another credit with a single candidate.
             do {
                 $single = [];
@@ -101,24 +108,30 @@ class InvoicePaymentMatcher
                 }
                 $progress = false;
                 foreach ($single as $invoiceId => $wanting) {
-                    if (count($wanting) === 1) {
+                    if (count($wanting) === 1 && $this->objection($wanting[0], $invoices[$invoiceId], $hints) === null) {
                         $take($wanting[0], $invoices[$invoiceId], 'amount');
                         $progress = true;
                     }
                 }
             } while ($progress);
 
-            // Whatever is left with a plausible invoice becomes a proposal.
+            // Whatever is left with a plausible invoice becomes a proposal. An invoice the
+            // credit itself names comes before one that merely has the same amount.
             $proposed = 0;
             foreach ($lines as $line) {
+                $hinted = isset($hints[$line->id]) ? $invoices->get($hints[$line->id]) : null;
                 $candidates = $this->amountCandidates($line, $invoices);
-                if ($candidates->isNotEmpty()) {
-                    $line->update(['match_state' => 'proposed', 'invoice_id' => $candidates->last()->id, 'match_note' => 'several_candidates']);
-                    $proposed++;
-                } elseif (isset($hints[$line->id]) && $invoices->has($hints[$line->id])) {
-                    $line->update(['match_state' => 'proposed', 'invoice_id' => $hints[$line->id], 'match_note' => 'amount_mismatch']);
-                    $proposed++;
+                if ($hinted) {
+                    $invoice = $hinted;
+                    $note = $hinted->total_rappen === $line->amount_rappen ? 'several_candidates' : 'amount_mismatch';
+                } elseif ($candidates->isNotEmpty()) {
+                    $invoice = $candidates->last(fn (Invoice $i) => $this->objection($line, $i, $hints) === null) ?? $candidates->last();
+                    $note = $candidates->count() > 1 ? 'several_candidates' : ($this->objection($line, $invoice, $hints) ?? 'several_candidates');
+                } else {
+                    continue;
                 }
+                $line->update(['match_state' => 'proposed', 'invoice_id' => $invoice->id, 'match_note' => $note]);
+                $proposed++;
             }
 
             return [
@@ -146,6 +159,14 @@ class InvoicePaymentMatcher
             // Noon keeps the calendar day stable whichever timezone reads it back.
             $paidOn = Carbon::parse($line->booked_on->toDateString().' 12:00:00');
             $payload = ['statement_line_id' => $line->id, 'method' => $method];
+            // There are no partial payments: the invoice counts as settled, so the trail keeps the gap.
+            if ($line->amount_rappen !== $invoice->total_rappen) {
+                $payload += [
+                    'paid_rappen' => $line->amount_rappen,
+                    'invoice_total_rappen' => $invoice->total_rappen,
+                    'difference_rappen' => $line->amount_rappen - $invoice->total_rappen,
+                ];
+            }
             $markedPaid = false;
 
             if ($invoice->status === 'sent') {
@@ -217,6 +238,56 @@ class InvoicePaymentMatcher
         }
 
         return preg_match('/(?<![0-9])'.preg_quote($number, '/').'(?![0-9])/i', $text) === 1;
+    }
+
+    /**
+     * True when a payer's name and a client's name plausibly mean the same party: every
+     * significant word of the shorter name occurs in the longer one. Deliberately strict;
+     * a miss only costs the operator one click on a proposal.
+     */
+    public static function namesAgree(?string $payer, ?string $client): bool
+    {
+        $a = self::nameWords((string) $payer);
+        $b = self::nameWords((string) $client);
+        if ($a === [] || $b === []) {
+            return false;
+        }
+        [$short, $long] = count($a) <= count($b) ? [$a, $b] : [$b, $a];
+
+        return array_diff($short, $long) === [];
+    }
+
+    /** @return list<string> */
+    private static function nameWords(string $name): array
+    {
+        // "Zürich", "Zuerich" and "Zurich" are the same word on a bank statement.
+        $plain = strtr(Str::lower(Str::ascii($name)), ['ae' => 'a', 'oe' => 'o', 'ue' => 'u']);
+        $words = preg_split('/[^a-z0-9]+/', $plain, -1, PREG_SPLIT_NO_EMPTY);
+
+        return array_values(array_unique(array_filter($words, fn (string $w) => strlen($w) >= 3 && ! ctype_digit($w)
+            && ! in_array($w, self::NAME_NOISE, true))));
+    }
+
+    /**
+     * Why an invoice that fits by amount must not be applied without the operator, or null.
+     *
+     * @param  array<int, int>  $hints  line id => invoice id named by the credit's reference or text
+     */
+    private function objection(StatementLine $line, Invoice $invoice, array $hints): ?string
+    {
+        // A reference that is this invoice's own would have matched in pass 1; any other
+        // belongs to a different invoice, or to none ernte knows.
+        if (filled($line->creditor_reference) && $line->creditor_reference !== $invoice->qr_reference) {
+            return 'reference_conflict';
+        }
+        if (isset($hints[$line->id]) && $hints[$line->id] !== $invoice->id) {
+            return 'reference_conflict';
+        }
+        if (! self::namesAgree($line->counterparty_name, $invoice->client?->name)) {
+            return 'payer_mismatch';
+        }
+
+        return null;
     }
 
     /**

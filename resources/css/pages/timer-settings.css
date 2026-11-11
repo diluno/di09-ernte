@@ -1,0 +1,232 @@
+/* Page-specific Ledger styles: timer-settings. Shared building blocks live in base.css (see design/ledger/components.md). */
+
+/* ─────────────────────── Timer page ─────────────────────── */
+/* Page head: the crumb carries the day and its total, and may wrap on a phone. */
+.timer-crumb { flex-wrap: wrap; row-gap: 2px; }
+
+/* Day navigation in .page-actions: ‹ [date] › as one joined control. */
+.day-nav { display: inline-flex; align-items: stretch; }
+.day-nav .btn.icon { min-height: 38px; font-size: 14px; }
+.day-nav .btn.icon:first-child { border-right: 0; }
+.day-nav .btn.icon:last-child { border-left: 0; }
+.day-nav__date {
+  width: auto;
+  min-height: 0;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  padding: 0 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.day-nav__date:focus { background: var(--paper); outline: 1px solid var(--ink); outline-offset: 2px; }
+
+/* Body: .detail-grid (main + 340px aside; stacks below 1100px). */
+.timer-grid { flex: 1 0 auto; border-bottom: 0; }
+.timer-main { display: flex; flex-direction: column; gap: 32px; padding-bottom: 48px; }
+/* Aside sections follow the invoice-detail aside rhythm. */
+.timer-side { display: flex; flex-direction: column; gap: 32px; }
+.timer-side .section-title,
+.timer-main .section-title { margin-bottom: 0; }
+.timer-side .side-row.split > :last-child { font-family: var(--font-mono); font-size: 13px; white-space: nowrap; }
+.timer-side .side-row.is-total { font-weight: 600; }
+.timer-side .side-row.is-total > :last-child { font-size: 15px; font-weight: 600; }
+.timer-side .side-row .cell-trunc { flex: 1 1 auto; }
+.timer-proj { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.timer-proj .mono { font-size: 13px; white-space: nowrap; }
+.timer-share { margin-top: 8px; height: 4px; }
+.timer-quick {
+  width: 100%;
+  display: flex; align-items: center; gap: 10px;
+  text-align: left;
+  transition: background .12s;
+}
+.timer-quick:hover { background: var(--paper-2); }
+.timer-quick:focus-visible { outline: 1px solid var(--ink); outline-offset: -1px; }
+.timer-quick .proj-glyph { width: 14px; height: 14px; font-size: 8px; }
+.timer-quick__go { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
+.timer-quick:hover .timer-quick__go { color: var(--ink); }
+.timer-side .side-row .kbd { font-size: 11px; }
+
+/* Manual / edit entry form: a ledger form section at the top of the main column. */
+.timer-form { padding-bottom: 24px; border-bottom: 1px solid var(--rule); scroll-margin-top: 16px; }
+.timer-form .form-grid { margin-top: 18px; }
+.timer-form__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 20px; }
+.timer-form__foot .error { flex-basis: 100%; font-size: var(--fs-sm); }
+
+/* Running timer. The red dot is the only colour on the page. */
+.timer-hero { border: 1px solid var(--rule); background: var(--paper-2); padding: clamp(20px, 3vw, 28px); }
+.timer-hero__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px; }
+.timer-hero__label {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: var(--fs-xs);
+  letter-spacing: var(--track-section);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.timer-hero__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex: 0 0 auto; }
+.timer-hero__since { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
+.timer-hero__desc { margin-top: 10px; font-size: var(--fs-lg); color: var(--ink); overflow-wrap: anywhere; }
+.timer-hero__desc.is-empty { color: var(--ink-3); font-style: italic; }
+/* 96px on a wide window, scaling down so HH:MM:SS fits a phone (≈ 3.4em wide). */
+.timer-display { font-size: clamp(52px, calc(4vw + 40px), 96px); margin-top: 20px; white-space: nowrap; }
+.timer-display .ms { font-size: .58em; }
+.timer-meta { flex-wrap: wrap; gap: 4px 0; font-family: var(--font-mono); font-size: 12px; }
+.timer-meta .ascii-dot { margin: 0 8px; }
+.timer-hero__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.timer-hero__actions .btn.primary { min-width: 120px; justify-content: center; }
+.timer-hero.is-idle { background: transparent; border-color: var(--border-strong); color: var(--ink-3); font-size: var(--fs-sm); line-height: 1.6; }
+.timer-hero.is-idle .kbd { margin: 0 2px; }
+
+/* ─────────────────────── Entry rows (Components/EntryRow.vue) ───────────────────────
+   Also rendered on Projects/Show (main column) and Clients/Show (340px aside):
+   description | duration | tools, so the layout holds in a narrow column. */
+.entry-row,
+.detail-side .entry-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(60px, auto);
+  gap: 16px;
+  align-items: center;
+  min-height: var(--row-h);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-md);
+}
+.detail-side .entry-row { gap: 10px; }
+.entry-row .desc { min-width: 0; color: var(--ink); overflow-wrap: anywhere; }
+.entry-row .desc .no-desc { color: var(--ink-3); font-style: italic; }
+.entry-row .desc .sub { display: block; margin-top: 2px; font-size: 12px; color: var(--ink-3); }
+.entry-row .dur { font-size: 13px; font-weight: 400; color: var(--ink); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.entry-row.is-running .dur { color: var(--ink-3); }
+.entry-row__tools { display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
+/* Edit/delete appear on hover and keyboard focus, and always on touch. */
+.entry-row__tools .btn { opacity: 0; transition: opacity .12s, background .12s, color .12s; }
+.entry-row:hover .entry-row__tools .btn,
+.entry-row:focus-within .entry-row__tools .btn { opacity: 1; }
+@media (hover: none) {
+  .entry-row__tools .btn { opacity: 1; }
+}
+.entry-row__tools .btn.ghost { color: var(--ink-3); }
+.entry-row__tools .btn.ghost:hover { color: var(--ink); }
+.entry-row__tools .btn.is-danger:hover { color: var(--red); background: var(--red-bg); }
+.entry-row__tools .badge { font-size: 11px; }
+
+/* ─────────────────────── Settings ─────────────────────── */
+/* Profile: the business-profile form keeps its sticky footer only while it is in view. */
+.settings-form { flex: none; }
+.settings-form .form-foot { border-bottom: 1px solid var(--rule); }
+.settings-text { margin: 12px 0 0; font-size: var(--fs-sm); color: var(--ink-2); line-height: 1.6; }
+.settings-text code, .settings-list code { font-family: var(--font-mono); font-size: 12px; }
+.settings-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 18px; }
+.settings-list { margin-top: 12px; }
+.settings-list .side-row { display: flex; align-items: baseline; gap: 12px; font-size: var(--fs-sm); }
+.settings-list .side-row > :first-child { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.settings-more .form-section > .section-title + .hint { margin-top: -6px; }
+.settings-more .form-section > .hint + .form-grid, .settings-list + .form-grid { margin-top: 18px; }
+
+/* VAT rates: a ledger table of editable rows. */
+.vat-intro { padding: 24px var(--gutter) 20px; max-width: calc(72ch + 2 * var(--gutter)); }
+.vat-intro .hint { font-size: var(--fs-sm); }
+.vat-table .cell-input {
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--paper-2);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  box-shadow: none;
+}
+.vat-table .cell-input:hover { border-color: var(--border-strong); }
+.vat-table .cell-input:focus { border-color: var(--ink); background: var(--paper); box-shadow: none; }
+.vat-table .cell-input[aria-invalid="true"] { border-color: var(--red); }
+/* Never clip "8.10" next to the spin buttons, nor a date next to its picker. */
+.vat-table .cell-input[type="number"] { min-width: 96px; }
+.vat-table .cell-input[type="date"] { min-width: 148px; }
+.vat-table tbody tr:hover td { background: transparent; }
+.vat-table tbody tr.is-new td { background: var(--paper-3); border-bottom-color: var(--rule); }
+.vat-table tbody tr.is-new:hover td { background: var(--paper-3); }
+.vat-table td.row-actions { width: auto; }
+.vat-table td.row-actions > .vat-delete { margin-left: 17px; position: relative; }
+.vat-table td.row-actions > .vat-delete::before {
+  content: ""; position: absolute; left: -8px; top: 3px; bottom: 3px;
+  border-left: 1px solid var(--border-strong);
+}
+.vat-table .btn.danger:hover { background: var(--red-bg); }
+.vat-table tr.vat-msg td { height: auto; padding-top: 0; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.vat-table tr.has-msg td { border-bottom: 0; }
+.vat-foot { padding: 0 var(--gutter) 40px; max-width: calc(72ch + 2 * var(--gutter)); display: grid; gap: 8px; }
+.vat-foot .error { font-size: var(--fs-sm); }
+
+/* ─────────────────────── Flash toasts (Components/FlashMessages.vue) ─────────────────────── */
+.flash-stack {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, calc(100vw - 48px));
+  pointer-events: none;
+}
+.flash {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 6px 10px 14px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  box-shadow: 0 10px 24px rgba(20,18,16,.10);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  color: var(--ink);
+}
+.flash.error { border-color: var(--red); box-shadow: inset 3px 0 0 var(--red), 0 10px 24px rgba(20,18,16,.10); }
+.flash-mark { flex: 0 0 auto; font-family: var(--font-mono); font-size: 12px; line-height: 1.6; color: var(--ink-3); }
+.flash.error .flash-mark { color: var(--red); }
+.flash-msg { flex: 1 1 auto; min-width: 0; padding-top: 1px; overflow-wrap: anywhere; }
+.flash .btn.icon.sm { margin-top: -4px; flex: 0 0 auto; color: var(--ink-3); }
+.flash .btn.icon.sm:hover { color: var(--ink); }
+/* Narrow windows: the sticky form footers (and their primary action) live at the
+   bottom of the screen, so toasts drop in under the topbar instead. */
+@media (max-width: 899px) {
+  .flash-stack { top: calc(var(--topbar-h) + 8px); bottom: auto; left: var(--gutter); right: var(--gutter); width: auto; }
+}
+
+/* ─────────────────────── Guest pages (Layouts/GuestLayout.vue, Pages/Auth/*) ─────────────────────── */
+.guest-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px var(--gutter);
+  background: var(--paper);
+  color: var(--ink);
+}
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 380px;
+  padding: 28px 32px 32px;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  box-shadow: 0 1px 0 var(--border-strong), 0 14px 34px rgba(20,18,16,.08);
+}
+.auth-brand {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.auth-status { margin: 0; font-size: var(--fs-sm); color: var(--ink); }
+.auth-note { margin: 0; font-size: var(--fs-sm); line-height: 1.5; color: var(--ink-2); }
+.auth-submit { justify-content: center; width: 100%; }
+.auth-link { align-self: flex-start; font-size: var(--fs-sm); color: var(--ink-2); border-bottom: 1px solid var(--border-strong); }
+.auth-link:hover { color: var(--ink); border-bottom-color: var(--ink); }

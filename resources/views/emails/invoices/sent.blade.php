@@ -2,7 +2,7 @@
 
 @php
     $fmt = fn (int $rappen) => 'CHF ' . number_format($rappen / 100, 2, '.', "'");
-    $contactName = $invoice->client->defaultRecipients()[0]['name'] ?? null;
+    $contactName = $invoice->primaryRecipientName();
 @endphp
 
 @section('title', __('mail.invoice_subject', ['number' => $invoice->number]))

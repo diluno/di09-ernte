@@ -164,3 +164,48 @@ test('POST /entries rejects task_id that belongs to a different project', functi
         'billable'   => true,
     ])->assertSessionHasErrors('task_id');
 });
+
+function entryOnInvoice(string $status): TimeEntry
+{
+    $invoice = \App\Models\Invoice::factory()->create(['status' => $status, 'number' => '2026-077']);
+
+    return TimeEntry::factory()->create([
+        'user_id' => test()->user->id, 'project_id' => test()->project->id,
+        'description' => 'Billed work', 'invoice_id' => $invoice->id,
+    ]);
+}
+
+test('PATCH /entries/{id} rejects an entry billed on an issued invoice', function (string $status) {
+    $entry = entryOnInvoice($status);
+
+    $this->from('/timer')
+        ->patch("/entries/{$entry->id}", ['description' => 'Rewritten', 'billable' => false])
+        ->assertRedirect('/timer')
+        ->assertSessionHasErrors('entry')
+        ->assertSessionHas('error', fn ($message) => str_contains($message, '2026-077'));
+
+    expect($entry->fresh()->description)->toBe('Billed work');
+    expect($entry->fresh()->billable)->toBeTrue();
+})->with(['sent', 'paid']);
+
+test('DELETE /entries/{id} rejects an entry billed on an issued invoice', function (string $status) {
+    $entry = entryOnInvoice($status);
+
+    $this->from('/timer')
+        ->delete("/entries/{$entry->id}")
+        ->assertRedirect('/timer')
+        ->assertSessionHasErrors('entry')
+        ->assertSessionHas('error');
+
+    expect(TimeEntry::find($entry->id))->not->toBeNull();
+})->with(['sent', 'paid']);
+
+test('entries on a draft invoice stay editable and deletable', function () {
+    $entry = entryOnInvoice('draft');
+
+    $this->patch("/entries/{$entry->id}", ['description' => 'Tidied up'])->assertSessionHasNoErrors();
+    expect($entry->fresh()->description)->toBe('Tidied up');
+
+    $this->delete("/entries/{$entry->id}")->assertSessionHasNoErrors();
+    expect(TimeEntry::find($entry->id))->toBeNull();
+});
