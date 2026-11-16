@@ -779,8 +779,12 @@ a { color: inherit; text-decoration: none; }
 .table tbody tr.is-overdue td:first-child { box-shadow: inset 3px 0 0 var(--red); }
 .table tbody tr.is-draft td { color: var(--ink-3); }
 .table tbody tr.is-draft td.subject { font-style: italic; }
-/* Settled rows recede: lighter ink, no fill. */
-.table tbody tr.is-paid td { color: var(--ink-3); }
+/* Open documents (sent, waiting for money or an answer) lead: amber edge, semibold subject. */
+.table tbody tr.is-sent td:first-child { box-shadow: inset 3px 0 0 var(--amber-fill); }
+.table tbody tr.is-sent td.subject { font-weight: 600; }
+/* Settled rows (paid, accepted, declined) recede: grey fill, lighter ink. */
+.table tbody tr.is-paid td { color: var(--ink-3); background: var(--paper-3); }
+.table tbody tr.is-paid:hover td { background: var(--paper-2); }
 
 .table tbody td.strong { color: var(--ink); font-weight: 600; }
 .table tbody td.num { text-align: right; font-size: 14px; color: var(--ink-2); }

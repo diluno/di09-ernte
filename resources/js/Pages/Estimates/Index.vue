@@ -46,7 +46,7 @@ const TABS = computed(() => [
 const rowStatus = (est) => est.expired ? 'expired' : est.status;
 // Row treatment from the shared table vocabulary: expired = red tint and bar
 // (like an overdue invoice), draft = muted, decided = quiet (like paid).
-const ROW_CLASS = { expired: 'is-overdue', draft: 'is-draft', accepted: 'is-paid', declined: 'is-paid' };
+const ROW_CLASS = { expired: 'is-overdue', draft: 'is-draft', sent: 'is-sent', accepted: 'is-paid', declined: 'is-paid' };
 </script>
 
 <template>
