@@ -12,6 +12,7 @@ import { pushRecent } from '@/composables/useRecent.js';
 import { usePendingAction } from '@/composables/usePendingAction.js';
 import { rowClick } from '@/composables/useRowLink.js';
 import { glyphClass } from '@/formatters/glyph.js';
+import GenerativeMark from '@/Components/GenerativeMark.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -147,7 +148,7 @@ function projectStatus(p) {
                   @click="rowClick($event, `/projects/${project.code}`)">
                 <td>
                   <div class="proj-cell">
-                    <span class="proj-glyph" :class="glyphClass(project.id)" aria-hidden="true">{{ project.code[0] }}</span>
+                    <span class="proj-glyph" :class="glyphClass(client.id)" aria-hidden="true">{{ project.code[0] }}</span>
                     <Link :href="`/projects/${project.code}`" class="row-link cell-trunc strong-link" :title="project.name">{{ project.name }}</Link>
                     <span class="code-dim">{{ project.code }}</span>
                   </div>
@@ -204,6 +205,7 @@ function projectStatus(p) {
     </div>
 
     <aside class="detail-side side-sections">
+      <GenerativeMark :seed="`client-${client.id}`" :width="560" :step="5" class="client-mark" :class="glyphClass(client.id)" />
       <section>
         <h3 class="section-title">Contacts</h3>
         <div v-for="c in client.contacts" :key="c.id" class="side-row">

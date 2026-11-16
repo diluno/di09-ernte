@@ -17,7 +17,7 @@ class TimerToday
         $entries = TimeEntry::query()
             ->where('user_id', $user->id)
             ->whereBetween('started_at', [$start, $end])
-            ->with(['project:id,name,code,rate_rappen', 'task:id,name', 'invoice:id,number,status'])
+            ->with(['project:id,client_id,name,code,rate_rappen', 'task:id,name', 'invoice:id,number,status'])
             ->orderBy('started_at')
             ->get();
 
@@ -59,6 +59,7 @@ class TimerToday
 
             return [
                 'project_id' => $first->project_id,
+                'client_id' => $first->project->client_id,
                 'name' => $first->project->name,
                 'code' => $first->project->code,
                 'seconds' => (int) $secs,
@@ -66,7 +67,7 @@ class TimerToday
         })->values()->all();
 
         $quickStart = Project::active()
-            ->select('id', 'name', 'code')
+            ->select('id', 'client_id', 'name', 'code')
             ->orderByDesc('updated_at')
             ->limit(4)
             ->get()

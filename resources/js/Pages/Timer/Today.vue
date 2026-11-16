@@ -154,7 +154,7 @@ function closeManual() {
             <span class="mono">{{ fmtHM(p.seconds) }}</span>
           </div>
           <div class="budget-bar timer-share" aria-hidden="true">
-            <div class="budget-fill" :style="{ width: `${totalShare(p.seconds)}%` }" />
+            <div class="budget-fill" :class="glyphClass(p.client_id ?? p.project_id)" :style="{ width: `${totalShare(p.seconds)}%` }" />
           </div>
         </div>
       </section>
@@ -168,7 +168,7 @@ function closeManual() {
           :aria-label="`Start timer on ${p.name}`"
           @click="startProject(p.id)"
         >
-          <span class="proj-glyph" :class="glyphClass(p.id)" aria-hidden="true">{{ p.code[0] }}</span>
+          <span class="proj-glyph" :class="glyphClass(p.client_id ?? p.id)" aria-hidden="true">{{ p.code[0] }}</span>
           <span class="cell-trunc">{{ p.name }}</span>
           <span class="timer-quick__go" aria-hidden="true">▶ start</span>
         </button>

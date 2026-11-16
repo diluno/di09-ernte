@@ -7,19 +7,19 @@
 /* Day navigation in .page-actions: ‹ [date] › as one joined control. */
 .day-nav { display: inline-flex; align-items: stretch; }
 .day-nav .btn.icon { min-height: 38px; font-size: 14px; }
-.day-nav .btn.icon:first-child { border-right: 0; }
-.day-nav .btn.icon:last-child { border-left: 0; }
+.day-nav .btn.icon:first-child { border-right: 0; border-radius: var(--radius) 0 0 var(--radius); }
+.day-nav .btn.icon:last-child { border-left: 0; border-radius: 0 var(--radius) var(--radius) 0; }
 .day-nav__date {
   width: auto;
   min-height: 0;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--border-strong);
   background: var(--paper);
   padding: 0 10px;
-  font-family: var(--font-mono);
-  font-size: 12px;
+  border-radius: 0;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
-.day-nav__date:focus { background: var(--paper); outline: 1px solid var(--ink); outline-offset: 2px; }
+.day-nav__date:focus { background: var(--paper); outline: 2px solid var(--brand-line); outline-offset: 2px; }
 
 /* Body: .detail-grid (main + 340px aside; stacks below 1100px). */
 .timer-grid { flex: 1 0 auto; border-bottom: 0; }
@@ -28,13 +28,13 @@
 .timer-side { display: flex; flex-direction: column; gap: 32px; }
 .timer-side .section-title,
 .timer-main .section-title { margin-bottom: 0; }
-.timer-side .side-row.split > :last-child { font-family: var(--font-mono); font-size: 13px; white-space: nowrap; }
+.timer-side .side-row.split > :last-child { font-variant-numeric: tabular-nums; font-size: 13px; white-space: nowrap; }
 .timer-side .side-row.is-total { font-weight: 600; }
 .timer-side .side-row.is-total > :last-child { font-size: 15px; font-weight: 600; }
 .timer-side .side-row .cell-trunc { flex: 1 1 auto; }
 .timer-proj { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .timer-proj .mono { font-size: 13px; white-space: nowrap; }
-.timer-share { margin-top: 8px; height: 4px; }
+.timer-share { margin-top: 8px; }
 .timer-quick {
   width: 100%;
   display: flex; align-items: center; gap: 10px;
@@ -42,9 +42,9 @@
   transition: background .12s;
 }
 .timer-quick:hover { background: var(--paper-2); }
-.timer-quick:focus-visible { outline: 1px solid var(--ink); outline-offset: -1px; }
-.timer-quick .proj-glyph { width: 14px; height: 14px; font-size: 8px; }
-.timer-quick__go { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
+.timer-quick:focus-visible { outline: 2px solid var(--brand-line); outline-offset: -1px; }
+.timer-quick .proj-glyph { width: 16px; height: 16px; font-size: 9px; }
+.timer-quick__go { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--ink-3); }
 .timer-quick:hover .timer-quick__go { color: var(--ink); }
 .timer-side .side-row .kbd { font-size: 11px; }
 
@@ -54,24 +54,23 @@
 .timer-form__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 20px; }
 .timer-form__foot .error { flex-basis: 100%; font-size: var(--fs-sm); }
 
-/* Running timer. The red dot is the only colour on the page. */
-.timer-hero { border: 1px solid var(--rule); background: var(--paper-2); padding: clamp(20px, 3vw, 28px); }
+/* Running timer: green while the clock is on. */
+.timer-hero { border: 1px solid var(--green); border-radius: var(--radius-lg); background: var(--green-bg); padding: clamp(20px, 3vw, 28px); }
 .timer-hero__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px; }
 .timer-hero__label {
   display: inline-flex; align-items: center; gap: 8px;
-  font-size: var(--fs-xs);
-  letter-spacing: var(--track-section);
-  text-transform: uppercase;
-  color: var(--ink-3);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--green);
 }
-.timer-hero__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex: 0 0 auto; }
-.timer-hero__since { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
+.timer-hero__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex: 0 0 auto; }
+.timer-hero__since { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--ink-2); }
 .timer-hero__desc { margin-top: 10px; font-size: var(--fs-lg); color: var(--ink); overflow-wrap: anywhere; }
 .timer-hero__desc.is-empty { color: var(--ink-3); font-style: italic; }
 /* 96px on a wide window, scaling down so HH:MM:SS fits a phone (≈ 3.4em wide). */
 .timer-display { font-size: clamp(52px, calc(4vw + 40px), 96px); margin-top: 20px; white-space: nowrap; }
 .timer-display .ms { font-size: .58em; }
-.timer-meta { flex-wrap: wrap; gap: 4px 0; font-family: var(--font-mono); font-size: 12px; }
+.timer-meta { flex-wrap: wrap; gap: 4px 0; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--ink-2); }
 .timer-meta .ascii-dot { margin: 0 8px; }
 .timer-hero__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
 .timer-hero__actions .btn.primary { min-width: 120px; justify-content: center; }
@@ -131,14 +130,14 @@
   min-height: 32px;
   padding: 5px 8px;
   border: 1px solid var(--border);
-  border-radius: 0;
-  background: var(--paper-2);
-  font-family: var(--font-mono);
+  border-radius: var(--radius);
+  background: var(--paper);
+  font-variant-numeric: tabular-nums;
   font-size: 13px;
   box-shadow: none;
 }
 .vat-table .cell-input:hover { border-color: var(--border-strong); }
-.vat-table .cell-input:focus { border-color: var(--ink); background: var(--paper); box-shadow: none; }
+.vat-table .cell-input:focus { border-color: var(--brand-line); background: var(--paper); box-shadow: 0 0 0 3px var(--brand-bg); }
 .vat-table .cell-input[aria-invalid="true"] { border-color: var(--red); }
 /* Never clip "8.10" next to the spin buttons, nor a date next to its picker. */
 .vat-table .cell-input[type="number"] { min-width: 96px; }
@@ -177,14 +176,15 @@
   gap: 10px;
   padding: 10px 6px 10px 14px;
   background: var(--paper);
-  border: 1px solid var(--rule);
-  box-shadow: 0 10px 24px rgba(20,18,16,.10);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
   font-size: var(--fs-sm);
   line-height: 1.45;
   color: var(--ink);
 }
-.flash.error { border-color: var(--red); box-shadow: inset 3px 0 0 var(--red), 0 10px 24px rgba(20,18,16,.10); }
-.flash-mark { flex: 0 0 auto; font-family: var(--font-mono); font-size: 12px; line-height: 1.6; color: var(--ink-3); }
+.flash.error { border-color: var(--red); box-shadow: inset 3px 0 0 var(--red), var(--shadow-pop); }
+.flash-mark { flex: 0 0 auto; font-variant-numeric: tabular-nums; font-size: 12px; line-height: 1.6; color: var(--ink-3); }
 .flash.error .flash-mark { color: var(--red); }
 .flash-msg { flex: 1 1 auto; min-width: 0; padding-top: 1px; overflow-wrap: anywhere; }
 .flash .btn.icon.sm { margin-top: -4px; flex: 0 0 auto; color: var(--ink-3); }
@@ -204,7 +204,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px var(--gutter);
-  background: var(--paper);
+  background: var(--paper-3);
   color: var(--ink);
 }
 .auth-card {
@@ -215,18 +215,21 @@
   max-width: 380px;
   padding: 28px 32px 32px;
   background: var(--sheet);
-  border: 1px solid var(--rule);
-  box-shadow: 0 1px 0 var(--border-strong), 0 14px 34px rgba(20,18,16,.08);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
 }
 .auth-brand {
   font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.01em;
-  padding-bottom: 12px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--rule);
+  display: flex; flex-direction: column; gap: 14px;
 }
+.auth-mark { width: 100%; color: var(--ink); }
 .auth-status { margin: 0; font-size: var(--fs-sm); color: var(--ink); }
 .auth-note { margin: 0; font-size: var(--fs-sm); line-height: 1.5; color: var(--ink-2); }
 .auth-submit { justify-content: center; width: 100%; }
-.auth-link { align-self: flex-start; font-size: var(--fs-sm); color: var(--ink-2); border-bottom: 1px solid var(--border-strong); }
-.auth-link:hover { color: var(--ink); border-bottom-color: var(--ink); }
+.auth-link { align-self: flex-start; font-size: var(--fs-sm); color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 3px; }
+.auth-link:hover { color: var(--ink); text-decoration-color: var(--ink); }

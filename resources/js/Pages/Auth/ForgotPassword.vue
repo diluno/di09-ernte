@@ -1,5 +1,6 @@
 <script setup>
 import GuestLayout from '@/Layouts/GuestLayout.vue';
+import GenerativeMark from '@/Components/GenerativeMark.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 
 defineProps({
@@ -22,7 +23,7 @@ const submit = () => {
         <Head title="Forgot password" />
 
         <form class="auth-card" @submit.prevent="submit">
-            <div class="auth-brand">ernte</div>
+            <div class="auth-brand"><GenerativeMark :seed="new Date().toISOString().slice(0, 10)" :width="520" :step="5" class="auth-mark" /><span>ernte</span></div>
 
             <p class="auth-note">Enter your email address and we will send you a link to choose a new password.</p>
 

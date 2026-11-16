@@ -3,7 +3,7 @@
 /* ─────────────────────── Lists (Projects/Index, Clients/Index) ─────────────────────── */
 /* Name cell: glyph, the row link (truncates), then a quiet code. */
 .proj-cell .strong-link { flex: 0 1 auto; min-width: 0; font-weight: 600; color: var(--ink); }
-.proj-cell .code-dim { flex: 0 0 auto; font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
+.proj-cell .code-dim { flex: 0 0 auto; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--ink-3); }
 .table tbody td .ink { color: var(--ink); }
 /* Fixed-layout tables: the name column absorbs the slack, so keep it from collapsing
    between 900 and ~1280px (the wrapper scrolls instead). */
@@ -32,7 +32,7 @@
 .pin-toggle:disabled .ico { color: inherit; }
 
 .detail-section + .detail-section { margin-top: 40px; }
-.section-title .count { margin-left: 8px; font-family: var(--font-mono); letter-spacing: 0; color: var(--ink-3); }
+.section-title .count { margin-left: 8px; font-variant-numeric: tabular-nums; letter-spacing: 0; color: var(--ink-3); }
 .section-empty { padding: 12px 0; font-size: var(--fs-sm); color: var(--ink-3); }
 
 /* Data tables inside .detail-main: bleed by the cell padding so the text lines up
@@ -48,16 +48,14 @@
 .side-row .k {
   flex: 0 0 auto;
   font-size: var(--fs-xs);
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
   color: var(--ink-3);
 }
 .side-row.is-flush { border-bottom: 0; }
 .side-row__line { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .side-row__block { display: block; }
 .side-text { margin: 0; white-space: pre-line; color: var(--ink-2); line-height: 1.55; overflow-wrap: anywhere; }
-.side-mail { color: inherit; border-bottom: 1px solid var(--border-strong); overflow-wrap: anywhere; }
-.side-mail:hover { color: var(--ink); border-bottom-color: var(--ink); }
+.side-mail { color: inherit; text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 3px; overflow-wrap: anywhere; }
+.side-mail:hover { color: var(--ink); text-decoration-color: var(--ink); }
 
 /* ─────────────────────── Tasks (TaskRow) ─────────────────────── */
 .task-list { container-type: inline-size; }
@@ -67,8 +65,8 @@
   font-size: var(--fs-md);
 }
 .task-row:hover { background: transparent; }
-.task-check { border-color: var(--ink); }
-.task-check:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
+.task-check { border-color: var(--border-strong); }
+.task-check:focus-visible { outline: 2px solid var(--brand-line); outline-offset: 2px; }
 .task-check .ico { font-size: 10px; }
 .task-name { min-width: 0; overflow-wrap: anywhere; }
 .task-num { font-size: 13px; color: var(--ink); white-space: nowrap; }
@@ -77,7 +75,7 @@
 .task-bar { height: 4px; background: var(--border); }
 .task-bar.is-empty { background: transparent; }
 .task-bar-fill { background: var(--ink); }
-.task-bar-fill.warn { background: var(--ink-3); }
+.task-bar-fill.warn { background: var(--amber-fill); }
 .task-bar-fill.over { background: var(--red); }
 @container (max-width: 520px) {
   .task-row { grid-template-columns: 14px minmax(0, 1fr) 100px 44px; }
@@ -93,10 +91,10 @@
 .note-input {
   min-height: 36px;
   border: 1px solid var(--border);
-  background: var(--paper-2);
+  background: var(--paper);
   padding: 7px 10px;
 }
-.note-input:focus { border-color: var(--ink); background: var(--paper); }
+.note-input:focus { border-color: var(--brand-line); background: var(--paper); }
 .note-input[aria-invalid="true"] { border-color: var(--red); }
 .note-compose__actions { display: flex; gap: 8px; }
 .notes > .error { display: block; margin: 0 0 6px; }
@@ -106,7 +104,7 @@
 .budget-cell { width: 100%; max-width: 240px; }
 .budget-cell .label > span:first-child { color: var(--ink-2); }
 .budget-cell .label .of { color: var(--ink-3); }
-.budget-bar { height: 4px; background: var(--border); }
+.budget-bar { height: 6px; }
 
 /* ─────────────────────── Heatmap ─────────────────────── */
 .heatmap { margin: 0; }
@@ -128,12 +126,10 @@
 }
 .contact-head > span {
   font-size: var(--fs-xs);
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
   color: var(--ink-3);
 }
 .contact-default { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); cursor: pointer; }
-.contact-default input { accent-color: var(--ink); margin: 0; }
+.contact-default input { accent-color: var(--brand-line); margin: 0; }
 .contact-remove .ico { font-size: 12px; }
 .btn.ghost.contact-remove:hover { color: var(--red); background: var(--red-bg); }
 .contact-err { display: block; margin-top: 4px; }

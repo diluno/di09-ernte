@@ -1,18 +1,23 @@
 # Ledger building blocks
 
-Shared classes in `resources/css/base.css` (tokens in `tokens.css`) for converting the remaining pages to the Ledger look. Reference pages: `Pages/Invoices/Index.vue`, `Pages/Invoices/Show.vue`. Values and type sizes: `design/ledger/README.md`.
+Shared classes in `resources/css/base.css` (tokens in `tokens.css`). Reference pages: `Pages/Invoices/Index.vue`, `Pages/Invoices/Show.vue`.
+
+The look was reworked on 2026-11-16: white sheet, Beausite only, sentence case, colour for the state of money. The class names and page structure below are unchanged; `README.md` and the `.dc.html` mocks in this folder describe the earlier cream/hairline look and are no longer the reference for values.
 
 Rules that hold everywhere:
 
-- Radius 0, hairlines only: `--rule` (ink) for structure, `--border` between rows/cells.
-- Red (`--red`, `.is-red`) means overdue, expired, needs attention, or destructive. Never "outstanding" or "open" money, and never a zero.
+- Controls (buttons, inputs, menus, cards) are rounded (`--radius`, `--radius-lg`); structure (tables, panes, rules) is square. Lines are light: `--border`, `--border-strong` for control outlines and table heads.
+- Colour is the state of money: green (`--green`) is paid, done or running, amber (`--amber`, `--amber-fill`) is sent or waiting, red (`--red`, `.is-red`) is overdue, expired, needs attention or destructive. Never red for "outstanding" or "open" money, and never for a zero.
+- Quantities are drawn as pixel blocks, matching the pixel icons: the invoice chart (`InvoiceBarChart.vue`, one block = a round CHF amount), the week bars (one block = 30 min) and budget/task bars (masked into 6px blocks).
+- Client tones: `glyphClass(clientId)` gives one of six `.tone-N` colours, shared by all of a client's projects (glyph squares, `.tone-dot` in the sidebar, the timer's by-project bars). They avoid green, amber and red.
+- One typeface. Numbers use Beausite's tabular figures (`font-variant-numeric: tabular-nums`); `--font-mono` is only for `.kbd` and `code`. No uppercase labels, no letter-spacing.
 - One `.btn.primary` per screen (page head *or* form footer, not both).
 - Horizontal padding is `var(--gutter)` (40px, 20px below 900px). Do not hard-code 40px or put `padding: 20px 28px` on wrappers.
 - No page-level `<style scoped>` copies of `.field`, `.input`, `.err`, `.badge`, `.btn.xs`. Delete them when converting a page.
 
 ## Page head
 
-Crumb, 64px title (it scales down on narrow windows), actions on the right. The actions wrap under the title when there is no room.
+Crumb, 30px title (24px on narrow windows), actions on the right. The actions wrap under the title when there is no room.
 
 ```html
 <div class="page-head">
@@ -45,7 +50,7 @@ The strip goes directly under the page head (or the filter/quarter bar), never i
 </div>
 ```
 
-`.val` is mono 40px. Put the currency in `.unit` and keep it out of the number. Only add `.is-red` conditionally, and only for overdue/expired counts above zero.
+`.val` is 26px semibold with tabular figures. Put the currency in `.unit` and keep it out of the number. Only add `.is-red` conditionally, and only for overdue/expired counts above zero.
 
 ## Filter row
 
@@ -98,20 +103,20 @@ const menuItems = computed(() => [
 ]);
 ```
 
-Props: `items` (falsy entries are skipped), `size` (`'md'` for 40px in `.page-actions`, `'sm'` for 28px in rows), `label` (accessible name, default "More actions"), `disabled` (disables the action items, e.g. while `usePendingAction` is pending). Item fields: `label`, `href` (Inertia link) or `action` (function), `danger`, `disabled`, `separator`. Keep the existing `window.confirm` copy inside the action functions.
+Props: `items` (falsy entries are skipped), `size` (`'md'` for 36px in `.page-actions`, `'sm'` for 28px in rows), `label` (accessible name, default "More actions"), `disabled` (disables the action items, e.g. while `usePendingAction` is pending). Item fields: `label`, `href` (Inertia link) or `action` (function), `danger`, `disabled`, `separator`. Keep the existing `window.confirm` copy inside the action functions.
 
 ## Buttons
 
 | Class | Use |
 |---|---|
-| `.btn` | Secondary action: ink outline, mono 12px |
-| `.btn.primary` | The one main action: solid ink |
+| `.btn` | Secondary action: grey outline, 13px semibold |
+| `.btn.primary` | The one main action: solid green |
 | `.btn.ghost` | Tertiary action, e.g. Cancel or "+ Add task": no border until hover |
 | `.btn.danger` | Destructive action outside a menu (rare; prefer a menu item with `danger: true`) |
 | `.btn.sm` | Compact size for any variant: table rows, ledger heads, inline toolbars |
-| `.btn.icon` / `.btn.icon.sm` | Square icon-only button, 40px or 28px; needs an `aria-label` |
+| `.btn.icon` / `.btn.icon.sm` | Square icon-only button, 36px or 28px; needs an `aria-label` |
 
-A disabled button of any variant is drawn as a grey outline with no fill, so a solid ink button is always enabled. Add a `title` that explains why the button is disabled. Do not use `.btn.xs` or inline `style="color: var(--red)"`.
+A disabled button of any variant is drawn as a grey outline with no fill, so a solid green button is always enabled. Add a `title` that explains why the button is disabled. Do not use `.btn.xs` or inline `style="color: var(--red)"`.
 
 ```html
 <button class="btn primary" :disabled="form.processing">Save</button>
@@ -121,10 +126,10 @@ A disabled button of any variant is drawn as a grey outline with no fill, so a s
 
 ## Status badges
 
-The status is shown as a mark plus an uppercase word, with no box. The colour comes from the status class.
+The status is shown as a mark plus a lowercase word, with no box. The mark carries the colour (`--badge-mark`); the word stays ink.
 
 ```html
-<span class="badge dot" :class="status">{{ status }}</span>   <!-- draft ○, sent ◐, paid ✓, overdue ● red -->
+<span class="badge dot" :class="status">{{ status }}</span>   <!-- draft ○, sent ◐ amber, paid ✓ green, overdue ● red -->
 <span class="badge dot paused">paused</span>                    <!-- ‖, muted -->
 <span class="mono-tag">auto-send</span>                         <!-- neutral boxed tag for a property, not a status -->
 ```
@@ -178,8 +183,8 @@ The page head has no primary button. The form body is limited to 980px wide and 
 ```
 
 - `.form-grid` has 2 columns. Use `.cols-3` for 3 columns. `.span-2` and `.span-all` widen a field. Below 760px the grid is one column.
-- Fields: `.field` > first `<span>` is the label (11px uppercase). Then comes the control: `.input`, `.select` (flat, with a chevron) or `.textarea` (resizable). `.input.num` is for right-aligned mono numbers. After the control comes `.hint` (help) and/or `.error` (red). Set `aria-invalid` to get a red border.
-- `.section-title` is the section heading (11px uppercase over an ink rule). A `<p class="hint">` directly under it serves as section intro text.
+- Fields: `.field` > first `<span>` is the label (13px). Then comes the control: `.input`, `.select` (flat, with a chevron) or `.textarea` (resizable). `.input.num` is for right-aligned mono numbers. After the control comes `.hint` (help) and/or `.error` (red). Set `aria-invalid` to get a red border.
+- `.section-title` is the section heading (15px semibold over a light rule). A `<p class="hint">` directly under it serves as section intro text.
 - `.settings-page` and `.settings-section` are older names for `.form-body` and `.form-section`. They have the same rules. Use the new names.
 
 ## Document editor (form with a summary aside)

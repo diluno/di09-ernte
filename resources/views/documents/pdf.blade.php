@@ -91,7 +91,7 @@
     @media screen {
       /* In-app preview: fit the 210mm sheet into the ~640px frame. */
       html { overflow-x: hidden; }
-      body { zoom: 0.78; background: #fbf9f4; }
+      body { zoom: 0.78; background: #ffffff; }
       .page + .page { border-top: 1px dashed #c9c2b3; }
     }
 

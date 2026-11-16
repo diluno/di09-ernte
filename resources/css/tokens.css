@@ -1,38 +1,56 @@
-/* Ledger palette — Swiss print: cream stock, hairline ink rules, one red. */
+/* White sheet, black type. --brand is the app's own colour (primary button, focus,
+   active marks); the state colours are separate and never change with it:
+   green = in (paid, running), amber = waiting (sent/open), red = late or destructive. */
 :root {
-  --paper: #f7f3ea;
-  --paper-2: #efe9dc;
-  --paper-3: #f1ece1;
-  --sheet: #fbf9f4;
-  --ink: #141210;
-  --ink-2: #5a554b;
-  --ink-3: #6e675b; /* was #7a7367 in the mock: 4.2:1 at 11–12px; this is AA on paper and on hover rows */
-  --ink-hover: #2e2b26;
-  --border: #e3dccd;
-  --border-strong: #c9c2b3;
-  --rule: var(--ink);
-  --red: #c8341f;
-  --red-bg: #f6e6e1;
+  --paper: #ffffff;
+  --paper-2: #f0f3ee;   /* hover, pressed, quiet fills */
+  --paper-3: #f7f8f5;   /* shell (topbar, sidebar), settled rows */
+  --sheet: #ffffff;
+  --ink: #17201a;
+  --ink-2: #47514a;
+  --ink-3: #66706a;     /* 5.0:1 on white, 4.6:1 on --paper-3 */
+  --ink-hover: #2c3830;
+  --border: #e4e7e1;
+  --border-strong: #c6ccc4;
+  --rule: var(--border); /* structural lines are as quiet as row lines */
+
+  --brand: #1c6b45;        /* fills */
+  --brand-hover: #155537;
+  --brand-ink: #ffffff;    /* text on a brand fill */
+  --brand-line: #1c6b45;   /* outlines, underlines, icons: must read on white */
+  --brand-bg: #e7f2eb;     /* focus halo, soft fills */
+
+  --green: #1c6b45;
+  --green-bg: #e7f2eb;
+  --amber: #9a5b00;
+  --amber-fill: #e0a02a; /* bars and swatches; --amber is the text-safe shade */
+  --amber-bg: #fbf1dc;
+  --red: #c4321f;
+  --red-bg: #fbeae7;
+
+  /* Controls are rounded, structure (tables, panes, rules) is square. */
+  --radius: 6px;
+  --radius-lg: 10px;
+  --shadow-pop: 0 1px 2px rgba(23,32,26,.06), 0 12px 32px rgba(23,32,26,.12);
 
   /* Page gutter (20px below 900px, see base.css) and shell metrics. */
   --gutter: 40px;
   --topbar-h: 52px;
 
-  --row-h: 46px;
+  --row-h: 44px;
   --pad-y: 10px;
   --pad-x: 12px;
 
-  --fs-xs: 11px;
+  --fs-xs: 12px;
   --fs-sm: 13px;
   --fs-md: 14px;
   --fs-lg: 15px;
-  --fs-xl: 64px;
-  --fs-stat: 40px;
-  --fs-week: 34px;
-  --track-label: .08em;
-  --track-th: .12em;
-  --track-section: .14em;
+  --fs-xl: 30px;
+  --fs-stat: 26px;
+  --fs-week: 24px;
 
-  --font-mono: 'Iosevka Aile', ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* One family. Beausite has tabular figures, so numbers align without a mono face;
+     --font-mono is only for keys and code. */
   --font-sans: 'Beausite', 'Helvetica Neue', Arial, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }

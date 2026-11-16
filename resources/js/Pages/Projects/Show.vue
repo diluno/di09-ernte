@@ -14,6 +14,7 @@ import { fmtMoney } from '@/formatters/money.js';
 import { fmtDate, toIsoDate } from '@/formatters/date.js';
 import { fmtHours } from '@/formatters/duration.js';
 import { glyphClass } from '@/formatters/glyph.js';
+import GenerativeMark from '@/Components/GenerativeMark.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -117,7 +118,7 @@ const statusMeta = computed(() => {
       </div>
       <h1 class="page-title">
         <span class="title-with-glyph">
-          <span class="proj-glyph proj-glyph--title" :class="glyphClass(project.id)" aria-hidden="true">{{ project.code[0] }}</span>
+          <span class="proj-glyph proj-glyph--title" :class="glyphClass(project.client?.id ?? project.id)" aria-hidden="true">{{ project.code[0] }}</span>
           <span>{{ project.name }}</span>
         </span>
         <span class="meta" :class="{ 'is-red': isOver }">{{ statusMeta }}</span>
@@ -195,6 +196,7 @@ const statusMeta = computed(() => {
     </div>
 
     <aside class="detail-side side-sections">
+      <GenerativeMark :seed="`client-${project.client.id}`" :width="560" :step="5" class="client-mark" :class="glyphClass(project.client.id)" />
       <section>
         <h3 class="section-title">Details</h3>
         <div class="side-row split"><span class="k">Client</span><Link :href="`/clients/${project.client.id}`" class="link-ink cell-trunc">{{ project.client.name }}</Link></div>

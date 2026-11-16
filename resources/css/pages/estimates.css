@@ -34,23 +34,21 @@
 }
 .estimate-ai-draft .error { margin: 8px 0 0; }
 
-/* Ledger line cells for the scope and assumptions editors. The shared
-   .cell-input still carries a 3px radius, --bg-2 and an --accent focus glow;
-   flatten it here (reported for base.css). */
+/* Line cells for the scope and assumptions editors. */
 .estimate-scope .cell-input,
 .estimate-assumptions .cell-input {
-  border-radius: 0;
-  background: var(--paper-2);
+  border-radius: var(--radius);
+  background: var(--paper);
   box-shadow: none;
   min-width: 0;
 }
 .estimate-scope .cell-input:focus,
 .estimate-assumptions .cell-input:focus {
-  border-color: var(--ink);
+  border-color: var(--brand-line);
   background: var(--paper);
-  box-shadow: none;
+  box-shadow: 0 0 0 3px var(--brand-bg);
 }
-.estimate-scope .cell-input.num { font-family: var(--font-mono); padding-left: 6px; padding-right: 6px; }
+.estimate-scope .cell-input.num { font-variant-numeric: tabular-nums; padding-left: 6px; padding-right: 6px; }
 /* No native spinners: they eat the width a value like 1250.00 needs. */
 .estimate-scope input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
 .estimate-scope input[type="number"]::-webkit-inner-spin-button,
@@ -62,11 +60,11 @@
 .estimate-scope__head {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
   padding: 10px 12px;
-  background: var(--paper-2);
+  background: var(--paper);
   border-bottom: 1px solid var(--border);
 }
 .estimate-scope__head .cell-input { background: var(--paper); border-color: var(--border); }
-.estimate-scope__head .cell-input:focus { border-color: var(--ink); }
+.estimate-scope__head .cell-input:focus { border-color: var(--brand-line); }
 .estimate-scope__label { flex: 1 1 160px; max-width: 240px; font-weight: 600; }
 .estimate-scope__title { flex: 999 1 200px; }
 .estimate-scope__head .line-actions { margin-left: auto; }
@@ -88,7 +86,7 @@
 .lines-card .estimate-scope__foot .add-line { flex: 1 1 auto; width: auto; border-top: 0; }
 .estimate-scope__subtotal {
   display: flex; align-items: center; padding: 0 12px;
-  font-family: var(--font-mono); font-size: 12px; color: var(--ink-3);
+  font-variant-numeric: tabular-nums; font-size: 12px; color: var(--ink-3);
   white-space: nowrap;
 }
 

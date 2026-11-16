@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import GenerativeMark from '@/Components/GenerativeMark.vue';
 import ActionMenu from '@/Components/ActionMenu.vue';
 import { fmtDate, parseDate } from '@/formatters/date.js';
 import { fmtMoney } from '@/formatters/money.js';
@@ -78,6 +79,7 @@ function otherYear(iso) {
   </div>
 
   <div v-if="!schedules.length" class="empty-state">
+    <GenerativeMark seed="recurringinvoices" :width="520" :step="5" class="empty-state__mark" />
     <h2 class="empty-state__title">No recurring schedules yet</h2>
     <p>Bill retainers, hosting or maintenance automatically every month, quarter or year.</p>
     <div class="empty-state__actions"><Link href="/recurring-invoices/new" class="btn primary">New schedule</Link></div>

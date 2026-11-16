@@ -4,6 +4,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import WeekBars from '@/Components/WeekBars.vue';
 import Icon from '@/Components/Icon.vue';
 import { fmtHours } from '@/formatters/duration.js';
+import { glyphClass } from '@/formatters/glyph.js';
 
 // Narrow windows: the sidebar is an off-canvas drawer and `open` reflects its state.
 // Any link click inside it asks the layout to close it (also for the current page,
@@ -65,6 +66,7 @@ const weekTotal = computed(() => sidebar.value.week_hours.reduce((a, h) => a + h
       :href="`/projects/${p.code}`"
       class="pin-row"
     >
+      <span class="tone-dot" :class="glyphClass(p.client_id ?? p.id)" aria-hidden="true" />
       <span class="cell-trunc" style="flex: 1">{{ p.name }}</span>
     </Link>
 

@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import GenerativeMark from '@/Components/GenerativeMark.vue';
 import Sparkline from '@/Components/Sparkline.vue';
 import ActionMenu from '@/Components/ActionMenu.vue';
 import { fmtMoney } from '@/formatters/money.js';
@@ -69,6 +70,7 @@ function itemsFor(c) {
   </div>
 
   <div v-if="clients.length === 0" class="empty-state">
+    <GenerativeMark seed="clients" :width="520" :step="5" class="empty-state__mark" />
     <h2 class="empty-state__title">No clients yet</h2>
     <p>Add a client with its address and contacts, then create projects and invoices for it.</p>
     <div class="empty-state__actions"><Link href="/clients/create" class="btn primary">+ New client</Link></div>

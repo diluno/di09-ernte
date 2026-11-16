@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { usePage, Link } from '@inertiajs/vue3';
 import RunningTimerChip from '@/Components/RunningTimerChip.vue';
 import Icon from '@/Components/Icon.vue';
+import GenerativeMark from '@/Components/GenerativeMark.vue';
 
 defineProps({
   // Narrow windows only: state of the off-canvas sidebar (the toggle is hidden on desktop).
@@ -12,6 +13,9 @@ defineProps({
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const businessName = computed(() => (page.props.business?.name || '').toLowerCase());
+// The mark spells "diluno", so it only stands in for that business name. A new one every day.
+const showMark = computed(() => businessName.value.includes('diluno'));
+const today = new Date().toISOString().slice(0, 10);
 
 defineEmits(['open-command', 'toggle-nav']);
 </script>
@@ -31,7 +35,12 @@ defineEmits(['open-command', 'toggle-nav']);
     <Link href="/projects" class="wordmark">
       <Icon name="leaf" class="wordmark-mark" />
       <span>ernte</span>
-      <span v-if="businessName" class="biz">/ {{ businessName }}</span>
+      <template v-if="showMark">
+        <span class="biz" aria-hidden="true">/</span>
+        <GenerativeMark :seed="today" :width="440" :step="9" :stroke="0.8" class="wordmark-gen" />
+        <span class="sr-only">{{ businessName }}</span>
+      </template>
+      <span v-else-if="businessName" class="biz">/ {{ businessName }}</span>
     </Link>
     <div class="topbar-spacer" />
     <button class="cmdk" title="Command palette" aria-label="Jump to…" @click="$emit('open-command')">

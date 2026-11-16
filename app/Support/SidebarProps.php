@@ -60,9 +60,10 @@ class SidebarProps
         return Project::active()
             ->pinned()
             ->orderBy('name')
-            ->get(['id', 'name', 'code'])
+            ->get(['id', 'client_id', 'name', 'code'])
             ->map(fn ($p) => [
                 'id' => $p->id,
+                'client_id' => $p->client_id,
                 'name' => $p->name,
                 'code' => $p->code,
             ])

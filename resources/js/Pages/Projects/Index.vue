@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import GenerativeMark from '@/Components/GenerativeMark.vue';
 import BudgetBar from '@/Components/BudgetBar.vue';
 import { fmtMoney } from '@/formatters/money.js';
 import { fmtHours } from '@/formatters/duration.js';
@@ -66,6 +67,7 @@ function status(p) {
   </div>
 
   <div v-if="counts.all === 0" class="empty-state">
+    <GenerativeMark seed="projects" :width="520" :step="5" class="empty-state__mark" />
     <h2 class="empty-state__title">No projects yet</h2>
     <p>A project holds the tasks, time and budget you bill a client for.</p>
     <div class="empty-state__actions"><Link href="/projects/create" class="btn primary">+ New project</Link></div>
@@ -122,7 +124,7 @@ function status(p) {
               @click="rowClick($event, url(p))">
             <td class="pad-l">
               <div class="proj-cell">
-                <span class="proj-glyph" :class="glyphClass(p.id)" aria-hidden="true">{{ p.code[0] }}</span>
+                <span class="proj-glyph" :class="glyphClass(p.client?.id ?? p.id)" aria-hidden="true">{{ p.code[0] }}</span>
                 <Link :href="url(p)" class="row-link cell-trunc strong-link" :title="p.name">{{ p.name }}</Link>
                 <span class="code-dim">{{ p.code }}</span>
               </div>

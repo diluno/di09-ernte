@@ -1,16 +1,16 @@
 # ernte review and fixes — November 2026
 
-Review date: 2026-11-10. Fixes applied 2026-11-10/11 on branch `review-fixes` (uncommitted at time of writing). Continued 2026-11-11: loose ends, browser checks, phase 2 — see Part 4.
+Review date: 2026-11-10. Fixes applied 2026-11-10/11 on branch `review-fixes` (uncommitted at time of writing). Continued 2026-11-11: loose ends, browser checks, phase 2 — see Part 4. Merged to `main` and deployed 2026-11-11 (`abe60e2`, backup fix `d06a6cf`); the after-deploy steps in 2.6 are done.
 Previous review: `PROJECT_REVIEW.md` (2026-09-08).
 
 ## Status at a glance
 
 | Area | State |
 | --- | --- |
-| Phase 1: correctness fixes (billing, receipts/banking/ops, frontend behaviour) | Done, uncommitted |
+| Phase 1: correctness fixes (billing, receipts/banking/ops, frontend behaviour) | Done, deployed |
 | Phase 1 loose ends (2.4) | Done, except the period-change item (left open on purpose) |
 | Browser check of the fixes (2.5) | Done 2026-11-11, except the password change (not clicked) |
-| Phase 2: ledger redesign port + narrow-window layout | Done 2026-11-11, uncommitted (see Part 4) |
+| Phase 2: ledger redesign port + narrow-window layout | Done 2026-11-11, deployed (see Part 4) |
 | Symfony/Laravel security updates, Sail removal, parallel-test DB permission | Done (`composer audit` clean) |
 | Pint | **Not started** (run as its own commit once this is committed) |
 | Full test suite | 921 passed, 0 failed (serial and `--parallel`) |
@@ -218,6 +218,8 @@ Housekeeping to do alongside: run Pint as its own commit, `composer update` for 
 - Linked time on an invoice without a project showed "—"; it now names the entries' project when they share one, else "Several projects".
 - An estimate counted as expired on its last valid day in the model but not in the list filter; both now use "valid through its last day".
 - Visually hidden labels (`.sr-only`) inside scroll boxes made the page scroll sideways (recurring list, VAT rates at 500px) and 54px taller than the window (New invoice). Scroll boxes are now their containing block.
+
+- After the deploy every backup failed verification with "holds 0 file(s)": PHP resolves the symlinked release `storage` path inside `phar://` paths, so the verifier's prefix comparison never matched. Fixed in `BackupVerifier::countFiles` (`d06a6cf`); confirmed by a successful `ernte:backup` on the server. The local test does not reproduce the server behaviour.
 
 ### 4.2 Behaviour changes from today
 
