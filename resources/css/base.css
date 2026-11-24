@@ -801,6 +801,17 @@ a { color: inherit; text-decoration: none; }
 /* "Nothing here" row spanning the table: <td :colspan="n" class="is-empty">. */
 .table tbody td.is-empty { height: auto; padding: 24px var(--gutter); color: var(--ink-3); cursor: default; }
 .table tbody tr:hover td.is-empty { background: transparent; }
+/* Group heading inside a list, e.g. the year on the invoices list: <tr class="year-row"><th colspan="n">. */
+.table tbody tr.year-row th {
+  padding-top: 22px; padding-bottom: 8px;
+  text-align: left;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  background: var(--paper);
+  border-bottom: 1px solid var(--border-strong);
+}
 /* Trailing cell holding row actions (an ActionMenu or .btn.sm buttons). */
 .table td.row-actions, .table th.row-actions { width: 64px; text-align: right; white-space: nowrap; padding-right: var(--gutter); }
 .table td.row-actions > * + * { margin-left: 6px; }

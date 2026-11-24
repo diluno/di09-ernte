@@ -76,6 +76,20 @@ test('GET /invoices?chart_year=2025 returns chart data for that year', function 
         );
 });
 
+test('GET /invoices rows carry the year they sort under (issue date, else creation date)', function () {
+    Invoice::factory()->create(['client_id' => $this->client->id, 'number' => '2025-009',
+        'status' => 'paid', 'issued_on' => '2025-12-30']);
+    $this->travelTo('2026-02-03 10:00:00');
+    Invoice::factory()->create(['client_id' => $this->client->id, 'number' => '2026-001', 'status' => 'draft']);
+
+    $this->get('/invoices')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('invoices.data.0.number', '2026-001')
+            ->where('invoices.data.0.year', 2026)
+            ->where('invoices.data.1.number', '2025-009')
+            ->where('invoices.data.1.year', 2025));
+});
+
 test('GET /invoices?filter=overdue narrows to past-due sent invoices', function () {
     Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent', 'due_on' => now()->subDay()->toDateString()]);
     Invoice::factory()->create(['client_id' => $this->client->id, 'status' => 'sent', 'due_on' => now()->addDay()->toDateString()]);

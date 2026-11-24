@@ -152,7 +152,11 @@ const rowStatus = (inv) => inv.overdue ? 'overdue' : inv.status;
         </tr>
       </thead>
       <tbody>
-        <tr v-for="inv in invoices.data" :key="inv.id"
+        <template v-for="(inv, i) in invoices.data" :key="inv.id">
+        <tr v-if="i === 0 || inv.year !== invoices.data[i - 1].year" class="year-row">
+          <th colspan="8" scope="colgroup" class="pad-l pad-r">{{ inv.year }}</th>
+        </tr>
+        <tr
             class="is-clickable" :class="`is-${rowStatus(inv)}`"
             @click="rowClick($event, `/invoices/${inv.number}`)">
           <td class="pad-l code"><Link :href="`/invoices/${inv.number}`" class="row-link" :aria-label="`Invoice ${inv.number}${inv.title ? ` — ${inv.title}` : ''}`">{{ inv.number }}</Link></td>
@@ -164,6 +168,7 @@ const rowStatus = (inv) => inv.overdue ? 'overdue' : inv.status;
           <td class="money">{{ fmtMoney(inv.total) }}</td>
           <td class="pad-r"><span class="badge dot" :class="rowStatus(inv)">{{ rowStatus(inv) }}</span></td>
         </tr>
+        </template>
         <tr v-if="invoices.data.length === 0">
           <td colspan="8" class="is-empty">No invoices match this filter.</td>
         </tr>
