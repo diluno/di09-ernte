@@ -215,6 +215,41 @@ test('GET /projects/{code} renders Projects/Show with overview payload', functio
         );
 });
 
+test('Projects/Show payload reports unbilled time and the invoices that concern the project', function () {
+    $user = User::factory()->create();
+    $client = Client::factory()->create();
+    $project = Project::factory()->create(['client_id' => $client->id, 'billable' => true, 'rate_rappen' => 15000]);
+    $other = Project::factory()->create(['client_id' => $client->id]);
+
+    $forProject = \App\Models\Invoice::factory()->sent()->create([
+        'client_id' => $client->id, 'project_id' => $project->id, 'number' => '2026-201', 'total_rappen' => 30000,
+    ]);
+    $viaEntries = \App\Models\Invoice::factory()->create(['client_id' => $client->id, 'number' => '2026-202']);
+    \App\Models\Invoice::factory()->create(['client_id' => $client->id, 'project_id' => $other->id, 'number' => '2026-203']);
+
+    $entry = fn (array $attrs) => TimeEntry::create([
+        'user_id' => $user->id, 'project_id' => $project->id, 'description' => 'work',
+        'started_at' => now()->subHours(3), 'ended_at' => now()->subHour(), 'billable' => true,
+        ...$attrs,
+    ]);
+    $entry([]);                                  // 2h unbilled
+    $entry(['billable' => false]);               // not billable
+    $entry(['invoice_id' => $viaEntries->id]);   // already invoiced
+
+    $this->actingAs($user)->get("/projects/{$project->code}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('project.unbilled_hours', fn ($v) => (float) $v === 2.0)
+            ->where('project.unbilled_amount', fn ($v) => (float) $v === 300.0)
+            ->has('invoices', 2)
+            ->where('invoices.0.number', '2026-202')
+            ->where('invoices.1.number', '2026-201')
+            ->where('invoices.1.status', 'sent')
+            ->where('invoices.1.url', '/invoices/2026-201')
+            ->where('invoices.1.total', fn ($v) => (float) $v === 300.0)
+        );
+});
+
 test('GET /projects/UNKNOWN 404s', function () {
     $user = User::factory()->create();
     $this->actingAs($user)->get('/projects/UNKNOWN')->assertNotFound();

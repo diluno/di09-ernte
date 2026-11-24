@@ -10,6 +10,7 @@ import Icon from '@/Components/Icon.vue';
 import ActionMenu from '@/Components/ActionMenu.vue';
 import { pushRecent } from '@/composables/useRecent.js';
 import { usePendingAction } from '@/composables/usePendingAction.js';
+import { rowClick } from '@/composables/useRowLink.js';
 import { fmtMoney } from '@/formatters/money.js';
 import { fmtDate, toIsoDate } from '@/formatters/date.js';
 import { fmtHours } from '@/formatters/duration.js';
@@ -23,6 +24,7 @@ const props = defineProps({
   tasks:   { type: Array,  required: true },
   recent_entries: { type: Array, required: true },
   notes:   { type: Array,  required: true },
+  invoices: { type: Array, required: true },
   heatmap: { type: Array, required: true },
   counts:  { type: Object, required: true },
 });
@@ -97,9 +99,16 @@ const rateText = computed(() => {
   return props.project.rate > 0 ? `CHF ${fmtMoney(props.project.rate)}/h` : 'no rate set';
 });
 const feesFoot = computed(() => {
+  if (!props.project.billable) return rateText.value;
+  if (props.project.unbilled_hours > 0) {
+    return `${fmtHours(props.project.unbilled_hours)} unbilled · CHF ${tile(props.project.unbilled_amount)}`;
+  }
+  if (props.project.spent_hours > 0) return 'nothing unbilled';
   if (props.project.budget_amount > 0) return `of ${tile(props.project.budget_amount)} CHF budget`;
   return props.project.billable && props.project.rate > 0 ? `at ${rateText.value}` : rateText.value;
 });
+
+const invoiceStatus = (inv) => inv.overdue ? 'overdue' : inv.status;
 
 const statusMeta = computed(() => {
   if (isArchived.value) return '● archived';
@@ -186,6 +195,35 @@ const statusMeta = computed(() => {
       <section class="detail-section">
         <h2 class="section-title">Notes <span v-if="counts.notes" class="count">{{ counts.notes }}</span></h2>
         <ProjectNotes :project-code="project.code" :notes="notes" />
+      </section>
+
+      <section class="detail-section">
+        <h2 class="section-title">Invoices <span v-if="invoices.length" class="count">latest {{ invoices.length }}</span></h2>
+        <div v-if="invoices.length" class="table-wrap detail-table">
+          <table class="table table--docs">
+            <thead>
+              <tr>
+                <th style="width: 120px">No.</th>
+                <th class="num">Issued</th>
+                <th class="num">Due</th>
+                <th class="num" style="width: 80px">Hours</th>
+                <th class="num" style="width: 130px">CHF</th>
+                <th style="width: 120px">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="invoice in invoices" :key="invoice.id" class="is-clickable" :class="`is-${invoiceStatus(invoice)}`" @click="rowClick($event, invoice.url)">
+                <td class="code"><Link :href="invoice.url" class="row-link" :aria-label="`Invoice ${invoice.number}`">{{ invoice.number }}</Link></td>
+                <td class="num">{{ fmtDate(invoice.issued_on) }}</td>
+                <td class="num" :class="{ 'is-red': invoice.overdue }">{{ fmtDate(invoice.due_on) }}</td>
+                <td class="num">{{ fmtHours(invoice.hours) }}</td>
+                <td class="money">{{ fmtMoney(invoice.total) }}</td>
+                <td><span class="badge dot" :class="invoiceStatus(invoice)">{{ invoiceStatus(invoice) }}</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-else class="section-empty">No invoices yet.</div>
       </section>
 
       <section class="detail-section">

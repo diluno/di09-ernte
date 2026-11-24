@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Invoice;
 use App\Models\Project;
 use App\Models\ProjectNote;
 use App\Models\Task;
@@ -23,6 +24,14 @@ class ProjectDetail
         $pct = $project->budget_hours > 0 ? (int) round(($hours / $project->budget_hours) * 100) : 0;
         $band = $pct > 100 ? 'over' : ($pct >= 85 ? 'warn' : 'ok');
 
+        // Unbilled = billable, not yet invoiced time, valued at the project's rate.
+        $unbilledSecs = (int) TimeEntry::query()
+            ->where('project_id', $project->id)
+            ->whereNull('invoice_id')
+            ->where('billable', true)
+            ->selectRaw('COALESCE(SUM('.EntryDuration::secondsSql().'), 0) AS s')
+            ->value('s');
+
         return [
             'project' => [
                 'id' => $project->id,
@@ -40,6 +49,8 @@ class ProjectDetail
                 'spent_amount' => round($amount / 100, 2),
                 'pct_hours' => $pct,
                 'band' => $band,
+                'unbilled_hours' => round($unbilledSecs / 3600, 1),
+                'unbilled_amount' => round($unbilledSecs * (int) $project->rate_rappen / 3600 / 100, 2),
                 'started_on' => $project->started_on?->toDateString(),
                 'deadline_on' => $project->deadline_on?->toDateString(),
                 'client' => [
@@ -50,6 +61,7 @@ class ProjectDetail
             'tasks' => self::tasks($project),
             'recent_entries' => self::recentEntries($project, limit: 8),
             'notes' => self::notes($project),
+            'invoices' => self::invoices($project, limit: 8),
             'heatmap' => self::heatmap($project),
             'counts' => [
                 'entries' => TimeEntry::where('project_id', $project->id)->count(),
@@ -103,6 +115,35 @@ class ProjectDetail
                 'duration_seconds' => $e->duration_seconds,
                 'billable' => (bool) $e->billable,
                 'running' => $e->ended_at === null,
+            ])
+            ->all();
+    }
+
+    /**
+     * Latest invoices that concern this project: created for it, or billing
+     * some of its time (a client-wide invoice can cover several projects, so
+     * hours and total are the whole invoice's).
+     */
+    private static function invoices(Project $project, int $limit): array
+    {
+        return Invoice::query()
+            ->where(fn ($q) => $q
+                ->where('project_id', $project->id)
+                ->orWhereHas('timeEntries', fn ($e) => $e->where('project_id', $project->id)))
+            ->with('lines:id,invoice_id,hours')
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get()
+            ->map(fn (Invoice $invoice) => [
+                'id' => $invoice->id,
+                'number' => $invoice->number,
+                'status' => $invoice->status,
+                'overdue' => $invoice->overdue,
+                'issued_on' => $invoice->issued_on?->toDateString(),
+                'due_on' => $invoice->due_on?->toDateString(),
+                'hours' => round((float) $invoice->lines->sum('hours'), 1),
+                'total' => round($invoice->total_rappen / 100, 2),
+                'url' => "/invoices/{$invoice->number}",
             ])
             ->all();
     }
