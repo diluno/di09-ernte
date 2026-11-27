@@ -97,7 +97,7 @@ class InvoiceController extends Controller
             'period' => ['start' => $start->toDateString(), 'end' => $end->toDateString()],
             'entries' => $entries->map(fn (TimeEntry $e) => [
                 'id' => $e->id,
-                'description' => $e->description !== '' ? $e->description : ($e->task_id ? ('Task #'.$e->task_id) : ('Entry #'.$e->id)),
+                'description' => $e->invoiceLabel(),
                 'project' => ['id' => $e->project->id, 'name' => $e->project->name, 'code' => $e->project->code],
                 'hours' => round($e->duration_seconds / 3600, 2),
                 'duration_seconds' => $e->duration_seconds,

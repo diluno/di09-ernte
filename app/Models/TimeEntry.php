@@ -47,6 +47,21 @@ class TimeEntry extends Model
             && $this->invoice->status !== 'draft';
     }
 
+    /**
+     * What the entry is called on an invoice line: its description, or — when
+     * it has none — its task reference, or the day it was tracked.
+     */
+    public function invoiceLabel(): string
+    {
+        if ((string) $this->description !== '') {
+            return $this->description;
+        }
+
+        return $this->task_id
+            ? 'Task #'.$this->task_id
+            : $this->started_at->format('d.m.Y');
+    }
+
     public function getRunningAttribute(): bool
     {
         return $this->ended_at === null;

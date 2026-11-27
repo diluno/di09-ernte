@@ -98,25 +98,17 @@ class InvoiceBuilder
             ->when($project, fn ($c) => $c->filter(fn (TimeEntry $e) => $e->project_id === $project->id))
             ->values();
 
-        $groups = $eligible->groupBy(function (TimeEntry $entry) {
-            $description = $entry->description !== ''
-                ? $entry->description
-                : ($entry->task_id ? ('Task #'.$entry->task_id) : ('Entry #'.$entry->id));
-
-            return implode('|', [
-                $entry->project_id,
-                (int) ($entry->project->rate_rappen ?? 0),
-                $description,
-            ]);
-        });
+        $groups = $eligible->groupBy(fn (TimeEntry $entry) => implode('|', [
+            $entry->project_id,
+            (int) ($entry->project->rate_rappen ?? 0),
+            $entry->invoiceLabel(),
+        ]));
 
         $lines = [];
         foreach ($groups as $bucket) {
             /** @var Collection<int, TimeEntry> $bucket */
             $first = $bucket->first();
-            $description = $first->description !== ''
-                ? $first->description
-                : ($first->task_id ? ('Task #'.$first->task_id) : ('Entry #'.$first->id));
+            $description = $first->invoiceLabel();
             $hours = round($bucket->sum(fn (TimeEntry $e) => $e->duration_seconds / 3600), 2);
             $rate = (int) ($first->project->rate_rappen ?? 0);
             $lines[] = [

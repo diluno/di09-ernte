@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Models\User;
 use App\Services\Invoicing\InvoiceBuilder;
+use Illuminate\Support\Carbon;
 
 beforeEach(function () {
     BusinessProfile::create([
@@ -225,24 +226,22 @@ test('createDraft persists submitted lines and recomputes amounts', function () 
     expect($invoice->events()->where('kind', 'created')->count())->toBe(1);
 });
 
-test('suggestLinesFromEntries keeps no-description no-task entries as separate lines', function () {
-    $start = now()->subDays(2);
-    $e1 = TimeEntry::factory()->create([
+test('suggestLinesFromEntries labels no-description no-task entries with their date, one line per day', function () {
+    $blank = fn (string $start, int $minutes) => TimeEntry::factory()->create([
         'user_id' => $this->user->id, 'project_id' => $this->project->id,
         'description' => '', 'task_id' => null,
-        'started_at' => $start, 'ended_at' => (clone $start)->addMinutes(60), 'billable' => true,
+        'started_at' => $start, 'ended_at' => Carbon::parse($start)->addMinutes($minutes), 'billable' => true,
     ]);
-    $e2 = TimeEntry::factory()->create([
-        'user_id' => $this->user->id, 'project_id' => $this->project->id,
-        'description' => '', 'task_id' => null,
-        'started_at' => $start, 'ended_at' => (clone $start)->addMinutes(30), 'billable' => true,
-    ]);
+    $e1 = $blank('2026-03-04 09:00:00', 60);
+    $e2 = $blank('2026-03-04 14:00:00', 30);
+    $e3 = $blank('2026-03-05 09:00:00', 45);
 
-    $lines = $this->svc->suggestLinesFromEntries(TimeEntry::all(), $this->project);
+    $lines = collect($this->svc->suggestLinesFromEntries(TimeEntry::all(), $this->project))->keyBy('description');
 
-    expect($lines)->toHaveCount(2);
-    expect(collect($lines)->pluck('entry_ids')->flatten()->all())
-        ->toEqualCanonicalizing([$e1->id, $e2->id]);
+    expect($lines->keys()->all())->toBe(['04.03.2026', '05.03.2026']);
+    expect($lines['04.03.2026']['hours'])->toBe(1.5);
+    expect($lines['04.03.2026']['entry_ids'])->toEqualCanonicalizing([$e1->id, $e2->id]);
+    expect($lines['05.03.2026']['entry_ids'])->toBe([$e3->id]);
 });
 
 test('createDraft ignores client-submitted amount_rappen (anti-tamper)', function () {
