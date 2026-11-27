@@ -45,6 +45,8 @@ class EstimateProjections
                 'id' => $e->id,
                 'number' => $e->number,
                 'title' => $e->title,
+                // What the document itself is headed when it has no title ("Offerte 2026-007").
+                'document_title' => $e->title ?: __('documents.estimate', [], $e->locale ?? DocumentLocale::DEFAULT).' '.$e->number,
                 'status' => $e->status,
                 'expired' => $e->expired,
                 'issued_on' => $e->issued_on?->toDateString(),

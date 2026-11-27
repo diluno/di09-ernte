@@ -46,6 +46,8 @@ class InvoiceProjections
             'id' => $i->id,
             'number' => $i->number,
             'title' => $i->title,
+            // What the document itself is headed when it has no title ("Rechnung 2026-033").
+            'document_title' => $i->title ?: __('documents.invoice', [], $i->locale ?? DocumentLocale::DEFAULT).' '.$i->number,
             'status' => $i->status,
             'overdue' => $i->overdue,
             'issued_on' => $i->issued_on?->toDateString(),

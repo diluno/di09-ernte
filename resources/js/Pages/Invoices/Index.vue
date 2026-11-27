@@ -160,7 +160,7 @@ const rowStatus = (inv) => inv.overdue ? 'overdue' : inv.status;
             class="is-clickable" :class="`is-${rowStatus(inv)}`"
             @click="rowClick($event, `/invoices/${inv.number}`)">
           <td class="pad-l code"><Link :href="`/invoices/${inv.number}`" class="row-link" :aria-label="`Invoice ${inv.number}${inv.title ? ` — ${inv.title}` : ''}`">{{ inv.number }}</Link></td>
-          <td class="subject" :title="inv.title || undefined">{{ inv.title || '—' }}</td>
+          <td class="subject" :title="inv.document_title">{{ inv.document_title }}</td>
           <td class="trunc" :title="inv.client.name">{{ inv.client.name }}</td>
           <td class="num">{{ fmtDate(inv.issued_on) }}</td>
           <td class="num" :class="{ 'is-red': inv.overdue }">{{ fmtDate(inv.due_on) }}</td>

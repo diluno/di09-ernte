@@ -119,7 +119,7 @@ const ROW_CLASS = { expired: 'is-overdue', draft: 'is-draft', sent: 'is-sent', a
             class="is-clickable" :class="ROW_CLASS[rowStatus(est)]"
             @click="rowClick($event, `/estimates/${est.number}`)">
           <td class="pad-l code"><Link :href="`/estimates/${est.number}`" class="row-link" :aria-label="`Estimate ${est.number}${est.title ? ` — ${est.title}` : ''}`">{{ est.number }}</Link></td>
-          <td class="subject" :title="est.title || undefined">{{ est.title || '—' }}</td>
+          <td class="subject" :title="est.document_title">{{ est.document_title }}</td>
           <td class="trunc" :title="est.client.name">{{ est.client.name }}</td>
           <td class="num">{{ fmtDate(est.issued_on) }}</td>
           <td class="num" :class="{ 'is-red': est.expired }">{{ fmtDate(est.valid_until) }}</td>
